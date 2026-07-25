@@ -47,6 +47,75 @@ def command_exists?(cmd)
   end
 end
 
+# Helper to check if bwrap can set up unprivileged user namespaces and prompt to fix via AppArmor
+def verify_bwrap_userns_support
+  require 'open3'
+  test_cmd = ["bwrap", "--ro-bind", "/", "/", "true"]
+  _out, err_str, status = Open3.capture3(*test_cmd)
+
+  return if status.success?
+
+  STDERR.puts "Error: bubblewrap ('bwrap') cannot set up user namespaces."
+  if !err_str.strip.empty?
+    STDERR.puts "Detail: #{err_str.strip}"
+  end
+  STDERR.puts ""
+  STDERR.puts "Cause: AppArmor or kernel sysctl restricts unprivileged user namespaces on this system."
+  STDERR.puts "Solution (Option 2): Create an AppArmor profile for bubblewrap to allow unprivileged userns."
+  STDERR.puts ""
+
+  bwrap_path = `which bwrap`.strip
+  bwrap_path = "/usr/bin/bwrap" if bwrap_path.empty?
+
+  profile_path = "/etc/apparmor.d/bwrap"
+  profile_content = <<~APPARMOR
+    # AppArmor profile for bubblewrap sandbox
+    abi <abi/4.0>,
+    include <tunables/global>
+
+    profile bwrap #{bwrap_path} flags=(unconfined) {
+      userns,
+
+      include if exists <local/bwrap>
+    }
+  APPARMOR
+
+  if STDIN.tty?
+    print "Would you like to automatically apply this fix now using sudo? [y/N]: "
+    response = STDIN.gets&.strip&.downcase
+    if response == "y" || response == "yes"
+      puts "\nApplying AppArmor profile..."
+      tmp_file = "/tmp/bwrap_apparmor_profile.tmp"
+      File.write(tmp_file, profile_content)
+
+      success = system("sudo cp #{tmp_file} #{profile_path} && sudo apparmor_parser -r #{profile_path}")
+      FileUtils.rm_f(tmp_file)
+
+      if success
+        puts "AppArmor profile successfully installed and reloaded at #{profile_path}."
+        puts "Re-testing bubblewrap..."
+        _out2, _err2, retry_status = Open3.capture3(*test_cmd)
+        if retry_status.success?
+          puts "Bubblewrap userns permissions verified successfully!\n\n"
+          return
+        else
+          STDERR.puts "Warning: AppArmor profile loaded, but bwrap test still failed."
+        end
+      else
+        STDERR.puts "Error: Failed to install AppArmor profile via sudo."
+      end
+    end
+  end
+
+  STDERR.puts "\nTo manually fix this issue, run the following commands with sudo:"
+  STDERR.puts "  sudo bash -c 'cat << \"EOF\" > #{profile_path}"
+  profile_content.lines.each { |l| STDERR.puts "  " + l.chomp }
+  STDERR.puts "  EOF'"
+  STDERR.puts "  sudo apparmor_parser -r #{profile_path}\n\n"
+  exit 1
+end
+
+
 # Helper to prepend a startup message to a configuration file
 def prepend_message(target_file, message)
   FileUtils.touch(target_file)
@@ -605,6 +674,10 @@ unless command_exists?("bwrap")
   exit 1
 end
 
+# Check for AppArmor / unprivileged userns restrictions
+verify_bwrap_userns_support
+
+
 if ARGV.empty? && !show_info && !test_opencode && !command_exists?("tmux")
   STDERR.puts "Error: tmux is not installed."
   STDERR.puts "The default sandbox command uses tmux. Please install tmux or run a different command."
@@ -918,6 +991,17 @@ begin
           bwrap_args.concat(["--ro-bind", xauth, "#{home_dir}/.Xauthority"])
           bwrap_args.concat(["--setenv", "XAUTHORITY", "#{home_dir}/.Xauthority"])
         end
+
+        # Bind user XDG runtime directory (/run/user/UID) for DBus, AT-SPI, and GTK/Qt GUI sockets
+        uid = Process.uid
+        user_run_dir = ENV['XDG_RUNTIME_DIR'] || "/run/user/#{uid}"
+        if Dir.exist?(user_run_dir)
+          bwrap_args.concat(["--bind-try", user_run_dir, user_run_dir])
+          bwrap_args.concat(["--setenv", "XDG_RUNTIME_DIR", user_run_dir])
+        end
+
+        # Suppress GTK accessibility bus connection warnings
+        bwrap_args.concat(["--setenv", "NO_AT_SPI", "1"])
       end
     end
 
@@ -997,3 +1081,7 @@ ensure
   # Clean up host temporary directory
   FileUtils.rm_rf(host_tmp) if host_tmp && Dir.exist?(host_tmp)
 end
+
+
+# This is a comment...
+#

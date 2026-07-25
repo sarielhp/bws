@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-07-25
+
+### Added
+- Added `verify_bwrap_userns_support` to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to detect AppArmor / unprivileged user namespace restrictions, present Option 2 solution details, and automatically create/reload `/etc/apparmor.d/bwrap` via `sudo` upon user interactive confirmation.
+
 ## [Unreleased] - 2026-06-14
+
 
 ### Changed
 - Updated `bind_file` and `bind_dir` helper functions in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to handle exactly `$HOME` (or `~`), resolving it to `/home/sbox` in the sandbox.
