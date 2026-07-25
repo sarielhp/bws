@@ -307,7 +307,8 @@ def generate_default_config
         "LOGNAME": "#{logname}",
         "SHELL": "/bin/bash",
         "EDITOR": "emacs -nw",
-        "VISUAL": "emacs -nw"
+        "VISUAL": "emacs -nw",
+        "OPENROUTER_API_KEY": ""
       },
 
       // PATH directories inside the sandbox. These segments will be concatenated
@@ -383,7 +384,8 @@ def generate_example_config
         "TERM": "xterm-256color",
         "LANG": "C.UTF-8",
         "EDITOR": "emacs -nw",
-        "VISUAL": "emacs -nw"
+        "VISUAL": "emacs -nw",
+        "OPENROUTER_API_KEY": ""
       },
 
       "path": [
@@ -1060,14 +1062,21 @@ begin
   # 4. Parse environment variables
   if config["env"].is_a?(Hash)
     config["env"].each do |k, default_val|
-      val = ENV[k] || default_val
-      if k == "LC_ALL" && !ENV["LC_ALL"]
+      val = (ENV[k] && !ENV[k].empty?) ? ENV[k] : default_val
+      if k == "LC_ALL" && (!ENV["LC_ALL"] || ENV["LC_ALL"].empty?)
         val = ENV["LANG"] || default_val
-      elsif k == "LOGNAME" && !ENV["LOGNAME"]
+      elsif k == "LOGNAME" && (!ENV["LOGNAME"] || ENV["LOGNAME"].empty?)
         val = ENV["USER"] || default_val
       end
-      bwrap_args.concat(["--setenv", k, val])
+      if val && !val.empty?
+        bwrap_args.concat(["--setenv", k, val])
+      end
     end
+  end
+
+  # Pass OPENROUTER_API_KEY from host environment if present and not already handled in config["env"]
+  if ENV["OPENROUTER_API_KEY"] && !ENV["OPENROUTER_API_KEY"].empty? && (!config["env"].is_a?(Hash) || !config["env"].key?("OPENROUTER_API_KEY"))
+    bwrap_args.concat(["--setenv", "OPENROUTER_API_KEY", ENV["OPENROUTER_API_KEY"]])
   end
 
   # 5. Parse and concatenate PATH directories
