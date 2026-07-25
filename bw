@@ -125,6 +125,42 @@ def get_auto_deploy_key
   File.file?(key_path) ? key_path : nil
 end
 
+# Helper to verify required and recommended host tools on startup
+def verify_installed_tools(is_default_tmux: true)
+  tools = [
+    { cmd: "bwrap", name: "Bubblewrap", desc: "Core sandbox container runtime", critical: true },
+    { cmd: "tmux", name: "tmux", desc: "Default interactive session manager", critical: is_default_tmux },
+    { cmd: "emacs", name: "Emacs", desc: "Default terminal text editor inside sandbox", critical: false },
+    { cmd: "gh", name: "GitHub CLI (gh)", desc: "Automated Deploy Key registration", critical: false },
+    { cmd: "git", name: "Git", desc: "Version control & repository detection", critical: false },
+    { cmd: "ssh-agent", name: "ssh-agent", desc: "SSH authentication agent management", critical: false }
+  ]
+
+  missing_critical = tools.select { |t| t[:critical] && !command_exists?(t[:cmd]) }
+  missing_recommended = tools.select { |t| !t[:critical] && !command_exists?(t[:cmd]) }
+
+  if missing_critical.any?
+    STDERR.puts "Error: Required tool(s) missing on host:"
+    missing_critical.each do |t|
+      STDERR.puts "  - #{t[:name]} (#{t[:cmd]}): #{t[:desc]}"
+    end
+    STDERR.puts "\nPlease install missing required dependencies:"
+    STDERR.puts "  Debian/Ubuntu: sudo apt-get install #{missing_critical.map { |t| t[:cmd] }.join(' ')}"
+    STDERR.puts "  Fedora:        sudo dnf install #{missing_critical.map { |t| t[:cmd] }.join(' ')}"
+    STDERR.puts "  Arch Linux:    sudo pacman -S #{missing_critical.map { |t| t[:cmd] }.join(' ')}"
+    exit 1
+  end
+
+  if missing_recommended.any?
+    STDERR.puts "[bw] Warning: Recommended tool(s) missing on host:"
+    missing_recommended.each do |t|
+      STDERR.puts "  - #{t[:name]} (#{t[:cmd]}): #{t[:desc]}"
+    end
+    pkg_list = missing_recommended.map { |t| t[:cmd] == 'gh' ? 'gh' : (t[:cmd] == 'emacs' ? 'emacs-nox' : t[:cmd]) }.join(' ')
+    STDERR.puts "  Install suggestion (Debian/Ubuntu): sudo apt-get install #{pkg_list}\n\n"
+  end
+end
+
 # Helper to check if bwrap can set up unprivileged user namespaces and prompt to fix via AppArmor
 def verify_bwrap_userns_support
   require 'open3'
@@ -747,28 +783,11 @@ force = ARGV.delete("-f") ? true : false
 show_info = ARGV.delete("--info") || ARGV.delete("-info") ? true : false
 
 # Dependency validations
-unless command_exists?("bwrap")
-  STDERR.puts "Error: bubblewrap ('bwrap') is not installed."
-  STDERR.puts "Please install bubblewrap using your system package manager."
-  STDERR.puts "  Debian/Ubuntu: sudo apt-get install bubblewrap"
-  STDERR.puts "  Fedora:        sudo dnf install bubblewrap"
-  STDERR.puts "  Arch Linux:    sudo pacman -S bubblewrap"
-  exit 1
-end
+is_default_session = ARGV.empty? && !show_info && !test_opencode
+verify_installed_tools(is_default_tmux: is_default_session)
 
 # Check for AppArmor / unprivileged userns restrictions
 verify_bwrap_userns_support
-
-
-if ARGV.empty? && !show_info && !test_opencode && !command_exists?("tmux")
-  STDERR.puts "Error: tmux is not installed."
-  STDERR.puts "The default sandbox command uses tmux. Please install tmux or run a different command."
-  STDERR.puts "  Debian/Ubuntu: sudo apt-get install tmux"
-  STDERR.puts "  Fedora:        sudo dnf install tmux"
-  STDERR.puts "  Arch Linux:    sudo pacman -S tmux"
-  STDERR.puts "Alternatively, run with a specific command, e.g.: bw bash"
-  exit 1
-end
 
 # Run-directory security and constraint validation
 current_dir = Pathname.pwd.realpath
