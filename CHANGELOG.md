@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Added `verify_bwrap_userns_support` to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to detect AppArmor / unprivileged user namespace restrictions, present Option 2 solution details, and automatically create/reload `/etc/apparmor.d/bwrap` via `sudo` upon user interactive confirmation.
+- Configured default editor environment variables (`EDITOR="emacs -nw"` and `VISUAL="emacs -nw"`) in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) default configuration and injected exports into shell profile files (`.bashrc` and `.zshrc`).
 
 ## [Unreleased] - 2026-06-14
 

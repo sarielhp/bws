@@ -191,7 +191,9 @@ def generate_default_config
         "LC_ALL": "C.UTF-8",
         "USER": "#{user_name}",
         "LOGNAME": "#{logname}",
-        "SHELL": "/bin/bash"
+        "SHELL": "/bin/bash",
+        "EDITOR": "emacs -nw",
+        "VISUAL": "emacs -nw"
       },
 
       // PATH directories inside the sandbox. These segments will be concatenated
@@ -265,7 +267,9 @@ def generate_example_config
       "env": {
         "HOME": "/home/sbox",
         "TERM": "xterm-256color",
-        "LANG": "C.UTF-8"
+        "LANG": "C.UTF-8",
+        "EDITOR": "emacs -nw",
+        "VISUAL": "emacs -nw"
       },
 
       "path": [
@@ -831,7 +835,7 @@ begin
   ]
   path_line = "export PATH=\"#{sandbox_paths.join(':')}:$PATH\""
 
-  # Inject PATH into .bashrc and .zshrc
+  # Inject PATH, EDITOR, and VISUAL into .bashrc and .zshrc
   [".bashrc", ".zshrc"].each do |rc_name|
     rc_path = File.join(sandbox, rc_name)
     if rc_name == ".bashrc" || File.exist?(rc_path)
@@ -841,6 +845,13 @@ begin
         File.open(rc_path, "a") do |f|
           f.puts "\n# Add sandbox-specific binary paths"
           f.puts path_line
+        end
+      end
+      unless content.include?("export EDITOR=") || content.include?("export VISUAL=")
+        File.open(rc_path, "a") do |f|
+          f.puts "\n# Set default editor inside the sandbox"
+          f.puts "export EDITOR=\"emacs -nw\""
+          f.puts "export VISUAL=\"emacs -nw\""
         end
       end
     end
