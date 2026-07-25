@@ -1,0 +1,999 @@
+#!/usr/bin/env ruby
+#
+# Bubblewrap Sandbox Launcher
+#
+# This script wraps bubblewrap (bwrap) to launch a secure, isolated sandbox
+# environment with convenient bindings, shell themes, and custom configuration.
+#
+# Added features:
+# - Global config file support (~/.config/bw/config.jsonc) with dynamic feature toggles.
+# - Local directory-level override config support (.bw.jsonc).
+# - Safety checks preventing run from ~/ or ~/bin/, or directories with > 100 files.
+# - Force option (-f) to bypass file count check.
+#
+
+require 'fileutils'
+require 'pathname'
+require 'tmpdir'
+require 'find'
+require 'json'
+
+# Track files copied/synced to the sandbox
+$copied_files = []
+
+# Helper to recursively count files in a directory up to a limit
+def count_files(dir, limit = 100)
+  count = 0
+  begin
+    Find.find(dir) do |path|
+      if File.basename(path) == '.git'
+        Find.prune
+      elsif File.file?(path)
+        count += 1
+        return count if count > limit
+      end
+    end
+  rescue Errno::EACCES, Errno::ENOENT
+    # Ignore files we cannot access
+  end
+  count
+end
+
+# Helper to check if a command exists in the host PATH
+def command_exists?(cmd)
+  ENV['PATH'].split(File::PATH_SEPARATOR).any? do |dir|
+    file = File.join(dir, cmd)
+    File.file?(file) && File.executable?(file)
+  end
+end
+
+# Helper to prepend a startup message to a configuration file
+def prepend_message(target_file, message)
+  FileUtils.touch(target_file)
+  content = File.read(target_file)
+  unless content.include?(message)
+    File.write(target_file, "echo \"#{message}\"\n" + content)
+  end
+end
+
+# Helper to read a JSONC file, strip comments, and parse it
+def load_jsonc(filepath)
+  content = File.read(filepath)
+  # Strip single-line comments starting with // or #
+  content_clean = content.gsub(/^\s*(\/\/|#).*$/, "")
+  # Strip trailing comments like space followed by //
+  content_clean = content_clean.gsub(/\s+(\/\/|#)[^"\n]*$/, "")
+  JSON.parse(content_clean)
+end
+
+# Helper to recursively replace /home/sbox with the host home directory
+def replace_sbox_prefix(obj, home_dir)
+  if obj.is_a?(Hash)
+    obj.each do |k, v|
+      obj[k] = replace_sbox_prefix(v, home_dir)
+    end
+  elsif obj.is_a?(Array)
+    obj.map! { |v| replace_sbox_prefix(v, home_dir) }
+  elsif obj.is_a?(String)
+    obj.gsub("/home/sbox", home_dir)
+  else
+    obj
+  end
+end
+
+
+# Helper to generate the default configuration content with inline comments
+def generate_default_config
+  home_dir = Dir.home
+  user_name = ENV['USER'] || 'user'
+  logname = ENV['LOGNAME'] || user_name
+  <<~JSONC
+    // Bubblewrap Sandbox Launcher Configuration File
+    // 
+    // This file configures the global settings, mounts, environment variables,
+    // and paths used when launching the bubblewrap sandbox.
+    // 
+    // All system paths (binds_rw and binds_ro) support both files and directories.
+
+    {
+      // System flags passed to bubblewrap (bwrap)
+      "system": {
+        "share_net": true,
+        "clearenv": true,
+        "unshare_uts": true,
+        "hostname": "bubble"
+      },
+
+      // Sandbox features that dynamically configure elements based on the host
+      "features": {
+        // Enable mounting the active host SSH authentication socket if it exists
+        "enable_ssh": true,
+        // Enable GUI applications by mapping the X11 display socket and authority
+        "enable_x11": true,
+        // Automatically map host directories/files from /etc/ read-only (except resolv.conf)
+        "enable_etc_auto_bind": true
+      },
+
+      // Environment variables inside the sandbox
+      "env": {
+        "HOME": "#{home_dir}",
+        "TERM": "xterm-256color",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "USER": "#{user_name}",
+        "LOGNAME": "#{logname}",
+        "SHELL": "/bin/bash"
+      },
+
+      // PATH directories inside the sandbox. These segments will be concatenated
+      // automatically using colons (:) to build the PATH environment variable.
+      "path": [
+        "#{home_dir}/bin",
+        "#{home_dir}/.opencode/bin",
+        "#{home_dir}/.cargo/bin",
+        "/usr/local/sbin",
+        "/usr/local/bin",
+        "/usr/sbin",
+        "/usr/bin",
+        "/sbin",
+        "/bin"
+      ],
+
+      // Read-Write Bindings (Host Path -> Sandbox Path)
+      // Note: This works for both files and directories.
+      "binds_rw": [
+        ["~/.sandbox/pi_generic", "#{home_dir}"],
+        ["~/.opencode", "#{home_dir}/.opencode"],
+        ["~/.cargo", "#{home_dir}/.cargo"],
+        ["~/.gitconfig", "#{home_dir}/.gitconfig"],
+        ["~/.git-credentials", "#{home_dir}/.git-credentials"],
+        ["~/.config/git", "#{home_dir}/.config/git"],
+        ["~/.ssh/known_hosts", "#{home_dir}/.ssh/known_hosts"],
+        ["~/.ssh/config", "#{home_dir}/.ssh/config"],
+        ["~/.terminfo", "#{home_dir}/.terminfo"],
+        ["~/.local/share/terminfo", "#{home_dir}/.local/share/terminfo"]
+      ],
+
+      // Read-Only Bindings (Host Path -> Sandbox Path)
+      // Note: This works for both files and directories.
+      "binds_ro": [
+        ["/bin", "/bin"],
+        ["/usr", "/usr"],
+        ["/lib", "/lib"],
+        ["/lib64", "/lib64"],
+        ["/lib32", "/lib32"],
+        ["/libx32", "/libx32"],
+        ["/sbin", "/sbin"],
+        ["/run/systemd/journal", "/run/systemd/journal"],
+        ["~/.rustup", "#{home_dir}/.rustup"]
+      ]
+    }
+  JSONC
+end
+
+# Helper to generate a blank template configuration file for the user
+def generate_example_config
+  <<~JSONC
+    // Bubblewrap Sandbox Launcher Configuration File (Blank Template Example)
+    // 
+    // Use this file as a template to customize your sandbox configuration.
+    // Copy this to config.jsonc and modify as needed.
+
+    {
+      "system": {
+        "share_net": true,
+        "clearenv": true,
+        "unshare_uts": true,
+        "hostname": "bubble"
+      },
+
+      "features": {
+        "enable_ssh": false,
+        "enable_x11": false,
+        "enable_etc_auto_bind": false
+      },
+
+      "env": {
+        "HOME": "/home/sbox",
+        "TERM": "xterm-256color",
+        "LANG": "C.UTF-8"
+      },
+
+      "path": [
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin"
+      ],
+
+      // Read-Write Bindings (Host Path -> Sandbox Path)
+      // Note: This works for both files and directories.
+      "binds_rw": [
+        // ["/path/to/host/dir", "/path/to/sandbox/dir"]
+      ],
+
+      // Read-Only Bindings (Host Path -> Sandbox Path)
+      // Note: This works for both files and directories.
+      "binds_ro": [
+        // ["/path/to/host/file_or_dir", "/path/to/sandbox/file_or_dir"]
+      ]
+    }
+  JSONC
+end
+
+# Print sandbox mapping configuration information
+def print_info(bwrap_args, exec_args, global_config_path, local_config_path)
+  puts "Bubblewrap Sandbox Configuration Information"
+  puts "==========================================="
+  puts ""
+
+  rw_binds = []
+  ro_binds = []
+  tmpfs_binds = []
+  special_mounts = []
+  env_vars = {}
+
+  i = 0
+  while i < bwrap_args.length
+    arg = bwrap_args[i]
+    case arg
+    when "--bind", "--bind-try"
+      rw_binds << [bwrap_args[i+1], bwrap_args[i+2]]
+      i += 3
+    when "--ro-bind", "--ro-bind-try"
+      ro_binds << [bwrap_args[i+1], bwrap_args[i+2]]
+      i += 3
+    when "--tmpfs"
+      tmpfs_binds << bwrap_args[i+1]
+      i += 2
+    when "--proc"
+      special_mounts << ["proc", bwrap_args[i+1]]
+      i += 2
+    when "--dev"
+      special_mounts << ["dev", bwrap_args[i+1]]
+      i += 2
+    when "--symlink"
+      special_mounts << ["symlink: #{bwrap_args[i+1]}", bwrap_args[i+2]]
+      i += 3
+    when "--setenv"
+      env_vars[bwrap_args[i+1]] = bwrap_args[i+2]
+      i += 3
+    when "--unsetenv"
+      env_vars[bwrap_args[i+1]] = "<unset>"
+      i += 2
+    else
+      i += 1
+    end
+  end
+
+  puts "Environment Variables:"
+  env_vars.keys.sort.each do |k|
+    puts "  #{k}=#{env_vars[k]}"
+  end
+  puts ""
+
+  puts "Special Mounts & tmpfs:"
+  special_mounts.each do |type, target|
+    puts "  %-15s on %s" % [type, target]
+  end
+  tmpfs_binds.each do |target|
+    puts "  %-15s on %s" % ["tmpfs", target]
+  end
+  puts ""
+
+  puts "Read-Write Bindings (Host -> Sandbox):"
+  rw_binds.each do |src, dest|
+    if (src.length + dest.length + 6) > 80
+      puts "  #{src}\n    -> #{dest}"
+    else
+      puts "  #{src} -> #{dest}"
+    end
+  end
+  puts ""
+
+  puts "Read-Only Bindings (Host -> Sandbox):"
+  etc_binds, regular_ro_binds = ro_binds.partition { |src, dest| dest.start_with?("/etc/") }
+
+  regular_ro_binds.each do |src, dest|
+    if (src.length + dest.length + 6) > 80
+      puts "  #{src}\n    -> #{dest}"
+    else
+      puts "  #{src} -> #{dest}"
+    end
+  end
+
+  if !etc_binds.empty?
+    puts "  (plus #{etc_binds.length} files from /etc/ mapped read-only individually)"
+  end
+  puts ""
+
+  puts "Files/Directories Copied or Synced (Host -> Sandbox):"
+  if $copied_files.empty?
+    puts "  (None)"
+  else
+    $copied_files.each do |c|
+      status = c[:copied] ? "[Copied/Updated]" : "[Up-to-date]"
+      if (c[:src].length + c[:dest].length + status.length + 7) > 80
+        puts "  #{c[:src]}\n    -> #{c[:dest]} #{status}"
+      else
+        puts "  #{c[:src]} -> #{c[:dest]} #{status}"
+      end
+    end
+  end
+  puts ""
+
+  puts "Sandbox Command to Execute:"
+  puts "  #{exec_args.join(' ')}"
+  puts ""
+
+  puts "Global Configuration File:"
+  puts "  #{global_config_path}"
+  puts ""
+
+  puts "Local Configuration File:"
+  if File.exist?(local_config_path)
+    puts "  #{local_config_path}"
+  else
+    puts "  None (Not present or not loaded)"
+  end
+  puts ""
+end
+
+# Helper to copy file only if it is newer or missing
+def copy_if_newer(src, dest)
+  return unless File.file?(src)
+  FileUtils.mkdir_p(File.dirname(dest))
+  copied = false
+  if !File.exist?(dest) || File.mtime(src) > File.mtime(dest)
+    FileUtils.cp(src, dest)
+    copied = true
+  end
+  $copied_files << { src: src, dest: dest, copied: copied }
+end
+
+# Inject oh-my-posh init configuration into shell profiles
+def inject_oh_my_posh(target_file, shell_type)
+  home_dir = Dir.home
+  FileUtils.touch(target_file)
+  content = File.read(target_file)
+  unless content.include?("oh-my-posh init")
+    File.open(target_file, "a") do |f|
+      f.puts "\n# Initialize oh-my-posh prompt theme engine"
+      f.puts "if [ -x \"#{home_dir}/bin/oh-my-posh\" ]; then"
+      f.puts "  eval \"$(#{home_dir}/bin/oh-my-posh init #{shell_type} --config #{home_dir}/.mytheme.omp.json)\""
+      f.puts "fi"
+    end
+  end
+end
+
+# Inject cdtoday function into shell profiles
+def inject_cdtoday(target_file)
+  FileUtils.touch(target_file)
+  content = File.read(target_file)
+  unless content.include?("cdtoday ()")
+    File.open(target_file, "a") do |f|
+      f.puts "\n# Function to navigate to today's misc directory"
+      f.puts "cdtoday () {"
+      f.puts "    BS=info/misc/$(date +%02y/%02m/%02d)/"
+      f.puts "    DR=~/$BS"
+      f.puts "    mkdir -p $DR"
+      f.puts "    cd $DR"
+      f.puts "    echo cd '~/'$BS"
+      f.puts "}"
+    end
+  end
+end
+
+# Helper to bind a host file/directory to its relative path in the sandbox
+def bind_path(bwrap_args, host_path, writeable: true)
+  expanded_path = File.expand_path(host_path)
+  return unless File.exist?(expanded_path)
+
+  mode = writeable ? "--bind" : "--ro-bind"
+  bwrap_args.concat([mode, expanded_path, expanded_path])
+end
+
+# Helper to copy configured paths into the sandbox
+def process_copy_paths(copy_list, sandbox)
+  return unless copy_list.is_a?(Array)
+
+  copy_list.each do |path_str|
+    expanded_path = File.expand_path(path_str)
+    home = Dir.home
+    if expanded_path == home || expanded_path.start_with?(home + "/")
+      rel_path = expanded_path == home ? "" : expanded_path[(home.length + 1)..-1]
+      sandbox_dest = File.join(sandbox, rel_path)
+
+      if File.exist?(expanded_path)
+        copied = false
+        if File.directory?(expanded_path)
+          FileUtils.rm_rf(sandbox_dest)
+          FileUtils.mkdir_p(File.dirname(sandbox_dest))
+          FileUtils.cp_r(expanded_path, sandbox_dest)
+          copied = true
+        else
+          if !File.exist?(sandbox_dest) || File.mtime(expanded_path) > File.mtime(sandbox_dest)
+            FileUtils.mkdir_p(File.dirname(sandbox_dest))
+            FileUtils.cp(expanded_path, sandbox_dest)
+            copied = true
+          end
+        end
+        $copied_files << { src: expanded_path, dest: sandbox_dest, copied: copied }
+      else
+        warn "Warning: Path to copy does not exist: #{expanded_path}"
+      end
+    else
+      warn "Warning: Cannot copy path outside home directory: #{expanded_path}"
+    end
+  end
+end
+
+# Process the directory configuration override file (.bw.jsonc)
+def process_bw_jsonc(config_data, sandbox, bwrap_args)
+  return unless config_data.is_a?(Hash)
+
+  # Process "copy" array
+  process_copy_paths(config_data["copy"], sandbox)
+
+
+  # Process "binds_rw" array (Note: supports both directories and files)
+  if config_data["binds_rw"].is_a?(Array)
+    config_data["binds_rw"].each do |item|
+      if item.is_a?(Array)
+        host_path, sandbox_path = item
+        expanded_host = File.expand_path(host_path)
+        if File.exist?(expanded_host)
+          bwrap_args.concat(["--bind", expanded_host, sandbox_path])
+        end
+      elsif item.is_a?(String)
+        bind_path(bwrap_args, item, writeable: true)
+      end
+    end
+  end
+
+  # Process "binds_ro" array (Note: supports both directories and files)
+  if config_data["binds_ro"].is_a?(Array)
+    config_data["binds_ro"].each do |item|
+      if item.is_a?(Array)
+        host_path, sandbox_path = item
+        expanded_host = File.expand_path(host_path)
+        if File.exist?(expanded_host)
+          bwrap_args.concat(["--ro-bind", expanded_host, sandbox_path])
+        end
+      elsif item.is_a?(String)
+        bind_path(bwrap_args, item, writeable: false)
+      end
+    end
+  end
+end
+
+# Check for help flags
+if ARGV.include?("-h") || ARGV.include?("-help") || ARGV.include?("--help")
+  puts <<~HELP
+    Usage: bw [options] [command [args...]]
+
+    Bubblewrap Sandbox Launcher
+
+    This script wraps bubblewrap (bwrap) to launch a secure, isolated sandbox
+    environment with convenient bindings, shell themes, and custom configuration.
+
+    Options:
+      -h, -help, --help  Show this help message and exit
+      -f                 Force sandbox launch, bypassing the file count check (> 100 files)
+      --info             List all mapped files, directories, and configuration settings, then exit
+      -test opencode     Start bubblewrap, run opencode, make sure it loads, and exit
+
+    Copy Management Commands:
+      copy add <program> Add a program (specified by absolute path) to global config's copy list
+      copy list          List all programs currently configured to be copied in global config
+      copy del <program> Remove a program from global config's copy list
+
+    Examples:
+      bw                 Launch the sandbox and attach to a tmux session (default)
+      bw bash            Launch the sandbox and run bash
+      bw command         Run a specific command inside the sandbox
+      bw copy add /home/user/bin/myprog
+      bw copy list
+      bw copy del /home/user/bin/myprog
+  HELP
+  exit 0
+end
+
+# Handle 'copy' subcommands (copy add [program], copy list, copy del [program])
+if ARGV[0] == "copy"
+  subcmd = ARGV[1]
+  config_dir = File.expand_path("~/.config/bw")
+  global_config_path = File.join(config_dir, "config.jsonc")
+
+  # Ensure config file exists
+  unless File.exist?(global_config_path)
+    FileUtils.mkdir_p(config_dir)
+    File.write(global_config_path, generate_default_config)
+    example_config_path = File.join(config_dir, "example-config.jsonc")
+    File.write(example_config_path, generate_example_config)
+  end
+
+  case subcmd
+  when "add"
+    prog = ARGV[2]
+    if prog.nil? || prog.strip.empty?
+      STDERR.puts "Error: Program path must be specified."
+      STDERR.puts "Usage: bw copy add <full_path_to_program>"
+      exit 1
+    end
+    unless prog.start_with?("/")
+      STDERR.puts "Error: Program path must be specified as a full (absolute) path, e.g. /home/user/bin/myprog."
+      exit 1
+    end
+
+    cfg = load_jsonc(global_config_path)
+    cfg["copy"] ||= []
+    unless cfg["copy"].is_a?(Array)
+      cfg["copy"] = []
+    end
+
+    if cfg["copy"].include?(prog)
+      puts "Program '#{prog}' is already in the global copy list."
+    else
+      cfg["copy"] << prog
+      # Re-serialize JSON while keeping clean formatting
+      File.write(global_config_path, JSON.pretty_generate(cfg))
+      puts "Added '#{prog}' to global copy configuration (#{global_config_path})."
+    end
+    exit 0
+
+  when "list"
+    cfg = load_jsonc(global_config_path)
+    copy_list = cfg["copy"]
+    if copy_list.is_a?(Array) && !copy_list.empty?
+      puts "Configured copy programs in global config (#{global_config_path}):"
+      copy_list.each do |p|
+        puts "  - #{p}"
+      end
+    else
+      puts "No programs currently configured in global copy list."
+    end
+    exit 0
+
+  when "del", "delete", "rm", "remove"
+    prog = ARGV[2]
+    if prog.nil? || prog.strip.empty?
+      STDERR.puts "Error: Program path must be specified."
+      STDERR.puts "Usage: bw copy del <full_path_to_program>"
+      exit 1
+    end
+
+    cfg = load_jsonc(global_config_path)
+    if cfg["copy"].is_a?(Array) && cfg["copy"].include?(prog)
+      cfg["copy"].delete(prog)
+      File.write(global_config_path, JSON.pretty_generate(cfg))
+      puts "Removed '#{prog}' from global copy configuration."
+    else
+      STDERR.puts "Program '#{prog}' not found in global copy configuration."
+      exit 1
+    end
+    exit 0
+
+  else
+    STDERR.puts "Unknown copy subcommand: '#{subcmd}'"
+    STDERR.puts "Usage: bw copy [add <program> | list | del <program>]"
+    exit 1
+  end
+end
+
+# Check for -test opencode option and extract it
+test_opencode = false
+["-test", "--test"].each do |flag|
+  if (idx = ARGV.index(flag)) && ARGV[idx + 1] == "opencode"
+    ARGV.delete_at(idx + 1)
+    ARGV.delete_at(idx)
+    test_opencode = true
+    break
+  end
+end
+
+# Check for -f and --info flags and extract them
+force = ARGV.delete("-f") ? true : false
+show_info = ARGV.delete("--info") || ARGV.delete("-info") ? true : false
+
+# Dependency validations
+unless command_exists?("bwrap")
+  STDERR.puts "Error: bubblewrap ('bwrap') is not installed."
+  STDERR.puts "Please install bubblewrap using your system package manager."
+  STDERR.puts "  Debian/Ubuntu: sudo apt-get install bubblewrap"
+  STDERR.puts "  Fedora:        sudo dnf install bubblewrap"
+  STDERR.puts "  Arch Linux:    sudo pacman -S bubblewrap"
+  exit 1
+end
+
+if ARGV.empty? && !show_info && !test_opencode && !command_exists?("tmux")
+  STDERR.puts "Error: tmux is not installed."
+  STDERR.puts "The default sandbox command uses tmux. Please install tmux or run a different command."
+  STDERR.puts "  Debian/Ubuntu: sudo apt-get install tmux"
+  STDERR.puts "  Fedora:        sudo dnf install tmux"
+  STDERR.puts "  Arch Linux:    sudo pacman -S tmux"
+  STDERR.puts "Alternatively, run with a specific command, e.g.: bw bash"
+  exit 1
+end
+
+# Run-directory security and constraint validation
+current_dir = Pathname.pwd.realpath
+home_dir = Pathname.new(Dir.home).realpath
+home_bin_dir = home_dir + "bin"
+
+if current_dir == home_dir || (File.directory?(home_bin_dir) && current_dir == home_bin_dir.realpath)
+  STDERR.puts "Error: Running the sandbox from ~/ or ~/bin/ is blocked to prevent exposing your entire host home directory."
+  exit 1
+end
+
+unless force
+  file_count = count_files(current_dir.to_s, 100)
+  if file_count > 100
+    STDERR.puts "Error: The current directory contains more than 100 files (found #{file_count} files recursively)."
+    STDERR.puts "Running bubblewrap here is blocked to prevent performance issues or accidental exposure."
+    STDERR.puts "Use the -f flag to override this check (e.g., `bw -f`)."
+    exit 1
+  end
+end
+
+# Global Configuration File Checks and Setup
+config_dir = File.expand_path("~/.config/bw")
+global_config_path = File.join(config_dir, "config.jsonc")
+example_config_path = File.join(config_dir, "example-config.jsonc")
+
+unless File.exist?(global_config_path)
+  FileUtils.mkdir_p(config_dir)
+  File.write(global_config_path, generate_default_config)
+  File.write(example_config_path, generate_example_config)
+  puts "Created config file: #{global_config_path}"
+  exit 0
+end
+
+# Load and parse global configuration file
+puts "Loading configuration file: #{global_config_path}"
+config = load_jsonc(global_config_path)
+config = replace_sbox_prefix(config, Dir.home)
+
+# Directory configuration paths
+sandbox = File.expand_path("~/.sandbox/pi_generic")
+FileUtils.mkdir_p(File.join(sandbox, "bin"))
+FileUtils.mkdir_p(File.join(sandbox, "etc"))
+FileUtils.mkdir_p(File.join(sandbox, ".pi/agent"))
+
+# Ensure host-side tmp parent directory exists and create a unique sandbox tmp dir
+FileUtils.mkdir_p("/tmp/bw")
+host_tmp = Dir.mktmpdir("sandbox_", "/tmp/bw")
+
+begin
+  # Process global config "copy" list
+  process_copy_paths(config["copy"], sandbox)
+
+  # Copy models.json if it exists on host
+  copy_if_newer(File.expand_path("~/info/llm/models.json"), File.join(sandbox, ".pi/agent/models.json"))
+
+  # Copy resolv.conf (de-referencing symlink to prevent broken resolve inside sandbox)
+  if File.file?("/etc/resolv.conf")
+    content = File.read("/etc/resolv.conf")
+    dest = File.join(sandbox, "etc/resolv.conf")
+    copied = false
+    if !File.exist?(dest) || File.read(dest) != content
+      File.write(dest, content)
+      copied = true
+    end
+    $copied_files << { src: "/etc/resolv.conf", dest: dest, copied: copied }
+  end
+
+  # Copy oh-my-posh if it exists on host
+  copy_if_newer(File.expand_path("~/bin/oh-my-posh"), File.join(sandbox, "bin/oh-my-posh"))
+
+  # Create oh-my-posh theme config in sandbox
+  theme = {
+    "version" => 4,
+    "final_space" => true,
+    "blocks" => [
+      {
+        "type" => "prompt",
+        "alignment" => "left",
+        "newline" => true,
+        "segments" => [
+          {
+            "type" => "text",
+            "style" => "diamond",
+            "foreground" => "#ffffff",
+            "background" => "#8a2be2",
+            "leading_diamond" => "\u{e0b6}",
+            "trailing_diamond" => "\u{e0b0}",
+            "template" => " \u{2b22} BUBBLE "
+          },
+          {
+            "type" => "session",
+            "style" => "powerline",
+            "powerline_symbol" => "\u{e0b0}",
+            "foreground" => "#ffffff",
+            "background" => "#3a3a3a",
+            "template" => " {{ .UserName }}@{{ .HostName }} "
+          },
+          {
+            "type" => "path",
+            "style" => "powerline",
+            "powerline_symbol" => "\u{e0b0}",
+            "foreground" => "#ffffff",
+            "background" => "#1c2e4a",
+            "template" => " {{ .Path }} ",
+            "properties" => {
+              "style" => "folder"
+            }
+          },
+          {
+            "type" => "git",
+            "style" => "powerline",
+            "powerline_symbol" => "\u{e0b0}",
+            "foreground" => "#101010",
+            "background" => "#2e9599",
+            "template" => " {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }} "
+          }
+        ]
+      }
+    ]
+  }
+  theme_dest = File.join(sandbox, ".mytheme.omp.json")
+  theme_json = JSON.pretty_generate(theme)
+  copied = false
+  if !File.exist?(theme_dest) || File.read(theme_dest) != theme_json
+    File.write(theme_dest, theme_json)
+    copied = true
+  end
+  $copied_files << { src: "<internal-theme-json>", dest: theme_dest, copied: copied }
+
+  # Ensure oh-my-posh is initialized in sandbox shell profiles
+  inject_oh_my_posh(File.join(sandbox, ".bashrc"), "bash")
+  if File.exist?(File.join(sandbox, ".zshrc"))
+    inject_oh_my_posh(File.join(sandbox, ".zshrc"), "zsh")
+  end
+
+  # Ensure custom bin paths are in PATH inside the sandbox shell configurations
+  sandbox_paths = [
+    "#{home_dir}/bin",
+    "#{home_dir}/.opencode/bin",
+    "#{home_dir}/.cargo/bin"
+  ]
+  path_line = "export PATH=\"#{sandbox_paths.join(':')}:$PATH\""
+
+  # Inject PATH into .bashrc and .zshrc
+  [".bashrc", ".zshrc"].each do |rc_name|
+    rc_path = File.join(sandbox, rc_name)
+    if rc_name == ".bashrc" || File.exist?(rc_path)
+      FileUtils.touch(rc_path)
+      content = File.read(rc_path)
+      unless content.include?("# Add sandbox-specific binary paths") || content.include?("export PATH=\"#{home_dir}/bin:")
+        File.open(rc_path, "a") do |f|
+          f.puts "\n# Add sandbox-specific binary paths"
+          f.puts path_line
+        end
+      end
+    end
+  end
+
+  # Ensure login shells source .bashrc by creating/updating .bash_profile and .profile
+  [".bash_profile", ".profile"].each do |profile_name|
+    profile_path = File.join(sandbox, profile_name)
+    FileUtils.touch(profile_path)
+    content = File.read(profile_path)
+    unless content.include?(".bashrc")
+      File.open(profile_path, "a") do |f|
+        f.puts "\n# Include .bashrc if it exists"
+        f.puts "if [ -f \"$HOME/.bashrc\" ]; then"
+        f.puts "  . \"$HOME/.bashrc\""
+        f.puts "fi"
+      end
+    end
+  end
+
+  # Prepend startup messages to shell configuration files
+  prepend_message(File.join(sandbox, ".bashrc"), "Running ~/.bashrc...")
+  prepend_message(File.join(sandbox, ".profile"), "Running ~/.profile...")
+  prepend_message(File.join(sandbox, ".bash_profile"), "Running ~/.bash_profile...")
+  if File.exist?(File.join(sandbox, ".zshrc"))
+    prepend_message(File.join(sandbox, ".zshrc"), "Running ~/.zshrc...")
+  end
+
+  # Set up .tmux.conf in the sandbox (copy host config as base if newer or missing, then append status indicator)
+  tmux_conf = File.join(sandbox, ".tmux.conf")
+  host_tmux = File.expand_path("~/.tmux.conf")
+  needs_bubble = false
+
+  if File.file?(host_tmux)
+    copied = false
+    if !File.exist?(tmux_conf) || File.mtime(host_tmux) > File.mtime(tmux_conf)
+      FileUtils.cp(host_tmux, tmux_conf)
+      FileUtils.chmod("+w", tmux_conf)
+      needs_bubble = true
+      copied = true
+    end
+    $copied_files << { src: host_tmux, dest: tmux_conf, copied: copied }
+  elsif !File.exist?(tmux_conf)
+    FileUtils.touch(tmux_conf)
+    FileUtils.chmod("+w", tmux_conf)
+    needs_bubble = true
+    $copied_files << { src: "<empty>", dest: tmux_conf, copied: true }
+  end
+
+  if needs_bubble || (File.exist?(tmux_conf) && !File.read(tmux_conf).include?("BUBBLE"))
+    FileUtils.chmod("+w", tmux_conf)
+    File.open(tmux_conf, "a") do |f|
+      f.puts "\n# Sandbox indicator in status bar"
+      f.puts "set -g status-left-length 20"
+      f.puts "set -g status-left \"#[fg=white,bg=purple,bold] BUBBLE #[default] \""
+      f.puts "set -g status-style bg=colour234,fg=colour137"
+    end
+  end
+
+  # Ensure cdtoday function is defined in the sandbox's shell configurations
+  inject_cdtoday(File.join(sandbox, ".bashrc"))
+  if File.exist?(File.join(sandbox, ".zshrc"))
+    inject_cdtoday(File.join(sandbox, ".zshrc"))
+  end
+
+  # Base bubblewrap arguments initialized dynamically from the parsed configuration
+  bwrap_args = ["--tmpfs", "/etc"]
+
+  # 1. Parse system flags
+  if config["system"]
+    bwrap_args << "--share-net" if config["system"]["share_net"]
+    bwrap_args << "--clearenv" if config["system"]["clearenv"]
+    bwrap_args << "--unshare-uts" if config["system"]["unshare_uts"]
+    if config["system"]["hostname"]
+      bwrap_args.concat(["--hostname", config["system"]["hostname"]])
+    end
+  end
+
+  # 2. Parse binds_rw
+  if config["binds_rw"].is_a?(Array)
+    config["binds_rw"].each do |item|
+      if item.is_a?(Array)
+        host_path, sandbox_path = item
+        expanded_host = File.expand_path(host_path)
+        if File.exist?(expanded_host)
+          bwrap_args.concat(["--bind", expanded_host, sandbox_path])
+        end
+      elsif item.is_a?(String)
+        bind_path(bwrap_args, item, writeable: true)
+      end
+    end
+  end
+
+  # 3. Parse binds_ro
+  if config["binds_ro"].is_a?(Array)
+    config["binds_ro"].each do |item|
+      if item.is_a?(Array)
+        host_path, sandbox_path = item
+        expanded_host = File.expand_path(host_path)
+        if File.exist?(expanded_host)
+          bwrap_args.concat(["--ro-bind", expanded_host, sandbox_path])
+        end
+      elsif item.is_a?(String)
+        bind_path(bwrap_args, item, writeable: false)
+      end
+    end
+  end
+
+  # 4. Parse environment variables
+  if config["env"].is_a?(Hash)
+    config["env"].each do |k, default_val|
+      val = ENV[k] || default_val
+      if k == "LC_ALL" && !ENV["LC_ALL"]
+        val = ENV["LANG"] || default_val
+      elsif k == "LOGNAME" && !ENV["LOGNAME"]
+        val = ENV["USER"] || default_val
+      end
+      bwrap_args.concat(["--setenv", k, val])
+    end
+  end
+
+  # 5. Parse and concatenate PATH directories
+  if config["path"].is_a?(Array)
+    resolved_paths = config["path"].map do |p|
+      p.start_with?("~") ? p.gsub(/^~/, home_dir.to_s) : p
+    end
+    bwrap_args.concat(["--setenv", "PATH", resolved_paths.join(":")])
+  end
+
+  # 6. Parse features (SSH, X11, automatic ETC mapping)
+  if config["features"]
+    if config["features"]["enable_ssh"]
+      ssh_auth_sock = ENV["SSH_AUTH_SOCK"]
+      if ssh_auth_sock && File.socket?(ssh_auth_sock)
+        bwrap_args.concat(["--bind", ssh_auth_sock, ssh_auth_sock])
+        bwrap_args.concat(["--setenv", "SSH_AUTH_SOCK", ssh_auth_sock])
+      end
+    end
+
+    if config["features"]["enable_x11"]
+      display = ENV["DISPLAY"]
+      if display
+        bwrap_args.concat(["--setenv", "DISPLAY", display])
+        bwrap_args.concat(["--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix"])
+
+        xauth = ENV["XAUTHORITY"] || File.expand_path("~/.Xauthority")
+        if File.exist?(xauth)
+          bwrap_args.concat(["--ro-bind", xauth, "#{home_dir}/.Xauthority"])
+          bwrap_args.concat(["--setenv", "XAUTHORITY", "#{home_dir}/.Xauthority"])
+        end
+      end
+    end
+
+    if config["features"]["enable_etc_auto_bind"]
+      Dir.glob("/etc/*").each do |item|
+        filename = File.basename(item)
+        if filename != "resolv.conf"
+          bwrap_args.concat(["--ro-bind-try", item, "/etc/#{filename}"])
+        end
+      end
+    end
+  end
+
+  # Calculate sandbox PWD relative to host PWD
+  sandbox_pwd = current_dir.to_s
+
+  # Bind sandbox PWD and general temp/special files
+  bwrap_args.concat([
+    "--bind", host_tmp, "/tmp",
+    "--proc", "/proc",
+    "--dev", "/dev",
+    "--die-with-parent",
+    "--bind", current_dir.to_s, sandbox_pwd,
+    "--chdir", sandbox_pwd
+  ])
+
+  # Bind the custom resolv.conf into the writeable /etc tmpfs
+  sandbox_resolv = File.join(sandbox, "etc/resolv.conf")
+  if File.file?(sandbox_resolv)
+    bwrap_args.concat(["--ro-bind", sandbox_resolv, "/etc/resolv.conf"])
+  end
+
+  # Load and process the local directory configuration (.bw.jsonc) if it exists
+  local_config_path = File.join(current_dir.to_s, ".bw.jsonc")
+  if File.exist?(local_config_path)
+    puts "Loading configuration file: #{local_config_path}"
+    local_config = load_jsonc(local_config_path)
+    local_config = replace_sbox_prefix(local_config, Dir.home)
+    process_bw_jsonc(local_config, sandbox, bwrap_args)
+  end
+
+  # Execution arguments logic
+  exec_args = if test_opencode
+                ["opencode", "debug", "info"]
+              elsif ARGV.empty?
+                # Force tmux to run in UTF-8 mode (-u) to prevent line-wrapping/overwrite glitches
+                ["tmux", "-u", "new-session", "-A", "-s", "bwrap-dev"]
+              else
+                ARGV
+              end
+
+  # Run bubblewrap with the assembled arguments
+  if show_info
+    print_info(bwrap_args, exec_args, global_config_path, local_config_path)
+    exit 0
+  end
+
+  if test_opencode
+    require 'open3'
+    output, status = Open3.capture2e("bwrap", *bwrap_args, *exec_args)
+    if status.success?
+      puts "Everything is fine."
+      exit 0
+    else
+      STDERR.puts "Test failed: opencode did not load correctly."
+      STDERR.puts "Detail:"
+      STDERR.puts output
+      exit status.exitstatus || 1
+    end
+  else
+    success = system("bwrap", *bwrap_args, *exec_args)
+    exit_code = success ? 0 : ($?.exitstatus || 1)
+    exit exit_code
+  end
+
+ensure
+  # Clean up host temporary directory
+  FileUtils.rm_rf(host_tmp) if host_tmp && Dir.exist?(host_tmp)
+end
