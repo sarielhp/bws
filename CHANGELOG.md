@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added `verify_bwrap_userns_support` to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to detect AppArmor / unprivileged user namespace restrictions, present Option 2 solution details, and automatically create/reload `/etc/apparmor.d/bwrap` via `sudo` upon user interactive confirmation.
 - Configured default editor environment variables (`EDITOR="emacs -nw"` and `VISUAL="emacs -nw"`) in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) default configuration and injected exports into shell profile files (`.bashrc` and `.zshrc`).
+- Added automated GitHub Deploy Key creation and registration (`get_auto_deploy_key`) to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw): automatically detects the active repository (`owner/repo`), generates a dedicated SSH deploy key pair in `~/.sandbox/deploy_keys/`, registers it via `gh repo deploy-key add`, and populates the sandbox's `ssh-agent` with **only** that repository's deploy key. This restricts GitHub access inside the sandbox exclusively to the current project while keeping private key files hidden.
 
 ## [Unreleased] - 2026-06-14
 

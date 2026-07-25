@@ -47,6 +47,84 @@ def command_exists?(cmd)
   end
 end
 
+# Helper to ensure an active SSH agent on the host, automatically starting one and adding specified/default keys
+def ensure_ssh_agent(specific_keys = nil)
+  sock = ENV["SSH_AUTH_SOCK"]
+  return sock if sock && File.socket?(sock)
+
+  return nil unless command_exists?("ssh-agent") && command_exists?("ssh-add")
+
+  agent_dir = File.expand_path("~/.sandbox")
+  FileUtils.mkdir_p(agent_dir)
+  agent_sock = File.join(agent_dir, "ssh_agent.sock")
+
+  if File.socket?(agent_sock)
+    `SSH_AUTH_SOCK="#{agent_sock}" ssh-add -l >/dev/null 2>&1`
+    if $?.exitstatus == 0 || $?.exitstatus == 1
+      ENV["SSH_AUTH_SOCK"] = agent_sock
+      if specific_keys.is_a?(Array) && !specific_keys.empty?
+        system("SSH_AUTH_SOCK=\"#{agent_sock}\" ssh-add -D >/dev/null 2>&1")
+        specific_keys.each do |k|
+          exp_k = File.expand_path(k)
+          if File.file?(exp_k)
+            system("SSH_AUTH_SOCK=\"#{agent_sock}\" ssh-add \"#{exp_k}\" >/dev/null 2>&1")
+          end
+        end
+      end
+      return agent_sock
+    else
+      FileUtils.rm_f(agent_sock)
+    end
+  end
+
+  if system("ssh-agent -a \"#{agent_sock}\" >/dev/null 2>&1")
+    ENV["SSH_AUTH_SOCK"] = agent_sock
+    if specific_keys.is_a?(Array) && !specific_keys.empty?
+      specific_keys.each do |k|
+        exp_k = File.expand_path(k)
+        if File.file?(exp_k)
+          system("SSH_AUTH_SOCK=\"#{agent_sock}\" ssh-add \"#{exp_k}\" >/dev/null 2>&1")
+        end
+      end
+    else
+      system("SSH_AUTH_SOCK=\"#{agent_sock}\" ssh-add >/dev/null 2>&1")
+    end
+    return agent_sock
+  end
+
+  nil
+end
+
+# Helper to automatically create and register a repo-scoped GitHub Deploy Key via gh CLI
+def get_auto_deploy_key
+  return nil unless command_exists?("git") && command_exists?("gh")
+
+  remote_url = `git config --get remote.origin.url 2>/dev/null`.strip
+  return nil if remote_url.empty?
+
+  owner, repo = nil, nil
+  if remote_url =~ %r{github\.com[:/]([^/]+)/([^/.]+)(\.git)?$}
+    owner = $1
+    repo = $2.sub(/\.git$/, '')
+  end
+  return nil unless owner && repo
+
+  key_dir = File.expand_path("~/.sandbox/deploy_keys")
+  FileUtils.mkdir_p(key_dir)
+  key_path = File.join(key_dir, "#{owner}_#{repo}")
+
+  if !File.file?(key_path)
+    STDERR.puts "[bw] Creating dedicated GitHub Deploy Key for #{owner}/#{repo}..."
+    if system("ssh-keygen -t ed25519 -f \"#{key_path}\" -N \"\" -C \"bw-auto-deploy-#{owner}-#{repo}\" >/dev/null 2>&1")
+      STDERR.puts "[bw] Registering Deploy Key with GitHub repository via gh CLI..."
+      title = "bw-auto-deploy-#{repo}"
+      system("gh repo deploy-key add \"#{key_path}.pub\" -R \"#{owner}/#{repo}\" -w -t \"#{title}\" >/dev/null 2>&1")
+    end
+  end
+
+  File.file?(key_path) ? key_path : nil
+end
+
 # Helper to check if bwrap can set up unprivileged user namespaces and prompt to fix via AppArmor
 def verify_bwrap_userns_support
   require 'open3'
@@ -984,10 +1062,37 @@ begin
   # 6. Parse features (SSH, X11, automatic ETC mapping)
   if config["features"]
     if config["features"]["enable_ssh"]
-      ssh_auth_sock = ENV["SSH_AUTH_SOCK"]
+      ssh_keys = config["features"]["ssh_keys"]
+      if (ssh_keys.nil? || ssh_keys.empty?) && config["features"].fetch("auto_repo_deploy_key", true)
+        auto_key = get_auto_deploy_key
+        ssh_keys = [auto_key] if auto_key
+      end
+      ssh_auth_sock = ensure_ssh_agent(ssh_keys)
+      host_ssh_dir = File.expand_path("~/.ssh")
+      sandbox_ssh = "#{home_dir}/.ssh"
+
       if ssh_auth_sock && File.socket?(ssh_auth_sock)
+        # Safe method: Forward SSH agent socket only. Private key files are NOT exposed.
         bwrap_args.concat(["--bind", ssh_auth_sock, ssh_auth_sock])
         bwrap_args.concat(["--setenv", "SSH_AUTH_SOCK", ssh_auth_sock])
+
+        # Bind non-secret config and known_hosts files if they exist
+        if File.directory?(host_ssh_dir)
+          FileUtils.mkdir_p(File.join(sandbox, ".ssh"))
+          ["config", "known_hosts"].each do |f|
+            host_f = File.join(host_ssh_dir, f)
+            if File.exist?(host_f)
+              bwrap_args.concat(["--bind", host_f, "#{sandbox_ssh}/#{f}"])
+            end
+          end
+        end
+      elsif File.directory?(host_ssh_dir)
+        # Fallback method when ssh-agent is not running: mount ~/.ssh read-only
+        bwrap_args.concat(["--ro-bind", host_ssh_dir, sandbox_ssh])
+        known_hosts = File.join(host_ssh_dir, "known_hosts")
+        if File.exist?(known_hosts)
+          bwrap_args.concat(["--bind", known_hosts, "#{sandbox_ssh}/known_hosts"])
+        end
       end
     end
 
