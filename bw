@@ -12,6 +12,8 @@
 # - Force option (-f) to bypass file count check.
 #
 
+BW_VERSION = "0.1.0"
+
 require 'fileutils'
 require 'pathname'
 require 'tmpdir'
@@ -133,7 +135,8 @@ def verify_installed_tools(is_default_tmux: true)
     { cmd: "emacs", name: "Emacs", desc: "Default terminal text editor inside sandbox", critical: false },
     { cmd: "gh", name: "GitHub CLI (gh)", desc: "Automated Deploy Key registration", critical: false },
     { cmd: "git", name: "Git", desc: "Version control & repository detection", critical: false },
-    { cmd: "ssh-agent", name: "ssh-agent", desc: "SSH authentication agent management", critical: false }
+    { cmd: "ssh-agent", name: "ssh-agent", desc: "SSH authentication agent management", critical: false },
+    { cmd: "quarto", name: "Quarto", desc: "Scientific and technical publishing system", critical: false }
   ]
 
   missing_critical = tools.select { |t| t[:critical] && !command_exists?(t[:cmd]) }
@@ -337,7 +340,10 @@ def generate_default_config
         ["~/.ssh/known_hosts", "#{home_dir}/.ssh/known_hosts"],
         ["~/.ssh/config", "#{home_dir}/.ssh/config"],
         ["~/.terminfo", "#{home_dir}/.terminfo"],
-        ["~/.local/share/terminfo", "#{home_dir}/.local/share/terminfo"]
+        ["~/.local/share/terminfo", "#{home_dir}/.local/share/terminfo"],
+        ["~/.texlive2026/texmf-var", "#{home_dir}/.texlive2026/texmf-var"],
+        ["~/.local/share/fonts", "#{home_dir}/.local/share/fonts"],
+        ["~/.cache/fontconfig", "#{home_dir}/.cache/fontconfig"]
       ],
 
       // Read-Only Bindings (Host Path -> Sandbox Path)
@@ -345,13 +351,16 @@ def generate_default_config
       "binds_ro": [
         ["/bin", "/bin"],
         ["/usr", "/usr"],
+        ["/opt", "/opt"],
         ["/lib", "/lib"],
         ["/lib64", "/lib64"],
         ["/lib32", "/lib32"],
         ["/libx32", "/libx32"],
         ["/sbin", "/sbin"],
         ["/run/systemd/journal", "/run/systemd/journal"],
-        ["~/.rustup", "#{home_dir}/.rustup"]
+        ["~/.rustup", "#{home_dir}/.rustup"],
+        ["/var/lib/texmf", "/var/lib/texmf"],
+        ["/var/cache/fontconfig", "/var/cache/fontconfig"]
       ]
     }
   JSONC
@@ -656,6 +665,11 @@ def process_bw_jsonc(config_data, sandbox, bwrap_args)
 end
 
 # Check for help flags
+if ARGV.include?("-v") || ARGV.include?("-version") || ARGV.include?("--version")
+  puts "bw version #{BW_VERSION}"
+  exit 0
+end
+
 if ARGV.include?("-h") || ARGV.include?("-help") || ARGV.include?("--help")
   puts <<~HELP
     Usage: bw [options] [command [args...]]
@@ -667,24 +681,65 @@ if ARGV.include?("-h") || ARGV.include?("-help") || ARGV.include?("--help")
 
     Options:
       -h, -help, --help  Show this help message and exit
+      -v, -version, --version  Show version and exit
       -f                 Force sandbox launch, bypassing the file count check (> 100 files)
       --info             List all mapped files, directories, and configuration settings, then exit
       -test opencode     Start bubblewrap, run opencode, make sure it loads, and exit
+      -test quarto       Start bubblewrap, run quarto, make sure it loads, and exit
 
     Copy Management Commands:
       copy add <program> Add a program (specified by absolute path) to global config's copy list
       copy list          List all programs currently configured to be copied in global config
       copy del <program> Remove a program from global config's copy list
 
+    Scp Command:
+      scp <dest>         Copy the global config file to a remote machine via scp
+                         (e.g. bw scp user@host:)
+
     Examples:
       bw                 Launch the sandbox and attach to a tmux session (default)
       bw bash            Launch the sandbox and run bash
       bw command         Run a specific command inside the sandbox
+      bw scp user@host:
       bw copy add /home/user/bin/myprog
       bw copy list
       bw copy del /home/user/bin/myprog
   HELP
   exit 0
+end
+
+# Handle 'scp' subcommand (scp [dest]) — copy config to remote machine
+if ARGV[0] == "scp"
+  dest = ARGV[1]
+  if dest.nil? || dest.strip.empty?
+    STDERR.puts "Error: Destination must be specified."
+    STDERR.puts "Usage: bw scp <user@host:>"
+    STDERR.puts "       bw scp <user@host:/path/to/dir>"
+    exit 1
+  end
+
+  unless command_exists?("scp")
+    STDERR.puts "Error: scp is not available on this system."
+    exit 1
+  end
+
+  config_dir = File.expand_path("~/.config/bw")
+  global_config = File.join(config_dir, "config.jsonc")
+
+  unless File.exist?(global_config)
+    STDERR.puts "Error: Config file not found at #{global_config}."
+    exit 1
+  end
+
+  puts "Copying #{global_config} to #{dest}"
+  success = system("scp", global_config, dest)
+  if success
+    puts "Done."
+    exit 0
+  else
+    STDERR.puts "Error: scp failed."
+    exit 1
+  end
 end
 
 # Handle 'copy' subcommands (copy add [program], copy list, copy del [program])
@@ -769,14 +824,23 @@ if ARGV[0] == "copy"
   end
 end
 
-# Check for -test opencode option and extract it
+# Check for -test opencode / quarto options and extract them
 test_opencode = false
+test_quarto = false
 ["-test", "--test"].each do |flag|
-  if (idx = ARGV.index(flag)) && ARGV[idx + 1] == "opencode"
-    ARGV.delete_at(idx + 1)
-    ARGV.delete_at(idx)
-    test_opencode = true
-    break
+  if (idx = ARGV.index(flag))
+    target = ARGV[idx + 1]
+    if target == "opencode"
+      ARGV.delete_at(idx + 1)
+      ARGV.delete_at(idx)
+      test_opencode = true
+      break
+    elsif target == "quarto"
+      ARGV.delete_at(idx + 1)
+      ARGV.delete_at(idx)
+      test_quarto = true
+      break
+    end
   end
 end
 
@@ -785,7 +849,7 @@ force = ARGV.delete("-f") ? true : false
 show_info = ARGV.delete("--info") || ARGV.delete("-info") ? true : false
 
 # Dependency validations
-is_default_session = ARGV.empty? && !show_info && !test_opencode
+is_default_session = ARGV.empty? && !show_info && !test_opencode && !test_quarto
 verify_installed_tools(is_default_tmux: is_default_session)
 
 # Check for AppArmor / unprivileged userns restrictions
@@ -1159,6 +1223,30 @@ begin
     end
   end
 
+  # Auto-bind /opt and Quarto installation path if available on host
+  if File.exist?("/opt")
+    bwrap_args.concat(["--ro-bind-try", "/opt", "/opt"])
+    opt_real = File.realpath("/opt") rescue "/opt"
+    if opt_real != "/opt" && File.exist?(opt_real)
+      bwrap_args.concat(["--ro-bind-try", opt_real, opt_real])
+    end
+  end
+
+  if command_exists?("quarto")
+    quarto_cmd = `which quarto 2>/dev/null`.strip
+    if !quarto_cmd.empty? && File.exist?(quarto_cmd)
+      real_path = File.realpath(quarto_cmd) rescue quarto_cmd
+      quarto_bin_dir = File.dirname(real_path)
+      quarto_root = File.dirname(quarto_bin_dir)
+      if File.directory?(quarto_root) && !bwrap_args.include?(quarto_root)
+        bwrap_args.concat(["--ro-bind-try", quarto_root, quarto_root])
+      end
+      if File.directory?(quarto_bin_dir) && !bwrap_args.include?(quarto_bin_dir)
+        bwrap_args.concat(["--ro-bind-try", quarto_bin_dir, quarto_bin_dir])
+      end
+    end
+  end
+
   # Calculate sandbox PWD relative to host PWD
   sandbox_pwd = current_dir.to_s
 
@@ -1190,6 +1278,8 @@ begin
   # Execution arguments logic
   exec_args = if test_opencode
                 ["opencode", "debug", "info"]
+              elsif test_quarto
+                ["quarto", "--version"]
               elsif ARGV.empty?
                 # Force tmux to run in UTF-8 mode (-u) to prevent line-wrapping/overwrite glitches
                 ["tmux", "-u", "new-session", "-A", "-s", "bwrap-dev"]
@@ -1211,6 +1301,19 @@ begin
       exit 0
     else
       STDERR.puts "Test failed: opencode did not load correctly."
+      STDERR.puts "Detail:"
+      STDERR.puts output
+      exit status.exitstatus || 1
+    end
+  elsif test_quarto
+    require 'open3'
+    output, status = Open3.capture2e("bwrap", *bwrap_args, *exec_args)
+    if status.success?
+      puts "Quarto version inside sandbox: #{output.strip}"
+      puts "Everything is fine."
+      exit 0
+    else
+      STDERR.puts "Test failed: quarto did not load correctly."
       STDERR.puts "Detail:"
       STDERR.puts output
       exit status.exitstatus || 1

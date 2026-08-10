@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-07-30
+
+### Added
+- Added Quarto CLI support to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw): automatically detects if Quarto is installed on the host, dynamically mounts `/opt` and Quarto installation root paths (resolving symlinks such as `/opt` -> `/extc/opt`), and includes `/opt` in default read-only bindings.
+- Added `-test quarto` / `--test quarto` command-line option to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to launch bubblewrap, verify Quarto execution inside the sandbox, print the detected Quarto version, and exit with status 0 ("Everything is fine.").
+- Added Quarto to recommended host tool startup verifications (`verify_installed_tools`).
+
 ## [Unreleased] - 2026-07-25
 
 ### Added
