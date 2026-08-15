@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-08-14
+
+### Added
+- Added `uv` and `uvx` toolchain support to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw): configured `~/.local/bin` in `PATH` and added read-write bindings for `~/.local/bin`, `~/.local/share/uv`, `~/.cache/uv`, and `~/.config/uv` to enable seamless Python tool and MCP server execution (e.g., fetch MCP for opencode) inside the sandbox.
+- Added `-test uv` / `--test uv` CLI test option to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to verify `uv` and `uvx` availability and execution inside the sandbox.
+- Added `uv` to recommended host tool startup verifications (`verify_installed_tools`).
+
+### Fixed
+- Fixed CLI option parsing in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) so flags passed to sandboxed commands (e.g. `bw pdflatex --version` or `bw uv --version`) are preserved instead of being intercepted by the launcher.
+
 ## [Unreleased] - 2026-07-30
 
 ### Added

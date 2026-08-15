@@ -32,6 +32,7 @@ bw lualatex --version                               # Test lualatex
 bw --info                                           # Show all bindings and config
 bw -test opencode                                   # Test opencode loads
 bw -test quarto                                     # Test quarto loads
+bw -test uv                                         # Test uv and uvx load
 ```
 
 ## Config Structure
@@ -41,7 +42,7 @@ bw -test quarto                                     # Test quarto loads
   "system":     { "share_net", "clearenv", "unshare_uts", "hostname" },
   "features":   { "enable_ssh", "enable_x11", "enable_etc_auto_bind" },
   "env":        { "HOME", "TERM", "LANG", "LC_ALL", "USER", "LOGNAME", "SHELL" },
-  "path":       [ "/usr/local/bin", "/usr/bin", "/bin", ... ],
+  "path":       [ "/home/sariel/bin", "/home/sariel/.local/bin", ... ],
   "binds_rw":   [ ["host_path", "sandbox_path"], ... ],
   "binds_ro":   [ ["host_path", "sandbox_path"], ... ],
   "copy":       [ "/absolute/path/to/program", ... ]
@@ -57,6 +58,15 @@ bw -test quarto                                     # Test quarto loads
 | `~/.texlive2026/texmf-var` | rw | luaotfload font cache (writes) |
 | `~/.local/share/fonts` | rw | User-installed fonts |
 | `~/.cache/fontconfig` | rw | Fontconfig cache (writes) |
+
+## Python / UV Bindings (added 2026-08-14)
+
+| Path | Type | Purpose |
+|---|---|---|
+| `~/.local/bin` | rw | Binaries including `uv`, `uvx`, and installed tools |
+| `~/.local/share/uv` | rw | UV python versions and tools |
+| `~/.cache/uv` | rw | UV package/wheel cache and uvx environments |
+| `~/.config/uv` | rw | UV user configuration |
 
 ## Key Behaviors
 
@@ -78,4 +88,5 @@ bw -test quarto                                     # Test quarto loads
 - `bw copy del <absolute-path>` — remove from copy list
 - `bw -test opencode` — verify opencode loads
 - `bw -test quarto` — verify quarto loads
+- `bw -test uv` — verify uv and uvx load
 - `bw --info` — print all bindings and exit

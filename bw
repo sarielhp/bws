@@ -136,7 +136,8 @@ def verify_installed_tools(is_default_tmux: true)
     { cmd: "gh", name: "GitHub CLI (gh)", desc: "Automated Deploy Key registration", critical: false },
     { cmd: "git", name: "Git", desc: "Version control & repository detection", critical: false },
     { cmd: "ssh-agent", name: "ssh-agent", desc: "SSH authentication agent management", critical: false },
-    { cmd: "quarto", name: "Quarto", desc: "Scientific and technical publishing system", critical: false }
+    { cmd: "quarto", name: "Quarto", desc: "Scientific and technical publishing system", critical: false },
+    { cmd: "uv", name: "uv", desc: "Fast Python package and tool manager", critical: false }
   ]
 
   missing_critical = tools.select { |t| t[:critical] && !command_exists?(t[:cmd]) }
@@ -318,6 +319,7 @@ def generate_default_config
       // automatically using colons (:) to build the PATH environment variable.
       "path": [
         "#{home_dir}/bin",
+        "#{home_dir}/.local/bin",
         "#{home_dir}/.opencode/bin",
         "#{home_dir}/.cargo/bin",
         "/usr/local/sbin",
@@ -334,6 +336,10 @@ def generate_default_config
         ["~/.sandbox/pi_generic", "#{home_dir}"],
         ["~/.opencode", "#{home_dir}/.opencode"],
         ["~/.cargo", "#{home_dir}/.cargo"],
+        ["~/.local/bin", "#{home_dir}/.local/bin"],
+        ["~/.local/share/uv", "#{home_dir}/.local/share/uv"],
+        ["~/.cache/uv", "#{home_dir}/.cache/uv"],
+        ["~/.config/uv", "#{home_dir}/.config/uv"],
         ["~/.gitconfig", "#{home_dir}/.gitconfig"],
         ["~/.git-credentials", "#{home_dir}/.git-credentials"],
         ["~/.config/git", "#{home_dir}/.config/git"],
@@ -398,6 +404,8 @@ def generate_example_config
       },
 
       "path": [
+        "/home/sbox/bin",
+        "/home/sbox/.local/bin",
         "/usr/local/bin",
         "/usr/bin",
         "/bin"
@@ -664,50 +672,6 @@ def process_bw_jsonc(config_data, sandbox, bwrap_args)
   end
 end
 
-# Check for help flags
-if ARGV.include?("-v") || ARGV.include?("-version") || ARGV.include?("--version")
-  puts "bw version #{BW_VERSION}"
-  exit 0
-end
-
-if ARGV.include?("-h") || ARGV.include?("-help") || ARGV.include?("--help")
-  puts <<~HELP
-    Usage: bw [options] [command [args...]]
-
-    Bubblewrap Sandbox Launcher
-
-    This script wraps bubblewrap (bwrap) to launch a secure, isolated sandbox
-    environment with convenient bindings, shell themes, and custom configuration.
-
-    Options:
-      -h, -help, --help  Show this help message and exit
-      -v, -version, --version  Show version and exit
-      -f                 Force sandbox launch, bypassing the file count check (> 100 files)
-      --info             List all mapped files, directories, and configuration settings, then exit
-      -test opencode     Start bubblewrap, run opencode, make sure it loads, and exit
-      -test quarto       Start bubblewrap, run quarto, make sure it loads, and exit
-
-    Copy Management Commands:
-      copy add <program> Add a program (specified by absolute path) to global config's copy list
-      copy list          List all programs currently configured to be copied in global config
-      copy del <program> Remove a program from global config's copy list
-
-    Scp Command:
-      scp <dest>         Copy the global config file to a remote machine via scp
-                         (e.g. bw scp user@host:)
-
-    Examples:
-      bw                 Launch the sandbox and attach to a tmux session (default)
-      bw bash            Launch the sandbox and run bash
-      bw command         Run a specific command inside the sandbox
-      bw scp user@host:
-      bw copy add /home/user/bin/myprog
-      bw copy list
-      bw copy del /home/user/bin/myprog
-  HELP
-  exit 0
-end
-
 # Handle 'scp' subcommand (scp [dest]) — copy config to remote machine
 if ARGV[0] == "scp"
   dest = ARGV[1]
@@ -824,32 +788,86 @@ if ARGV[0] == "copy"
   end
 end
 
-# Check for -test opencode / quarto options and extract them
+# Parse command-line options
+force = false
+show_info = false
 test_opencode = false
 test_quarto = false
-["-test", "--test"].each do |flag|
-  if (idx = ARGV.index(flag))
-    target = ARGV[idx + 1]
+test_uv = false
+
+while !ARGV.empty? && ARGV[0].start_with?("-")
+  case ARGV[0]
+  when "-h", "-help", "--help"
+    ARGV.shift
+    puts <<~HELP
+      Usage: bw [options] [command [args...]]
+
+      Bubblewrap Sandbox Launcher
+
+      This script wraps bubblewrap (bwrap) to launch a secure, isolated sandbox
+      environment with convenient bindings, shell themes, and custom configuration.
+
+      Options:
+        -h, -help, --help        Show this help message and exit
+        -v, -version, --version  Show version and exit
+        -f, --force              Force sandbox launch, bypassing the file count check (> 100 files)
+        --info                   List all mapped files, directories, and configuration settings, then exit
+        -test opencode           Start bubblewrap, run opencode, make sure it loads, and exit
+        -test quarto             Start bubblewrap, run quarto, make sure it loads, and exit
+        -test uv                 Start bubblewrap, verify uv and uvx load, and exit
+
+      Copy Management Commands:
+        copy add <program>       Add a program (specified by absolute path) to global config's copy list
+        copy list                List all programs currently configured to be copied in global config
+        copy del <program>       Remove a program from global config's copy list
+
+      Scp Command:
+        scp <dest>               Copy the global config file to a remote machine via scp
+                                 (e.g. bw scp user@host:)
+
+      Examples:
+        bw                       Launch the sandbox and attach to a tmux session (default)
+        bw bash                  Launch the sandbox and run bash
+        bw command               Run a specific command inside the sandbox
+        bw scp user@host:
+        bw copy add /home/user/bin/myprog
+        bw copy list
+        bw copy del /home/user/bin/myprog
+    HELP
+    exit 0
+  when "-v", "-version", "--version"
+    ARGV.shift
+    puts "bw version #{BW_VERSION}"
+    exit 0
+  when "-f", "--force"
+    ARGV.shift
+    force = true
+  when "--info", "-info"
+    ARGV.shift
+    show_info = true
+  when "-test", "--test"
+    ARGV.shift
+    target = ARGV.shift
     if target == "opencode"
-      ARGV.delete_at(idx + 1)
-      ARGV.delete_at(idx)
       test_opencode = true
-      break
     elsif target == "quarto"
-      ARGV.delete_at(idx + 1)
-      ARGV.delete_at(idx)
       test_quarto = true
-      break
+    elsif target == "uv"
+      test_uv = true
+    else
+      STDERR.puts "Unknown test target: '#{target}'. Supported targets: opencode, quarto, uv"
+      exit 1
     end
+  when "--"
+    ARGV.shift
+    break
+  else
+    break
   end
 end
 
-# Check for -f and --info flags and extract them
-force = ARGV.delete("-f") ? true : false
-show_info = ARGV.delete("--info") || ARGV.delete("-info") ? true : false
-
 # Dependency validations
-is_default_session = ARGV.empty? && !show_info && !test_opencode && !test_quarto
+is_default_session = ARGV.empty? && !show_info && !test_opencode && !test_quarto && !test_uv
 verify_installed_tools(is_default_tmux: is_default_session)
 
 # Check for AppArmor / unprivileged userns restrictions
@@ -993,6 +1011,7 @@ begin
   # Ensure custom bin paths are in PATH inside the sandbox shell configurations
   sandbox_paths = [
     "#{home_dir}/bin",
+    "#{home_dir}/.local/bin",
     "#{home_dir}/.opencode/bin",
     "#{home_dir}/.cargo/bin"
   ]
@@ -1004,7 +1023,10 @@ begin
     if rc_name == ".bashrc" || File.exist?(rc_path)
       FileUtils.touch(rc_path)
       content = File.read(rc_path)
-      unless content.include?("# Add sandbox-specific binary paths") || content.include?("export PATH=\"#{home_dir}/bin:")
+      if content.include?("# Add sandbox-specific binary paths")
+        new_content = content.gsub(/# Add sandbox-specific binary paths\nexport PATH=.*$/, "# Add sandbox-specific binary paths\n#{path_line}")
+        File.write(rc_path, new_content) if new_content != content
+      elsif !content.include?("export PATH=\"#{sandbox_paths.join(':')}:")
         File.open(rc_path, "a") do |f|
           f.puts "\n# Add sandbox-specific binary paths"
           f.puts path_line
@@ -1280,6 +1302,8 @@ begin
                 ["opencode", "debug", "info"]
               elsif test_quarto
                 ["quarto", "--version"]
+              elsif test_uv
+                ["uv", "--version"]
               elsif ARGV.empty?
                 # Force tmux to run in UTF-8 mode (-u) to prevent line-wrapping/overwrite glitches
                 ["tmux", "-u", "new-session", "-A", "-s", "bwrap-dev"]
@@ -1317,6 +1341,21 @@ begin
       STDERR.puts "Detail:"
       STDERR.puts output
       exit status.exitstatus || 1
+    end
+  elsif test_uv
+    require 'open3'
+    output_uv, status_uv = Open3.capture2e("bwrap", *bwrap_args, "uv", "--version")
+    output_uvx, status_uvx = Open3.capture2e("bwrap", *bwrap_args, "uvx", "--version")
+    if status_uv.success? && status_uvx.success?
+      puts "uv version inside sandbox: #{output_uv.strip}"
+      puts "uvx version inside sandbox: #{output_uvx.strip}"
+      puts "Everything is fine."
+      exit 0
+    else
+      STDERR.puts "Test failed: uv or uvx did not load correctly."
+      STDERR.puts "uv output: #{output_uv}" unless status_uv.success?
+      STDERR.puts "uvx output: #{output_uvx}" unless status_uvx.success?
+      exit(status_uv.exitstatus || status_uvx.exitstatus || 1)
     end
   else
     success = system("bwrap", *bwrap_args, *exec_args)
