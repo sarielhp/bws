@@ -75,6 +75,10 @@ def ensure_ssh_agent(specific_keys = nil)
             system("SSH_AUTH_SOCK=\"#{agent_sock}\" ssh-add \"#{exp_k}\" >/dev/null 2>&1")
           end
         end
+      else
+        # Reused agent was empty/no specific keys requested: load the user's default keys,
+        # matching the behavior of a freshly spawned agent below.
+        system("SSH_AUTH_SOCK=\"#{agent_sock}\" ssh-add >/dev/null 2>&1")
       end
       return agent_sock
     else
@@ -131,7 +135,7 @@ def get_auto_deploy_key
 end
 
 # Helper to verify required and recommended host tools on startup
-def verify_installed_tools(is_default_tmux: true)
+def verify_installed_tools(is_default_tmux: true, skip_fail: false)
   tools = [
     { cmd: "bwrap", name: "Bubblewrap", desc: "Core sandbox container runtime", critical: true },
     { cmd: "tmux", name: "tmux", desc: "Default interactive session manager", critical: is_default_tmux },
@@ -146,10 +150,25 @@ def verify_installed_tools(is_default_tmux: true)
   missing_critical = tools.select { |t| t[:critical] && !command_exists?(t[:cmd]) }
   missing_recommended = tools.select { |t| !t[:critical] && !command_exists?(t[:cmd]) }
 
+  report_recommended = lambda do
+    return if missing_recommended.empty?
+    STDERR.puts "[bw] Warning: Recommended tool(s) missing on host:"
+    missing_recommended.each do |t|
+      STDERR.puts "  - #{t[:name]} (#{t[:cmd]}): #{t[:desc]}"
+    end
+    pkg_list = missing_recommended.map { |t| t[:cmd] == 'gh' ? 'gh' : (t[:cmd] == 'emacs' ? 'emacs-nox' : t[:cmd]) }.join(' ')
+    STDERR.puts "  Install suggestion (Debian/Ubuntu): sudo apt-get install #{pkg_list}\n\n"
+  end
+
   if missing_critical.any?
     STDERR.puts "Error: Required tool(s) missing on host:"
     missing_critical.each do |t|
       STDERR.puts "  - #{t[:name]} (#{t[:cmd]}): #{t[:desc]}"
+    end
+    if skip_fail
+      # Inspection mode: report the gaps (including recommended) and continue without aborting.
+      report_recommended.call
+      return
     end
     STDERR.puts "\nPlease install missing required dependencies:"
     STDERR.puts "  Debian/Ubuntu: sudo apt-get install #{missing_critical.map { |t| t[:cmd] }.join(' ')}"
@@ -158,14 +177,7 @@ def verify_installed_tools(is_default_tmux: true)
     exit 1
   end
 
-  if missing_recommended.any?
-    STDERR.puts "[bw] Warning: Recommended tool(s) missing on host:"
-    missing_recommended.each do |t|
-      STDERR.puts "  - #{t[:name]} (#{t[:cmd]}): #{t[:desc]}"
-    end
-    pkg_list = missing_recommended.map { |t| t[:cmd] == 'gh' ? 'gh' : (t[:cmd] == 'emacs' ? 'emacs-nox' : t[:cmd]) }.join(' ')
-    STDERR.puts "  Install suggestion (Debian/Ubuntu): sudo apt-get install #{pkg_list}\n\n"
-  end
+  report_recommended.call
 end
 
 # Helper to check if bwrap can set up unprivileged user namespaces and prompt to fix via AppArmor
@@ -237,28 +249,47 @@ def verify_bwrap_userns_support
 end
 
 
-# Helper to prepend a startup message to a configuration file
-def prepend_message(target_file, message)
-  FileUtils.touch(target_file)
-  content = File.read(target_file)
-  unless content.include?(message)
-    File.write(target_file, "echo \"#{message}\"\n" + content)
+# Remove single-line JSONC comments (// ... or # ...) while leaving string contents intact,
+# so a '//' or '#' inside a string value is never mistaken for a comment.
+def strip_jsonc_comments(content)
+  out = +""
+  in_str = false
+  i = 0
+  n = content.length
+  while i < n
+    c = content[i]
+    nxt = content[i + 1]
+    if in_str
+      out << c
+      if c == "\\"
+        out << nxt if nxt
+        i += 1
+      elsif c == '"'
+        in_str = false
+      end
+    elsif c == '"'
+      in_str = true
+      out << c
+    elsif (c == "/" && nxt == "/") || c == "#"
+      i += 1 until i >= n || content[i] == "\n"
+      i -= 1
+    else
+      out << c
+    end
+    i += 1
   end
+  out
 end
 
 # Helper to read a JSONC file, strip comments, and parse it.
 # Raises a clear, actionable error (rather than a raw backtrace) on invalid content.
 def load_jsonc(filepath)
   content = File.read(filepath)
-  # Strip single-line comments starting with // or #
-  content_clean = content.gsub(/^\s*(\/\/|#).*$/, "")
-  # Strip trailing comments like space followed by //
-  content_clean = content_clean.gsub(/\s+(\/\/|#)[^"\n]*$/, "")
-  JSON.parse(content_clean)
+  JSON.parse(strip_jsonc_comments(content))
 rescue JSON::ParserError => e
   STDERR.puts "Error: Invalid JSON/JSONC in #{filepath}"
   STDERR.puts "  #{e.message}"
-  STDERR.puts "Fix the file and re-run. (Comments must start with // or # on their own line.)"
+  STDERR.puts "Fix the file and re-run. (Comments must start with // or #.)"
   exit 1
 end
 
@@ -342,6 +373,7 @@ def generate_default_config
   home_dir = Dir.home
   user_name = ENV['USER'] || 'user'
   logname = ENV['LOGNAME'] || user_name
+  sandbox_dir = "~/.sandbox/pi_generic"
   <<~JSONC
     // Bubblewrap Sandbox Launcher Configuration File
     // 
@@ -359,8 +391,9 @@ def generate_default_config
         "hostname": "bubble"
       },
 
-      // Sandbox backing directory (persistent home) on the host
-      "sandbox_path": "~/.sandbox/pi_generic",
+      // Sandbox backing directory (persistent home) on the host.
+      // NOTE: if you change this, also update the matching "Persistent home" bind in binds_rw.
+      "sandbox_path": "#{sandbox_dir}",
 
       // Host path to the LLM models.json file copied into the sandbox
       "models_json_path": "~/info/llm/models.json",
@@ -428,7 +461,8 @@ def generate_default_config
       // Read-Write Bindings (Host Path -> Sandbox Path)
       // Note: This works for both files and directories.
       "binds_rw": [
-        ["~/.sandbox/pi_generic", "#{home_dir}"],
+        // Persistent home backing dir — must match "sandbox_path" above
+        ["#{sandbox_dir}", "#{home_dir}"],
         ["~/.opencode", "#{home_dir}/.opencode"],
         ["~/.cargo", "#{home_dir}/.cargo"],
         ["~/.local/bin", "#{home_dir}/.local/bin"],
@@ -748,8 +782,14 @@ def process_copy_paths(copy_list, sandbox)
   copy_list.each do |path_str|
     expanded_path = File.expand_path(path_str)
     home = Dir.home
-    if expanded_path == home || expanded_path.start_with?(home + "/")
-      rel_path = expanded_path == home ? "" : expanded_path[(home.length + 1)..-1]
+    # Reject the home directory itself (and its .sandbox backing store): copying it would
+    # delete the sandbox root and recursively copy the entire home into it.
+    if expanded_path == home || expanded_path.start_with?(home + "/.sandbox")
+      warn "Warning: Refusing to copy home directory or sandbox backing store: #{expanded_path}"
+      next
+    end
+    if expanded_path.start_with?(home + "/")
+      rel_path = expanded_path[(home.length + 1)..-1]
       sandbox_dest = File.join(sandbox, rel_path)
 
       if File.exist?(expanded_path)
@@ -795,11 +835,11 @@ def apply_binds_list(bwrap_args, list, ro: false)
 end
 
 # Process the directory configuration override file (.bw.jsonc)
-def process_bw_jsonc(config_data, sandbox, bwrap_args)
+def process_bw_jsonc(config_data, sandbox, bwrap_args, dry_run: false)
   return unless config_data.is_a?(Hash)
 
-  # Process "copy" array
-  process_copy_paths(config_data["copy"], sandbox)
+  # Process "copy" array (side-effecting: skipped during a --info dry run)
+  process_copy_paths(config_data["copy"], sandbox) unless dry_run
 
   # Process "binds_rw" and "binds_ro" arrays (support both directories and files)
   apply_binds_list(bwrap_args, config_data["binds_rw"], ro: false)
@@ -941,6 +981,13 @@ when "copy"
       exit 1
     end
 
+    home_dir = File.expand_path("~")
+    expanded = File.expand_path(prog)
+    unless expanded.start_with?(home_dir + "/") && !expanded.start_with?(home_dir + "/.sandbox")
+      STDERR.puts "Error: Program must be inside your home directory (#{home_dir}) and not the sandbox backing store (/.sandbox)."
+      exit 1
+    end
+
     cfg = load_jsonc(global_config_path)
     copy_list = cfg["copy"].is_a?(Array) ? cfg["copy"] : []
 
@@ -1072,7 +1119,9 @@ end
 
 # Dependency validations
 is_default_session = ARGV.empty? && !show_info && !test_opencode && !test_quarto && !test_uv
-verify_installed_tools(is_default_tmux: is_default_session)
+# On --info (dry run) report missing tools as warnings but don't abort; inspection should work
+# even on a machine without bwrap installed.
+verify_installed_tools(is_default_tmux: is_default_session, skip_fail: show_info)
 
 # Check for AppArmor / unprivileged userns restrictions.
 # Skipped on --info (dry run) and the -test paths since it executes a real bwrap probe
@@ -1085,6 +1134,11 @@ global_config_path = File.join(config_dir, "config.jsonc")
 example_config_path = File.join(config_dir, "example-config.jsonc")
 
 unless File.exist?(global_config_path)
+  if show_info
+    STDERR.puts "Error: No configuration file found at #{global_config_path}."
+    STDERR.puts "Run `bw` once to generate a default config, then use --info."
+    exit 1
+  end
   FileUtils.mkdir_p(config_dir)
   File.write(global_config_path, generate_default_config)
   File.write(example_config_path, generate_example_config)
@@ -1095,9 +1149,14 @@ unless File.exist?(global_config_path)
 end
 
 # Load and parse global configuration file
-puts "Loading configuration file: #{global_config_path}"
+STDERR.puts "Loading configuration file: #{global_config_path}"
 config = load_jsonc(global_config_path)
 config = replace_sbox_prefix(config, Dir.home)
+
+unless config.is_a?(Hash)
+  STDERR.puts "Error: Configuration file #{global_config_path} must contain a JSON object at the top level."
+  exit 1
+end
 
 # Run-directory security and constraint validation
 current_dir = Pathname.pwd.realpath
@@ -1129,9 +1188,15 @@ unless show_info
   FileUtils.mkdir_p(File.join(sandbox, ".pi/agent"))
 end
 
-# Ensure host-side tmp parent directory exists and create a unique sandbox tmp dir
-FileUtils.mkdir_p("/tmp/bw")
-host_tmp = Dir.mktmpdir("sandbox_", "/tmp/bw")
+# Ensure host-side tmp parent directory exists and create a unique sandbox tmp dir.
+# On --info this is side-effect free: a placeholder label is used so the plan can still
+# show the intended /tmp bind without creating a real temporary directory.
+if show_info
+  host_tmp = "/tmp/bw/SANDBOX_TMP"
+else
+  FileUtils.mkdir_p("/tmp/bw")
+  host_tmp = Dir.mktmpdir("sandbox_", "/tmp/bw")
+end
 
 def prepare_sandbox(config, sandbox, home_dir, config_dir)
   # Process global config "copy" list
@@ -1246,13 +1311,7 @@ def prepare_sandbox(config, sandbox, home_dir, config_dir)
     end
   end
 
-  # Prepend startup messages to shell configuration files
-  prepend_message(File.join(sandbox, ".bashrc"), "Running ~/.bashrc...")
-  prepend_message(File.join(sandbox, ".profile"), "Running ~/.profile...")
-  prepend_message(File.join(sandbox, ".bash_profile"), "Running ~/.bash_profile...")
-  if File.exist?(File.join(sandbox, ".zshrc"))
-    prepend_message(File.join(sandbox, ".zshrc"), "Running ~/.zshrc...")
-  end
+  # (Startup-banner echo lines were removed to keep the interactive shell prompt clean.)
 
   # Set up .tmux.conf in the sandbox (copy host config as base if newer or missing, then append status indicator)
   tmux_conf = File.join(sandbox, ".tmux.conf")
@@ -1317,6 +1376,8 @@ begin
   apply_binds_list(bwrap_args, config["binds_ro"], ro: true)
 
   # 4. Parse environment variables
+  # Note: a non-empty host value intentionally overrides the configured default (so e.g.
+  # TERM/LANG follow the host). Use the sandboxed values below as fallbacks only.
   if config["env"].is_a?(Hash)
     config["env"].each do |k, default_val|
       val = (ENV[k] && !ENV[k].empty?) ? ENV[k] : default_val
@@ -1353,7 +1414,7 @@ begin
         # already-running agent socket so the displayed plan stays side-effect free.
         ssh_auth_sock = ENV["SSH_AUTH_SOCK"] if ENV["SSH_AUTH_SOCK"] && File.socket?(ENV["SSH_AUTH_SOCK"])
       else
-        if (ssh_keys.nil? || ssh_keys.empty?) && config["features"].fetch("auto_repo_deploy_key", true)
+        if (ssh_keys.nil? || ssh_keys.empty?) && config["features"].fetch("auto_repo_deploy_key", true) && command_exists?("ssh-agent") && command_exists?("ssh-add")
           auto_key = get_auto_deploy_key
           ssh_keys = [auto_key] if auto_key
         end
@@ -1378,11 +1439,15 @@ begin
           end
         end
       elsif File.directory?(host_ssh_dir)
-        # Fallback method when ssh-agent is not running: mount ~/.ssh read-only
-        bwrap_args.concat(["--ro-bind", host_ssh_dir, sandbox_ssh])
-        known_hosts = File.join(host_ssh_dir, "known_hosts")
-        if File.exist?(known_hosts)
-          bwrap_args.concat(["--bind", known_hosts, "#{sandbox_ssh}/known_hosts"])
+        # Fallback when no agent socket is running: expose only non-secret SSH files.
+        # Private keys are intentionally NOT mounted (sandbox processes could read them).
+        FileUtils.mkdir_p(File.join(sandbox, ".ssh")) unless show_info
+        ["config", "known_hosts"].each do |f|
+          host_f = File.join(host_ssh_dir, f)
+          next unless File.exist?(host_f)
+          # Already bound (read-write) via binds_rw; don't override it or duplicate the mount.
+          next if bwrap_args.include?(host_f)
+          bwrap_args.concat(["--ro-bind", host_f, "#{sandbox_ssh}/#{f}"])
         end
       end
     end
@@ -1425,10 +1490,10 @@ begin
   end
 
   # Auto-bind /opt and Quarto installation path if available on host
-  if File.exist?("/opt")
+  if File.exist?("/opt") && !bwrap_args.include?("/opt")
     bwrap_args.concat(["--ro-bind-try", "/opt", "/opt"])
     opt_real = File.realpath("/opt") rescue "/opt"
-    if opt_real != "/opt" && File.exist?(opt_real)
+    if opt_real != "/opt" && File.exist?(opt_real) && !bwrap_args.include?(opt_real)
       bwrap_args.concat(["--ro-bind-try", opt_real, opt_real])
     end
   end
@@ -1456,13 +1521,17 @@ begin
     "--bind", host_tmp, "/tmp",
     "--proc", "/proc",
     "--dev", "/dev",
+    "--ro-bind-try", "/sys", "/sys",
     "--die-with-parent",
     "--bind", current_dir.to_s, sandbox_pwd,
     "--chdir", sandbox_pwd
   ])
 
   # Mount the host X11 socket AFTER the /tmp bind so the per-instance /tmp does not mask it.
-  bwrap_args.concat(["--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix"]) if ENV["DISPLAY"]
+  x11_enabled = config["features"].is_a?(Hash) && config["features"]["enable_x11"]
+  if x11_enabled && ENV["DISPLAY"]
+    bwrap_args.concat(["--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix"])
+  end
 
   # Bind the custom resolv.conf into the writeable /etc tmpfs
   sandbox_resolv = File.join(sandbox, "etc/resolv.conf")
@@ -1473,10 +1542,10 @@ begin
   # Load and process the local directory configuration (.bw.jsonc) if it exists
   local_config_path = File.join(current_dir.to_s, ".bw.jsonc")
   if File.exist?(local_config_path)
-    puts "Loading configuration file: #{local_config_path}"
+    STDERR.puts "Loading configuration file: #{local_config_path}"
     local_config = load_jsonc(local_config_path)
     local_config = replace_sbox_prefix(local_config, Dir.home)
-    process_bw_jsonc(local_config, sandbox, bwrap_args)
+    process_bw_jsonc(local_config, sandbox, bwrap_args, dry_run: show_info)
   end
 
   # Execution arguments logic
@@ -1550,8 +1619,10 @@ begin
   end
 
 ensure
-  # Clean up host temporary directory
-  FileUtils.rm_rf(host_tmp) if host_tmp && Dir.exist?(host_tmp)
+  # Clean up host temporary directory (never on --info: host_tmp is only a placeholder)
+  unless show_info
+    FileUtils.rm_rf(host_tmp) if host_tmp && Dir.exist?(host_tmp)
+  end
 end
 
 
