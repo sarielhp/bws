@@ -43,7 +43,7 @@ end
 
 # Helper to check if a command exists in the host PATH
 def command_exists?(cmd)
-  ENV['PATH'].split(File::PATH_SEPARATOR).any? do |dir|
+  (ENV['PATH'] || "").split(File::PATH_SEPARATOR).any? do |dir|
     file = File.join(dir, cmd)
     File.file?(file) && File.executable?(file)
   end
@@ -370,10 +370,11 @@ end
 
 # Helper to generate the default configuration content with inline comments
 def generate_default_config
-  home_dir = Dir.home
   user_name = ENV['USER'] || 'user'
   logname = ENV['LOGNAME'] || user_name
-  sandbox_dir = "~/.sandbox/pi_generic"
+  # Portable, home-relative paths: the @@HOME@@ token is replaced with the host's home on
+  # whichever machine loads this config, so a config copied via `bw scp` works elsewhere.
+  sandbox_dir = "#{HOME_TOKEN}/.sandbox/pi_generic"
   <<~JSONC
     // Bubblewrap Sandbox Launcher Configuration File
     // 
@@ -431,7 +432,7 @@ def generate_default_config
 
       // Environment variables inside the sandbox
       "env": {
-        "HOME": "#{home_dir}",
+        "HOME": "#{HOME_TOKEN}",
         "TERM": "xterm-256color",
         "LANG": "C.UTF-8",
         "LC_ALL": "C.UTF-8",
@@ -446,10 +447,10 @@ def generate_default_config
       // PATH directories inside the sandbox. These segments will be concatenated
       // automatically using colons (:) to build the PATH environment variable.
       "path": [
-        "#{home_dir}/bin",
-        "#{home_dir}/.local/bin",
-        "#{home_dir}/.opencode/bin",
-        "#{home_dir}/.cargo/bin",
+        "#{HOME_TOKEN}/bin",
+        "#{HOME_TOKEN}/.local/bin",
+        "#{HOME_TOKEN}/.opencode/bin",
+        "#{HOME_TOKEN}/.cargo/bin",
         "/usr/local/sbin",
         "/usr/local/bin",
         "/usr/sbin",
@@ -462,23 +463,23 @@ def generate_default_config
       // Note: This works for both files and directories.
       "binds_rw": [
         // Persistent home backing dir — must match "sandbox_path" above
-        ["#{sandbox_dir}", "#{home_dir}"],
-        ["~/.opencode", "#{home_dir}/.opencode"],
-        ["~/.cargo", "#{home_dir}/.cargo"],
-        ["~/.local/bin", "#{home_dir}/.local/bin"],
-        ["~/.local/share/uv", "#{home_dir}/.local/share/uv"],
-        ["~/.cache/uv", "#{home_dir}/.cache/uv"],
-        ["~/.config/uv", "#{home_dir}/.config/uv"],
-        ["~/.gitconfig", "#{home_dir}/.gitconfig"],
-        ["~/.git-credentials", "#{home_dir}/.git-credentials"],
-        ["~/.config/git", "#{home_dir}/.config/git"],
-        ["~/.ssh/known_hosts", "#{home_dir}/.ssh/known_hosts"],
-        ["~/.ssh/config", "#{home_dir}/.ssh/config"],
-        ["~/.terminfo", "#{home_dir}/.terminfo"],
-        ["~/.local/share/terminfo", "#{home_dir}/.local/share/terminfo"],
-        ["~/.texlive2026/texmf-var", "#{home_dir}/.texlive2026/texmf-var"],
-        ["~/.local/share/fonts", "#{home_dir}/.local/share/fonts"],
-        ["~/.cache/fontconfig", "#{home_dir}/.cache/fontconfig"]
+        ["#{sandbox_dir}", "#{HOME_TOKEN}"],
+        ["~/.opencode", "#{HOME_TOKEN}/.opencode"],
+        ["~/.cargo", "#{HOME_TOKEN}/.cargo"],
+        ["~/.local/bin", "#{HOME_TOKEN}/.local/bin"],
+        ["~/.local/share/uv", "#{HOME_TOKEN}/.local/share/uv"],
+        ["~/.cache/uv", "#{HOME_TOKEN}/.cache/uv"],
+        ["~/.config/uv", "#{HOME_TOKEN}/.config/uv"],
+        ["~/.gitconfig", "#{HOME_TOKEN}/.gitconfig"],
+        ["~/.git-credentials", "#{HOME_TOKEN}/.git-credentials"],
+        ["~/.config/git", "#{HOME_TOKEN}/.config/git"],
+        ["~/.ssh/known_hosts", "#{HOME_TOKEN}/.ssh/known_hosts"],
+        ["~/.ssh/config", "#{HOME_TOKEN}/.ssh/config"],
+        ["~/.terminfo", "#{HOME_TOKEN}/.terminfo"],
+        ["~/.local/share/terminfo", "#{HOME_TOKEN}/.local/share/terminfo"],
+        ["~/.texlive2026/texmf-var", "#{HOME_TOKEN}/.texlive2026/texmf-var"],
+        ["~/.local/share/fonts", "#{HOME_TOKEN}/.local/share/fonts"],
+        ["~/.cache/fontconfig", "#{HOME_TOKEN}/.cache/fontconfig"]
       ],
 
       // Read-Only Bindings (Host Path -> Sandbox Path)
@@ -493,7 +494,7 @@ def generate_default_config
         ["/libx32", "/libx32"],
         ["/sbin", "/sbin"],
         ["/run/systemd/journal", "/run/systemd/journal"],
-        ["~/.rustup", "#{home_dir}/.rustup"],
+        ["~/.rustup", "#{HOME_TOKEN}/.rustup"],
         ["/var/lib/texmf", "/var/lib/texmf"],
         ["/var/cache/fontconfig", "/var/cache/fontconfig"]
       ]
@@ -826,8 +827,9 @@ def apply_binds_list(bwrap_args, list, ro: false)
       host_path, sandbox_path = item
       next unless host_path && sandbox_path
       expanded_host = File.expand_path(host_path)
+      expanded_dest = sandbox_path.start_with?("~") ? File.expand_path(sandbox_path) : sandbox_path
       next unless File.exist?(expanded_host)
-      bwrap_args.concat([mode, expanded_host, sandbox_path])
+      bwrap_args.concat([mode, expanded_host, expanded_dest])
     elsif item.is_a?(String)
       bind_path(bwrap_args, item, writeable: !ro)
     end
