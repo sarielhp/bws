@@ -1261,7 +1261,7 @@ def prepare_sandbox(config, sandbox, home_dir, config_dir)
   # Ensure custom bin paths are in PATH and the configured editor is set in the
   # sandbox's shell configurations. Values are derived from config so they never drift.
   sandbox_paths = if config["path"].is_a?(Array)
-                    config["path"].map { |p| p.start_with?("~") ? p.gsub(/^~/, home_dir.to_s) : p }
+                    config["path"].select { |p| p.is_a?(String) }.map { |p| p.start_with?("~") ? p.gsub(/^~/, home_dir.to_s) : p }
                   else
                     []
                   end
@@ -1380,13 +1380,14 @@ begin
   # TERM/LANG follow the host). Use the sandboxed values below as fallbacks only.
   if config["env"].is_a?(Hash)
     config["env"].each do |k, default_val|
-      val = (ENV[k] && !ENV[k].empty?) ? ENV[k] : default_val
+      default_val = default_val.to_s if default_val
+      val = (ENV[k].is_a?(String) && !ENV[k].empty?) ? ENV[k] : default_val
       if k == "LC_ALL" && (!ENV["LC_ALL"] || ENV["LC_ALL"].empty?)
         val = ENV["LANG"] || default_val
       elsif k == "LOGNAME" && (!ENV["LOGNAME"] || ENV["LOGNAME"].empty?)
         val = ENV["USER"] || default_val
       end
-      if val && !val.empty?
+      if val.is_a?(String) && !val.empty?
         bwrap_args.concat(["--setenv", k, val])
       end
     end
@@ -1399,7 +1400,7 @@ begin
 
   # 5. Parse and concatenate PATH directories
   if config["path"].is_a?(Array)
-    resolved_paths = config["path"].map do |p|
+    resolved_paths = config["path"].select { |p| p.is_a?(String) }.map do |p|
       p.start_with?("~") ? p.gsub(/^~/, home_dir.to_s) : p
     end
     bwrap_args.concat(["--setenv", "PATH", resolved_paths.join(":")])
@@ -1428,14 +1429,17 @@ begin
         bwrap_args.concat(["--bind", ssh_auth_sock, ssh_auth_sock])
         bwrap_args.concat(["--setenv", "SSH_AUTH_SOCK", ssh_auth_sock])
 
-        # Bind non-secret config and known_hosts files if they exist
+        # Bind non-secret config and known_hosts files if they exist.
+        # config is mounted read-only (ssh only reads it, and a sandbox process must not be
+        # able to rewrite the host's ~/.ssh/config); known_hosts stays writable so ssh can
+        # record newly-verified host keys.
         if File.directory?(host_ssh_dir)
           FileUtils.mkdir_p(File.join(sandbox, ".ssh")) unless show_info
-          ["config", "known_hosts"].each do |f|
-            host_f = File.join(host_ssh_dir, f)
-            if File.exist?(host_f)
-              bwrap_args.concat(["--bind", host_f, "#{sandbox_ssh}/#{f}"])
-            end
+          if File.exist?(File.join(host_ssh_dir, "config"))
+            bwrap_args.concat(["--ro-bind", File.join(host_ssh_dir, "config"), "#{sandbox_ssh}/config"])
+          end
+          if File.exist?(File.join(host_ssh_dir, "known_hosts"))
+            bwrap_args.concat(["--bind", File.join(host_ssh_dir, "known_hosts"), "#{sandbox_ssh}/known_hosts"])
           end
         end
       elsif File.directory?(host_ssh_dir)
