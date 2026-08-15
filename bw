@@ -61,6 +61,9 @@ def ensure_ssh_agent(specific_keys = nil)
   agent_sock = File.join(agent_dir, "ssh_agent.sock")
 
   if File.socket?(agent_sock)
+    # Probe the socket: `ssh-add -l` exits 0 if the agent holds keys, 1 if the agent is
+    # alive but empty -- both mean the agent is functional and safe to reuse. Any other
+    # exit (e.g. 2 = "could not open connection") means the socket is stale, so discard it.
     `SSH_AUTH_SOCK="#{agent_sock}" ssh-add -l >/dev/null 2>&1`
     if $?.exitstatus == 0 || $?.exitstatus == 1
       ENV["SSH_AUTH_SOCK"] = agent_sock
@@ -243,7 +246,8 @@ def prepend_message(target_file, message)
   end
 end
 
-# Helper to read a JSONC file, strip comments, and parse it
+# Helper to read a JSONC file, strip comments, and parse it.
+# Raises a clear, actionable error (rather than a raw backtrace) on invalid content.
 def load_jsonc(filepath)
   content = File.read(filepath)
   # Strip single-line comments starting with // or #
@@ -251,9 +255,19 @@ def load_jsonc(filepath)
   # Strip trailing comments like space followed by //
   content_clean = content_clean.gsub(/\s+(\/\/|#)[^"\n]*$/, "")
   JSON.parse(content_clean)
+rescue JSON::ParserError => e
+  STDERR.puts "Error: Invalid JSON/JSONC in #{filepath}"
+  STDERR.puts "  #{e.message}"
+  STDERR.puts "Fix the file and re-run. (Comments must start with // or # on their own line.)"
+  exit 1
 end
 
-# Helper to recursively replace /home/sbox with the host home directory
+# Placeholder token used in config file paths to stand in for the host home directory.
+# An explicit, unlikely-in-practice token (instead of a magic absolute path) so that
+# replacement is safe and predictable.
+HOME_TOKEN = "@@HOME@@"
+
+# Helper to recursively replace the HOME_TOKEN placeholder with the host home directory
 def replace_sbox_prefix(obj, home_dir)
   if obj.is_a?(Hash)
     obj.each do |k, v|
@@ -262,12 +276,66 @@ def replace_sbox_prefix(obj, home_dir)
   elsif obj.is_a?(Array)
     obj.map! { |v| replace_sbox_prefix(v, home_dir) }
   elsif obj.is_a?(String)
-    obj.gsub("/home/sbox", home_dir)
+    obj.gsub(HOME_TOKEN, home_dir)
   else
     obj
   end
 end
 
+
+# Helper to generate the default oh-my-posh theme JSON content
+def generate_default_theme
+  theme = {
+    "version" => 4,
+    "final_space" => true,
+    "blocks" => [
+      {
+        "type" => "prompt",
+        "alignment" => "left",
+        "newline" => true,
+        "segments" => [
+          {
+            "type" => "text",
+            "style" => "diamond",
+            "foreground" => "#ffffff",
+            "background" => "#8a2be2",
+            "leading_diamond" => "\u{e0b6}",
+            "trailing_diamond" => "\u{e0b0}",
+            "template" => " \u{2b22} BUBBLE "
+          },
+          {
+            "type" => "session",
+            "style" => "powerline",
+            "powerline_symbol" => "\u{e0b0}",
+            "foreground" => "#ffffff",
+            "background" => "#3a3a3a",
+            "template" => " {{ .UserName }}@{{ .HostName }} "
+          },
+          {
+            "type" => "path",
+            "style" => "powerline",
+            "powerline_symbol" => "\u{e0b0}",
+            "foreground" => "#ffffff",
+            "background" => "#1c2e4a",
+            "template" => " {{ .Path }} ",
+            "properties" => {
+              "style" => "folder"
+            }
+          },
+          {
+            "type" => "git",
+            "style" => "powerline",
+            "powerline_symbol" => "\u{e0b0}",
+            "foreground" => "#101010",
+            "background" => "#2e9599",
+            "template" => " {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }} "
+          }
+        ]
+      }
+    ]
+  }
+  JSON.pretty_generate(theme) + "\n"
+end
 
 # Helper to generate the default configuration content with inline comments
 def generate_default_config
@@ -291,14 +359,41 @@ def generate_default_config
         "hostname": "bubble"
       },
 
+      // Sandbox backing directory (persistent home) on the host
+      "sandbox_path": "~/.sandbox/pi_generic",
+
+      // Host path to the LLM models.json file copied into the sandbox
+      "models_json_path": "~/info/llm/models.json",
+
+      // tmux session name used for the default interactive session
+      "tmux_session_name": "bwrap-dev",
+
+      // Maximum number of files allowed in the launch directory before running is blocked
+      "max_file_count": 100,
+
+      // Base directory (relative to home) the generated `cdtoday` shell function navigates to
+      "cdtoday": "info/misc",
+
       // Sandbox features that dynamically configure elements based on the host
       "features": {
         // Enable mounting the active host SSH authentication socket if it exists
         "enable_ssh": true,
+        // Optional: explicit SSH private key paths to load into the agent (empty = default keys)
+        "ssh_keys": [],
+        // Automatically create/register a repo-scoped GitHub Deploy Key via gh when enable_ssh is on
+        "auto_repo_deploy_key": true,
         // Enable GUI applications by mapping the X11 display socket and authority
         "enable_x11": true,
         // Automatically map host directories/files from /etc/ read-only (except resolv.conf)
-        "enable_etc_auto_bind": true
+        "enable_etc_auto_bind": true,
+        // Enable oh-my-posh prompt theme engine
+        "enable_oh_my_posh": true
+      },
+
+      // oh-my-posh prompt theming configuration
+      "oh_my_posh": {
+        // Path to the oh-my-posh theme JSON configuration file
+        "theme_path": "~/.config/bw/theme.omp.json"
       },
 
       // Environment variables inside the sandbox
@@ -391,11 +486,19 @@ def generate_example_config
       "features": {
         "enable_ssh": false,
         "enable_x11": false,
-        "enable_etc_auto_bind": false
+        "enable_etc_auto_bind": false,
+        "enable_oh_my_posh": false
       },
 
+      "oh_my_posh": {
+        "theme_path": "~/.config/bw/theme.omp.json"
+      },
+
+      // Base directory (relative to home) the generated `cdtoday` shell function navigates to
+      "cdtoday": "info/misc",
+
       "env": {
-        "HOME": "/home/sbox",
+        "HOME": "@@HOME@@",
         "TERM": "xterm-256color",
         "LANG": "C.UTF-8",
         "EDITOR": "emacs -nw",
@@ -404,8 +507,8 @@ def generate_example_config
       },
 
       "path": [
-        "/home/sbox/bin",
-        "/home/sbox/.local/bin",
+        "@@HOME@@/bin",
+        "@@HOME@@/.local/bin",
         "/usr/local/bin",
         "/usr/bin",
         "/bin"
@@ -427,7 +530,7 @@ def generate_example_config
 end
 
 # Print sandbox mapping configuration information
-def print_info(bwrap_args, exec_args, global_config_path, local_config_path)
+def print_info(bwrap_args, exec_args, global_config_path, local_config_path, configured_copy = [], system_config = nil, default_chdir = nil)
   puts "Bubblewrap Sandbox Configuration Information"
   puts "==========================================="
   puts ""
@@ -437,6 +540,9 @@ def print_info(bwrap_args, exec_args, global_config_path, local_config_path)
   tmpfs_binds = []
   special_mounts = []
   env_vars = {}
+  flags = []
+  hostname = nil
+  chdir = nil
 
   i = 0
   while i < bwrap_args.length
@@ -466,6 +572,15 @@ def print_info(bwrap_args, exec_args, global_config_path, local_config_path)
     when "--unsetenv"
       env_vars[bwrap_args[i+1]] = "<unset>"
       i += 2
+    when "--hostname"
+      hostname = bwrap_args[i+1]
+      i += 2
+    when "--chdir"
+      chdir = bwrap_args[i+1]
+      i += 2
+    when "--share-net", "--clearenv", "--unshare-uts", "--die-with-parent"
+      flags << arg
+      i += 1
     else
       i += 1
     end
@@ -475,6 +590,22 @@ def print_info(bwrap_args, exec_args, global_config_path, local_config_path)
   env_vars.keys.sort.each do |k|
     puts "  #{k}=#{env_vars[k]}"
   end
+  puts ""
+
+  puts "System / Sandbox Flags:"
+  # Prefer the authoritative values parsed from bwrap_args; merge in config-derived
+  # system settings so the report cannot drift from the real bwrap invocation.
+  if system_config.is_a?(Hash)
+    flags << "--share-net" if system_config["share_net"] && !flags.include?("--share-net")
+    flags << "--clearenv" if system_config["clearenv"] && !flags.include?("--clearenv")
+    flags << "--unshare-uts" if system_config["unshare_uts"] && !flags.include?("--unshare-uts")
+    hostname ||= system_config["hostname"] if system_config["hostname"]
+  end
+  flags << "--die-with-parent" unless flags.include?("--die-with-parent")
+  chdir = default_chdir.to_s if chdir.nil? && default_chdir
+  puts "  #{flags.sort.join(', ')}" unless flags.empty?
+  puts "  hostname: #{hostname}" if hostname
+  puts "  chdir (working directory): #{chdir}" if chdir
   puts ""
 
   puts "Special Mounts & tmpfs:"
@@ -514,7 +645,14 @@ def print_info(bwrap_args, exec_args, global_config_path, local_config_path)
 
   puts "Files/Directories Copied or Synced (Host -> Sandbox):"
   if $copied_files.empty?
-    puts "  (None)"
+    if configured_copy.empty?
+      puts "  (None)"
+    else
+      puts "  (dry run -- copying skipped; #{configured_copy.length} path(s) configured:)"
+      configured_copy.each do |src|
+        puts "  #{src}"
+      end
+    end
   else
     $copied_files.each do |c|
       status = c[:copied] ? "[Copied/Updated]" : "[Up-to-date]"
@@ -556,36 +694,41 @@ def copy_if_newer(src, dest)
   $copied_files << { src: src, dest: dest, copied: copied }
 end
 
-# Inject oh-my-posh init configuration into shell profiles
-def inject_oh_my_posh(target_file, shell_type)
+# Inject oh-my-posh init configuration into shell profiles. Idempotent: any previously
+# injected block is replaced in place so the profile never accumulates stale content.
+def inject_oh_my_posh(target_file, shell_type, theme_path)
   home_dir = Dir.home
   FileUtils.touch(target_file)
   content = File.read(target_file)
+  content = content.sub(/# Initialize oh-my-posh prompt theme engine\n.*?\nfi\n?/m, "")
+  block =
+    "if command -v oh-my-posh >/dev/null 2>&1; then\n" \
+    "  eval \"$(oh-my-posh init #{shell_type} --config #{theme_path})\"\n" \
+    "elif [ -x \"#{home_dir}/bin/oh-my-posh\" ]; then\n" \
+    "  eval \"$(#{home_dir}/bin/oh-my-posh init #{shell_type} --config #{theme_path})\"\n" \
+    "fi\n"
   unless content.include?("oh-my-posh init")
-    File.open(target_file, "a") do |f|
-      f.puts "\n# Initialize oh-my-posh prompt theme engine"
-      f.puts "if [ -x \"#{home_dir}/bin/oh-my-posh\" ]; then"
-      f.puts "  eval \"$(#{home_dir}/bin/oh-my-posh init #{shell_type} --config #{home_dir}/.mytheme.omp.json)\""
-      f.puts "fi"
-    end
+    File.write(target_file, content + "\n# Initialize oh-my-posh prompt theme engine\n" + block)
   end
 end
 
-# Inject cdtoday function into shell profiles
-def inject_cdtoday(target_file)
+# Inject cdtoday function into shell profiles. Idempotent: a previous block is removed
+# before (re-)appending, so config changes apply in place instead of accumulating.
+def inject_cdtoday(target_file, base_dir = "info/misc")
+  base = base_dir.to_s.delete_suffix("/")
   FileUtils.touch(target_file)
   content = File.read(target_file)
+  content = content.sub(/^cdtoday \(\) \{\n(?:.*\n)*?\}\n?/m, "")
+  block =
+    "cdtoday () {\n" \
+    "    BS=#{base}/$(date +%02y/%02m/%02d)/\n" \
+    "    DR=~/$BS\n" \
+    "    mkdir -p $DR\n" \
+    "    cd $DR\n" \
+    "    echo cd '~/'$BS\n" \
+    "}\n"
   unless content.include?("cdtoday ()")
-    File.open(target_file, "a") do |f|
-      f.puts "\n# Function to navigate to today's misc directory"
-      f.puts "cdtoday () {"
-      f.puts "    BS=info/misc/$(date +%02y/%02m/%02d)/"
-      f.puts "    DR=~/$BS"
-      f.puts "    mkdir -p $DR"
-      f.puts "    cd $DR"
-      f.puts "    echo cd '~/'$BS"
-      f.puts "}"
-    end
+    File.write(target_file, content + "\n# Function to navigate to today's #{base} directory\n" + block)
   end
 end
 
@@ -633,6 +776,24 @@ def process_copy_paths(copy_list, sandbox)
   end
 end
 
+# Apply a config binds_rw / binds_ro array (of [host, sandbox] pairs or bare host
+# paths) onto the bwrap argument list. Shared by the global config and .bw.jsonc.
+def apply_binds_list(bwrap_args, list, ro: false)
+  return unless list.is_a?(Array)
+  mode = ro ? "--ro-bind" : "--bind"
+  list.each do |item|
+    if item.is_a?(Array)
+      host_path, sandbox_path = item
+      next unless host_path && sandbox_path
+      expanded_host = File.expand_path(host_path)
+      next unless File.exist?(expanded_host)
+      bwrap_args.concat([mode, expanded_host, sandbox_path])
+    elsif item.is_a?(String)
+      bind_path(bwrap_args, item, writeable: !ro)
+    end
+  end
+end
+
 # Process the directory configuration override file (.bw.jsonc)
 def process_bw_jsonc(config_data, sandbox, bwrap_args)
   return unless config_data.is_a?(Hash)
@@ -640,40 +801,82 @@ def process_bw_jsonc(config_data, sandbox, bwrap_args)
   # Process "copy" array
   process_copy_paths(config_data["copy"], sandbox)
 
+  # Process "binds_rw" and "binds_ro" arrays (support both directories and files)
+  apply_binds_list(bwrap_args, config_data["binds_rw"], ro: false)
+  apply_binds_list(bwrap_args, config_data["binds_ro"], ro: true)
+end
 
-  # Process "binds_rw" array (Note: supports both directories and files)
-  if config_data["binds_rw"].is_a?(Array)
-    config_data["binds_rw"].each do |item|
-      if item.is_a?(Array)
-        host_path, sandbox_path = item
-        expanded_host = File.expand_path(host_path)
-        if File.exist?(expanded_host)
-          bwrap_args.concat(["--bind", expanded_host, sandbox_path])
-        end
-      elsif item.is_a?(String)
-        bind_path(bwrap_args, item, writeable: true)
+# Locate the bounds (offsets of the '[' and ']') of a top-level JSON key's array value,
+# honoring string literals and single-line // comments so comments never break bracket matching.
+def jsonc_array_bounds(text, key)
+  m = /"#{Regexp.escape(key)}"\s*:/.match(text)
+  return nil unless m
+  open_idx = text.index("[", m.begin(0))
+  return nil unless open_idx
+  depth = 0
+  in_str = false
+  in_comment = false
+  i = open_idx
+  while i < text.length
+    c = text[i]
+    nxt = text[i + 1]
+    if in_comment
+      in_comment = false if c == "\n"
+    elsif in_str
+      if c == "\\"
+        i += 1
+      elsif c == '"'
+        in_str = false
+      end
+    else
+      if c == "/" && nxt == "/"
+        in_comment = true
+        i += 1
+      elsif c == '"'
+        in_str = true
+      elsif c == "["
+        depth += 1
+      elsif c == "]"
+        depth -= 1
+        return [open_idx, i] if depth <= 0
       end
     end
+    i += 1
   end
+  nil
+end
 
-  # Process "binds_ro" array (Note: supports both directories and files)
-  if config_data["binds_ro"].is_a?(Array)
-    config_data["binds_ro"].each do |item|
-      if item.is_a?(Array)
-        host_path, sandbox_path = item
-        expanded_host = File.expand_path(host_path)
-        if File.exist?(expanded_host)
-          bwrap_args.concat(["--ro-bind", expanded_host, sandbox_path])
-        end
-      elsif item.is_a?(String)
-        bind_path(bwrap_args, item, writeable: false)
-      end
-    end
+# Rewrite only the top-level "copy" array (or append it if absent), preserving all
+# JSONC comments and formatting elsewhere in the file. This avoids the data loss that
+# would result from re-serializing the whole document with JSON.pretty_generate.
+def set_copy_array(text, elements)
+  if (bounds = jsonc_array_bounds(text, "copy"))
+    open_idx, close_idx = bounds
+    # text[0...open_idx] already includes '"copy": ' up to the '[', so only the
+    # array body is regenerated here.
+    inner_block = if elements.empty?
+                    "[]"
+                  else
+                    body = elements.map { |e| "    #{JSON.generate(e)}" }.join(",\n")
+                    "[\n#{body}\n  ]"
+                  end
+    text[0...open_idx] + inner_block + text[(close_idx + 1)..]
+  else
+    last = text.rindex("}")
+    return text unless last
+    elements_block = elements.map { |e| "    #{JSON.generate(e)}" }.join(",\n")
+    # Insert as a new top-level member, adding the required trailing comma after
+    # the previous last member (the closing bracket just before the final brace).
+    head = text[0...last].rstrip.sub(/(\]|\})(\s*)\z/, '\1,')
+    section = "\n\n  // Programs copied into the sandbox\n  \"copy\": [\n#{elements_block}\n  ]\n"
+    head + section + text[last..]
   end
 end
 
-# Handle 'scp' subcommand (scp [dest]) — copy config to remote machine
-if ARGV[0] == "scp"
+# Handle the non-option subcommands. Dispatched here (before the sandbox option parser)
+# because they are exclusive one-shot operations that must exit before sandbox setup runs.
+case ARGV[0]
+when "scp"
   dest = ARGV[1]
   if dest.nil? || dest.strip.empty?
     STDERR.puts "Error: Destination must be specified."
@@ -695,8 +898,12 @@ if ARGV[0] == "scp"
     exit 1
   end
 
-  puts "Copying #{global_config} to #{dest}"
-  success = system("scp", global_config, dest)
+  theme_file = File.join(config_dir, "theme.omp.json")
+  files_to_scp = [global_config]
+  files_to_scp << theme_file if File.exist?(theme_file)
+
+  puts "Copying #{files_to_scp.join(', ')} to #{dest}"
+  success = system("scp", *files_to_scp, dest)
   if success
     puts "Done."
     exit 0
@@ -704,10 +911,9 @@ if ARGV[0] == "scp"
     STDERR.puts "Error: scp failed."
     exit 1
   end
-end
 
 # Handle 'copy' subcommands (copy add [program], copy list, copy del [program])
-if ARGV[0] == "copy"
+when "copy"
   subcmd = ARGV[1]
   config_dir = File.expand_path("~/.config/bw")
   global_config_path = File.join(config_dir, "config.jsonc")
@@ -718,6 +924,8 @@ if ARGV[0] == "copy"
     File.write(global_config_path, generate_default_config)
     example_config_path = File.join(config_dir, "example-config.jsonc")
     File.write(example_config_path, generate_example_config)
+    theme_config_path = File.join(config_dir, "theme.omp.json")
+    File.write(theme_config_path, generate_default_theme) unless File.exist?(theme_config_path)
   end
 
   case subcmd
@@ -734,17 +942,13 @@ if ARGV[0] == "copy"
     end
 
     cfg = load_jsonc(global_config_path)
-    cfg["copy"] ||= []
-    unless cfg["copy"].is_a?(Array)
-      cfg["copy"] = []
-    end
+    copy_list = cfg["copy"].is_a?(Array) ? cfg["copy"] : []
 
-    if cfg["copy"].include?(prog)
+    if copy_list.include?(prog)
       puts "Program '#{prog}' is already in the global copy list."
     else
-      cfg["copy"] << prog
-      # Re-serialize JSON while keeping clean formatting
-      File.write(global_config_path, JSON.pretty_generate(cfg))
+      text = File.read(global_config_path)
+      File.write(global_config_path, set_copy_array(text, copy_list + [prog]))
       puts "Added '#{prog}' to global copy configuration (#{global_config_path})."
     end
     exit 0
@@ -772,8 +976,8 @@ if ARGV[0] == "copy"
 
     cfg = load_jsonc(global_config_path)
     if cfg["copy"].is_a?(Array) && cfg["copy"].include?(prog)
-      cfg["copy"].delete(prog)
-      File.write(global_config_path, JSON.pretty_generate(cfg))
+      text = File.read(global_config_path)
+      File.write(global_config_path, set_copy_array(text, cfg["copy"] - [prog]))
       puts "Removed '#{prog}' from global copy configuration."
     else
       STDERR.puts "Program '#{prog}' not found in global copy configuration."
@@ -870,8 +1074,30 @@ end
 is_default_session = ARGV.empty? && !show_info && !test_opencode && !test_quarto && !test_uv
 verify_installed_tools(is_default_tmux: is_default_session)
 
-# Check for AppArmor / unprivileged userns restrictions
-verify_bwrap_userns_support
+# Check for AppArmor / unprivileged userns restrictions.
+# Skipped on --info (dry run) and the -test paths since it executes a real bwrap probe
+# and could raise a false failure or prompt for sudo when only inspecting/testing.
+verify_bwrap_userns_support unless show_info || test_opencode || test_quarto || test_uv
+
+# Global Configuration File Checks and Setup
+config_dir = File.expand_path("~/.config/bw")
+global_config_path = File.join(config_dir, "config.jsonc")
+example_config_path = File.join(config_dir, "example-config.jsonc")
+
+unless File.exist?(global_config_path)
+  FileUtils.mkdir_p(config_dir)
+  File.write(global_config_path, generate_default_config)
+  File.write(example_config_path, generate_example_config)
+  theme_config_path = File.join(config_dir, "theme.omp.json")
+  File.write(theme_config_path, generate_default_theme) unless File.exist?(theme_config_path)
+  puts "Created config file: #{global_config_path}"
+  exit 0
+end
+
+# Load and parse global configuration file
+puts "Loading configuration file: #{global_config_path}"
+config = load_jsonc(global_config_path)
+config = replace_sbox_prefix(config, Dir.home)
 
 # Run-directory security and constraint validation
 current_dir = Pathname.pwd.realpath
@@ -883,50 +1109,38 @@ if current_dir == home_dir || (File.directory?(home_bin_dir) && current_dir == h
   exit 1
 end
 
+file_limit = config.is_a?(Hash) && config["max_file_count"] ? config["max_file_count"].to_i : 100
 unless force
-  file_count = count_files(current_dir.to_s, 100)
-  if file_count > 100
-    STDERR.puts "Error: The current directory contains more than 100 files (found #{file_count} files recursively)."
+  file_count = count_files(current_dir.to_s, file_limit)
+  if file_count > file_limit
+    STDERR.puts "Error: The current directory contains more than #{file_limit} files (found #{file_count} files recursively)."
     STDERR.puts "Running bubblewrap here is blocked to prevent performance issues or accidental exposure."
     STDERR.puts "Use the -f flag to override this check (e.g., `bw -f`)."
     exit 1
   end
 end
 
-# Global Configuration File Checks and Setup
-config_dir = File.expand_path("~/.config/bw")
-global_config_path = File.join(config_dir, "config.jsonc")
-example_config_path = File.join(config_dir, "example-config.jsonc")
-
-unless File.exist?(global_config_path)
-  FileUtils.mkdir_p(config_dir)
-  File.write(global_config_path, generate_default_config)
-  File.write(example_config_path, generate_example_config)
-  puts "Created config file: #{global_config_path}"
-  exit 0
-end
-
-# Load and parse global configuration file
-puts "Loading configuration file: #{global_config_path}"
-config = load_jsonc(global_config_path)
-config = replace_sbox_prefix(config, Dir.home)
-
 # Directory configuration paths
-sandbox = File.expand_path("~/.sandbox/pi_generic")
-FileUtils.mkdir_p(File.join(sandbox, "bin"))
-FileUtils.mkdir_p(File.join(sandbox, "etc"))
-FileUtils.mkdir_p(File.join(sandbox, ".pi/agent"))
+sandbox = File.expand_path(config.is_a?(Hash) && config["sandbox_path"] ?
+              config["sandbox_path"] : "~/.sandbox/pi_generic")
+unless show_info
+  FileUtils.mkdir_p(File.join(sandbox, "bin"))
+  FileUtils.mkdir_p(File.join(sandbox, "etc"))
+  FileUtils.mkdir_p(File.join(sandbox, ".pi/agent"))
+end
 
 # Ensure host-side tmp parent directory exists and create a unique sandbox tmp dir
 FileUtils.mkdir_p("/tmp/bw")
 host_tmp = Dir.mktmpdir("sandbox_", "/tmp/bw")
 
-begin
+def prepare_sandbox(config, sandbox, home_dir, config_dir)
   # Process global config "copy" list
   process_copy_paths(config["copy"], sandbox)
 
   # Copy models.json if it exists on host
-  copy_if_newer(File.expand_path("~/info/llm/models.json"), File.join(sandbox, ".pi/agent/models.json"))
+  models_src = config.is_a?(Hash) && config["models_json_path"] ?
+      File.expand_path(config["models_json_path"]) : File.expand_path("~/info/llm/models.json")
+  copy_if_newer(models_src, File.join(sandbox, ".pi/agent/models.json"))
 
   # Copy resolv.conf (de-referencing symlink to prevent broken resolve inside sandbox)
   if File.file?("/etc/resolv.conf")
@@ -940,106 +1154,81 @@ begin
     $copied_files << { src: "/etc/resolv.conf", dest: dest, copied: copied }
   end
 
-  # Copy oh-my-posh if it exists on host
-  copy_if_newer(File.expand_path("~/bin/oh-my-posh"), File.join(sandbox, "bin/oh-my-posh"))
+  # Handle oh-my-posh prompt theming (if enabled in features)
+  enable_omp = if config["features"].is_a?(Hash) && config["features"].key?("enable_oh_my_posh")
+                 config["features"]["enable_oh_my_posh"]
+               else
+                 true
+               end
 
-  # Create oh-my-posh theme config in sandbox
-  theme = {
-    "version" => 4,
-    "final_space" => true,
-    "blocks" => [
-      {
-        "type" => "prompt",
-        "alignment" => "left",
-        "newline" => true,
-        "segments" => [
-          {
-            "type" => "text",
-            "style" => "diamond",
-            "foreground" => "#ffffff",
-            "background" => "#8a2be2",
-            "leading_diamond" => "\u{e0b6}",
-            "trailing_diamond" => "\u{e0b0}",
-            "template" => " \u{2b22} BUBBLE "
-          },
-          {
-            "type" => "session",
-            "style" => "powerline",
-            "powerline_symbol" => "\u{e0b0}",
-            "foreground" => "#ffffff",
-            "background" => "#3a3a3a",
-            "template" => " {{ .UserName }}@{{ .HostName }} "
-          },
-          {
-            "type" => "path",
-            "style" => "powerline",
-            "powerline_symbol" => "\u{e0b0}",
-            "foreground" => "#ffffff",
-            "background" => "#1c2e4a",
-            "template" => " {{ .Path }} ",
-            "properties" => {
-              "style" => "folder"
-            }
-          },
-          {
-            "type" => "git",
-            "style" => "powerline",
-            "powerline_symbol" => "\u{e0b0}",
-            "foreground" => "#101010",
-            "background" => "#2e9599",
-            "template" => " {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }} "
-          }
-        ]
-      }
-    ]
-  }
-  theme_dest = File.join(sandbox, ".mytheme.omp.json")
-  theme_json = JSON.pretty_generate(theme)
-  copied = false
-  if !File.exist?(theme_dest) || File.read(theme_dest) != theme_json
-    File.write(theme_dest, theme_json)
-    copied = true
-  end
-  $copied_files << { src: "<internal-theme-json>", dest: theme_dest, copied: copied }
+  if enable_omp
+    # Determine theme file location on host
+    theme_source = if config["oh_my_posh"].is_a?(Hash) && config["oh_my_posh"]["theme_path"]
+                     config["oh_my_posh"]["theme_path"]
+                   else
+                     File.join(config_dir, "theme.omp.json")
+                   end
+    theme_source = File.expand_path(theme_source)
 
-  # Ensure oh-my-posh is initialized in sandbox shell profiles
-  inject_oh_my_posh(File.join(sandbox, ".bashrc"), "bash")
-  if File.exist?(File.join(sandbox, ".zshrc"))
-    inject_oh_my_posh(File.join(sandbox, ".zshrc"), "zsh")
-  end
+    # Ensure default theme file exists on host if using default location and missing
+    if !File.exist?(theme_source) && theme_source == File.join(config_dir, "theme.omp.json")
+      FileUtils.mkdir_p(config_dir)
+      File.write(theme_source, generate_default_theme)
+    end
 
-  # Ensure custom bin paths are in PATH inside the sandbox shell configurations
-  sandbox_paths = [
-    "#{home_dir}/bin",
-    "#{home_dir}/.local/bin",
-    "#{home_dir}/.opencode/bin",
-    "#{home_dir}/.cargo/bin"
-  ]
-  path_line = "export PATH=\"#{sandbox_paths.join(':')}:$PATH\""
+    if File.file?(theme_source)
+      theme_dest = File.join(sandbox, ".mytheme.omp.json")
+      copy_if_newer(theme_source, theme_dest)
 
-  # Inject PATH, EDITOR, and VISUAL into .bashrc and .zshrc
-  [".bashrc", ".zshrc"].each do |rc_name|
-    rc_path = File.join(sandbox, rc_name)
-    if rc_name == ".bashrc" || File.exist?(rc_path)
-      FileUtils.touch(rc_path)
-      content = File.read(rc_path)
-      if content.include?("# Add sandbox-specific binary paths")
-        new_content = content.gsub(/# Add sandbox-specific binary paths\nexport PATH=.*$/, "# Add sandbox-specific binary paths\n#{path_line}")
-        File.write(rc_path, new_content) if new_content != content
-      elsif !content.include?("export PATH=\"#{sandbox_paths.join(':')}:")
-        File.open(rc_path, "a") do |f|
-          f.puts "\n# Add sandbox-specific binary paths"
-          f.puts path_line
-        end
-      end
-      unless content.include?("export EDITOR=") || content.include?("export VISUAL=")
-        File.open(rc_path, "a") do |f|
-          f.puts "\n# Set default editor inside the sandbox"
-          f.puts "export EDITOR=\"emacs -nw\""
-          f.puts "export VISUAL=\"emacs -nw\""
-        end
+      # Copy host oh-my-posh binary to sandbox bin if it exists in ~/bin
+      omp_host_bin = File.expand_path("~/bin/oh-my-posh")
+      copy_if_newer(omp_host_bin, File.join(sandbox, "bin/oh-my-posh")) if File.file?(omp_host_bin)
+
+      # Ensure oh-my-posh is initialized in sandbox shell profiles
+      sandbox_theme = "#{home_dir}/.mytheme.omp.json"
+      inject_oh_my_posh(File.join(sandbox, ".bashrc"), "bash", sandbox_theme)
+      if File.exist?(File.join(sandbox, ".zshrc"))
+        inject_oh_my_posh(File.join(sandbox, ".zshrc"), "zsh", sandbox_theme)
       end
     end
+  end
+
+  # Ensure custom bin paths are in PATH and the configured editor is set in the
+  # sandbox's shell configurations. Values are derived from config so they never drift.
+  sandbox_paths = if config["path"].is_a?(Array)
+                    config["path"].map { |p| p.start_with?("~") ? p.gsub(/^~/, home_dir.to_s) : p }
+                  else
+                    []
+                  end
+
+  editor = (config["env"].is_a?(Hash) && config["env"]["EDITOR"]) || "emacs -nw"
+  visual = (config["env"].is_a?(Hash) && config["env"]["VISUAL"]) || editor
+
+  path_line = sandbox_paths.any? ? "export PATH=\"#{sandbox_paths.join(':')}:$PATH\"" : nil
+  editor_block = "export EDITOR=\"#{editor}\"\nexport VISUAL=\"#{visual}\""
+
+  [".bashrc", ".zshrc"].each do |rc_name|
+    rc_path = File.join(sandbox, rc_name)
+    next unless rc_name == ".bashrc" || File.exist?(rc_path)
+    FileUtils.touch(rc_path)
+    text = File.read(rc_path)
+    original = text
+
+    if path_line
+      if text.include?("# Add sandbox-specific binary paths")
+        text = text.sub(/# Add sandbox-specific binary paths\nexport PATH="[^"]*"\n?/, "# Add sandbox-specific binary paths\n#{path_line}\n")
+      else
+        text += "\n# Add sandbox-specific binary paths\n#{path_line}\n"
+      end
+    end
+
+    if text.include?("# sandbox default editor")
+      text = text.sub(/# sandbox default editor\nexport EDITOR="[^"]*"\nexport VISUAL="[^"]*"\n?/, "# sandbox default editor\n#{editor_block}\n")
+    else
+      text += "\n# sandbox default editor\n#{editor_block}\n"
+    end
+
+    File.write(rc_path, text) unless text == original
   end
 
   # Ensure login shells source .bashrc by creating/updating .bash_profile and .profile
@@ -1097,11 +1286,17 @@ begin
   end
 
   # Ensure cdtoday function is defined in the sandbox's shell configurations
-  inject_cdtoday(File.join(sandbox, ".bashrc"))
+  cdtoday_base = config.is_a?(Hash) && config["cdtoday"] ? config["cdtoday"].to_s : "info/misc"
+  inject_cdtoday(File.join(sandbox, ".bashrc"), cdtoday_base)
   if File.exist?(File.join(sandbox, ".zshrc"))
-    inject_cdtoday(File.join(sandbox, ".zshrc"))
+    inject_cdtoday(File.join(sandbox, ".zshrc"), cdtoday_base)
   end
 
+end
+
+begin
+  # Perform all sandbox write/setup side effects (skipped on --info dry run).
+  prepare_sandbox(config, sandbox, home_dir, config_dir) unless show_info
   # Base bubblewrap arguments initialized dynamically from the parsed configuration
   bwrap_args = ["--tmpfs", "/etc"]
 
@@ -1116,34 +1311,10 @@ begin
   end
 
   # 2. Parse binds_rw
-  if config["binds_rw"].is_a?(Array)
-    config["binds_rw"].each do |item|
-      if item.is_a?(Array)
-        host_path, sandbox_path = item
-        expanded_host = File.expand_path(host_path)
-        if File.exist?(expanded_host)
-          bwrap_args.concat(["--bind", expanded_host, sandbox_path])
-        end
-      elsif item.is_a?(String)
-        bind_path(bwrap_args, item, writeable: true)
-      end
-    end
-  end
+  apply_binds_list(bwrap_args, config["binds_rw"], ro: false)
 
   # 3. Parse binds_ro
-  if config["binds_ro"].is_a?(Array)
-    config["binds_ro"].each do |item|
-      if item.is_a?(Array)
-        host_path, sandbox_path = item
-        expanded_host = File.expand_path(host_path)
-        if File.exist?(expanded_host)
-          bwrap_args.concat(["--ro-bind", expanded_host, sandbox_path])
-        end
-      elsif item.is_a?(String)
-        bind_path(bwrap_args, item, writeable: false)
-      end
-    end
-  end
+  apply_binds_list(bwrap_args, config["binds_ro"], ro: true)
 
   # 4. Parse environment variables
   if config["env"].is_a?(Hash)
@@ -1177,11 +1348,17 @@ begin
   if config["features"]
     if config["features"]["enable_ssh"]
       ssh_keys = config["features"]["ssh_keys"]
-      if (ssh_keys.nil? || ssh_keys.empty?) && config["features"].fetch("auto_repo_deploy_key", true)
-        auto_key = get_auto_deploy_key
-        ssh_keys = [auto_key] if auto_key
+      if show_info
+        # Dry run: never create deploy keys or spawn an ssh-agent; only reuse an
+        # already-running agent socket so the displayed plan stays side-effect free.
+        ssh_auth_sock = ENV["SSH_AUTH_SOCK"] if ENV["SSH_AUTH_SOCK"] && File.socket?(ENV["SSH_AUTH_SOCK"])
+      else
+        if (ssh_keys.nil? || ssh_keys.empty?) && config["features"].fetch("auto_repo_deploy_key", true)
+          auto_key = get_auto_deploy_key
+          ssh_keys = [auto_key] if auto_key
+        end
+        ssh_auth_sock = ensure_ssh_agent(ssh_keys)
       end
-      ssh_auth_sock = ensure_ssh_agent(ssh_keys)
       host_ssh_dir = File.expand_path("~/.ssh")
       sandbox_ssh = "#{home_dir}/.ssh"
 
@@ -1192,7 +1369,7 @@ begin
 
         # Bind non-secret config and known_hosts files if they exist
         if File.directory?(host_ssh_dir)
-          FileUtils.mkdir_p(File.join(sandbox, ".ssh"))
+          FileUtils.mkdir_p(File.join(sandbox, ".ssh")) unless show_info
           ["config", "known_hosts"].each do |f|
             host_f = File.join(host_ssh_dir, f)
             if File.exist?(host_f)
@@ -1214,7 +1391,9 @@ begin
       display = ENV["DISPLAY"]
       if display
         bwrap_args.concat(["--setenv", "DISPLAY", display])
-        bwrap_args.concat(["--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix"])
+        # NOTE: the host X11 socket mount (/tmp/.X11-unix) is intentionally NOT bound here.
+        #       It must be mounted AFTER the per-instance /tmp bind below, otherwise the
+        #       fresh /tmp would mask the socket and break X11 apps.
 
         xauth = ENV["XAUTHORITY"] || File.expand_path("~/.Xauthority")
         if File.exist?(xauth)
@@ -1282,6 +1461,9 @@ begin
     "--chdir", sandbox_pwd
   ])
 
+  # Mount the host X11 socket AFTER the /tmp bind so the per-instance /tmp does not mask it.
+  bwrap_args.concat(["--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix"]) if ENV["DISPLAY"]
+
   # Bind the custom resolv.conf into the writeable /etc tmpfs
   sandbox_resolv = File.join(sandbox, "etc/resolv.conf")
   if File.file?(sandbox_resolv)
@@ -1306,14 +1488,18 @@ begin
                 ["uv", "--version"]
               elsif ARGV.empty?
                 # Force tmux to run in UTF-8 mode (-u) to prevent line-wrapping/overwrite glitches
-                ["tmux", "-u", "new-session", "-A", "-s", "bwrap-dev"]
+                session_name = config.is_a?(Hash) && config["tmux_session_name"] ?
+                    config["tmux_session_name"] : "bwrap-dev"
+                ["tmux", "-u", "new-session", "-A", "-s", session_name]
               else
                 ARGV
               end
 
   # Run bubblewrap with the assembled arguments
   if show_info
-    print_info(bwrap_args, exec_args, global_config_path, local_config_path)
+    copy_list = config["copy"].is_a?(Array) ? config["copy"] : []
+    print_info(bwrap_args, exec_args, global_config_path, local_config_path, copy_list,
+               config["system"].is_a?(Hash) ? config["system"] : {}, current_dir.to_s)
     exit 0
   end
 

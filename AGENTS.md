@@ -8,8 +8,9 @@ A Ruby script (`bw`) that wraps `bwrap` to launch a secure sandbox with persiste
 
 | File | Purpose |
 |---|---|
-| `bw` | Main script (Ruby, ~1280 lines) |
+| `bw` | Main script (Ruby, ~1370 lines) |
 | `~/.config/bw/config.jsonc` | Global config (JSONC with `//` comments) |
+| `~/.config/bw/theme.omp.json` | Global oh-my-posh prompt theme configuration |
 | `.bw.jsonc` | Per-directory config override |
 | `issues_to_fix.md` | WSL clipboard issue documentation |
 | `CHANGELOG.md` | Change history |
@@ -39,8 +40,14 @@ bw -test uv                                         # Test uv and uvx load
 
 ```jsonc
 {
-  "system":     { "share_net", "clearenv", "unshare_uts", "hostname" },
-  "features":   { "enable_ssh", "enable_x11", "enable_etc_auto_bind" },
+  "system":   { "share_net", "clearenv", "unshare_uts", "hostname" },
+  "sandbox_path": "~/.sandbox/pi_generic",
+  "models_json_path": "~/info/llm/models.json",
+  "tmux_session_name": "bwrap-dev",
+  "max_file_count": 100,
+  "cdtoday":        "info/misc",
+  "features": { "enable_ssh", "ssh_keys", "auto_repo_deploy_key", "enable_x11", "enable_etc_auto_bind", "enable_oh_my_posh" },
+  "oh_my_posh": { "theme_path" },
   "env":        { "HOME", "TERM", "LANG", "LC_ALL", "USER", "LOGNAME", "SHELL" },
   "path":       [ "/home/sariel/bin", "/home/sariel/.local/bin", ... ],
   "binds_rw":   [ ["host_path", "sandbox_path"], ... ],
