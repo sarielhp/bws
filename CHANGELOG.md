@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-08-15
+
+### Fixed
+- `bw copy add` / `bw copy del` no longer destroy comments and formatting in `config.jsonc` (previously they re-serialized the whole document with `JSON.pretty_generate`). The `"copy"` array is now rewritten in place, preserving all other JSONC content.
+- Fixed X11 socket masking in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw): the host `/tmp/.X11-unix` bind is now mounted *after* the per-instance `/tmp` bind so the fresh tmpfs no longer hides the X11 socket.
+
+### Changed
+- Moved remaining hardcoded values out of [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) into `config.jsonc` (each with a backward-compatible default):
+  - `sandbox_path` (was `~/.sandbox/pi_generic`)
+  - `models_json_path` (was `~/info/llm/models.json`)
+  - `tmux_session_name` (was `bwrap-dev`)
+  - `max_file_count` (was `100`)
+  - documented `ssh_keys` and `auto_repo_deploy_key` under `features`
+- Sandbox shell rc `PATH` injection now derives from `config["path"]` (was a hardcoded bin subset), and injected `EDITOR`/`VISUAL` now come from `config["env"]` (fallback `emacs -nw`). Injection is idempotent and updates in place instead of appending duplicates.
+- Config is now loaded before the run-directory file-count check so `max_file_count` is honored.
+
+### Changed
+- Refactored `oh-my-posh` prompt theming in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) out of hardcoded script logic and into user configuration:
+  - Added `"enable_oh_my_posh"` toggle to `features` in [config.jsonc](file:///home/sariel/.config/bw/config.jsonc).
+  - Added `"oh_my_posh": { "theme_path": "~/.config/bw/theme.omp.json" }` configuration block.
+  - Replaced the embedded ~50-line Ruby hash with automatic generation and syncing of `~/.config/bw/theme.omp.json`.
+  - Updated `inject_oh_my_posh` to detect `oh-my-posh` in host/sandbox `$PATH` using `command -v` and apply the configured theme path.
+  - Updated `bw scp` to copy `theme.omp.json` alongside `config.jsonc` if it exists.
+
+## [Unreleased] - 2026-08-14
+
+### Added
+- Added `uv` and `uvx` toolchain support to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw): configured `~/.local/bin` in `PATH` and added read-write bindings for `~/.local/bin`, `~/.local/share/uv`, `~/.cache/uv`, and `~/.config/uv` to enable seamless Python tool and MCP server execution (e.g., fetch MCP for opencode) inside the sandbox.
+- Added `-test uv` / `--test uv` CLI test option to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to verify `uv` and `uvx` availability and execution inside the sandbox.
+- Added `uv` to recommended host tool startup verifications (`verify_installed_tools`).
+
+### Fixed
+- Fixed CLI option parsing in [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) so flags passed to sandboxed commands (e.g. `bw pdflatex --version` or `bw uv --version`) are preserved instead of being intercepted by the launcher.
+
+## [Unreleased] - 2026-07-30
+
+### Added
+- Added Quarto CLI support to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw): automatically detects if Quarto is installed on the host, dynamically mounts `/opt` and Quarto installation root paths (resolving symlinks such as `/opt` -> `/extc/opt`), and includes `/opt` in default read-only bindings.
+- Added `-test quarto` / `--test quarto` command-line option to [bw](file:///home/sariel/prog/26/misc/bubblewrap_script/bw) to launch bubblewrap, verify Quarto execution inside the sandbox, print the detected Quarto version, and exit with status 0 ("Everything is fine.").
+- Added Quarto to recommended host tool startup verifications (`verify_installed_tools`).
+
 ## [Unreleased] - 2026-07-25
 
 ### Added
