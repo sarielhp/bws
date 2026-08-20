@@ -293,6 +293,8 @@ def generate_default_config
         "enable_ssh": true,
         // Enable GUI applications by mapping the X11 display socket and authority
         "enable_x11": true,
+        // Enable WSL interop and clipboard integration if running under WSL
+        "enable_wsl": true,
         // Automatically map host directories/files from /etc/ read-only (except resolv.conf)
         "enable_etc_auto_bind": true
       },
@@ -376,6 +378,7 @@ def generate_example_config
       "features": {
         "enable_ssh": false,
         "enable_x11": false,
+        "enable_wsl": true,
         "enable_etc_auto_bind": false
       },
 
@@ -1010,6 +1013,17 @@ begin
     end
   end
 
+  if File.exist?(tmux_conf) && !File.read(tmux_conf).include?("clip.exe")
+    FileUtils.chmod("+w", tmux_conf)
+    File.open(tmux_conf, "a") do |f|
+      f.puts "\n# WSL clipboard integration via clip.exe"
+      f.puts "if-shell 'test -n \"$WSL_INTEROP\" -a -x \"/mnt/c/Windows/System32/clip.exe\"' {"
+      f.puts "  bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel \"/mnt/c/Windows/System32/clip.exe\""
+      f.puts "  bind-key -T copy-mode    MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel \"/mnt/c/Windows/System32/clip.exe\""
+      f.puts "}"
+    end
+  end
+
   # Ensure cdtoday function is defined in the sandbox's shell configurations
   inject_cdtoday(File.join(sandbox, ".bashrc"))
   if File.exist?(File.join(sandbox, ".zshrc"))
@@ -1146,6 +1160,22 @@ begin
 
         # Suppress GTK accessibility bus connection warnings
         bwrap_args.concat(["--setenv", "NO_AT_SPI", "1"])
+      end
+    end
+
+    if config["features"].fetch("enable_wsl", true)
+      wsl_interop = ENV["WSL_INTEROP"]
+      is_wsl = (wsl_interop && !wsl_interop.empty?) || File.directory?("/run/WSL") || File.exist?("/proc/sys/fs/binfmt_misc/WSLInterop")
+      if is_wsl
+        bwrap_args.concat(["--ro-bind-try", "/init", "/init"])
+        bwrap_args.concat(["--bind-try", "/run/WSL", "/run/WSL"])
+        if wsl_interop && !wsl_interop.empty?
+          bwrap_args.concat(["--setenv", "WSL_INTEROP", wsl_interop])
+        end
+        clip_exe = "/mnt/c/Windows/System32/clip.exe"
+        if File.exist?(clip_exe)
+          bwrap_args.concat(["--ro-bind-try", clip_exe, clip_exe])
+        end
       end
     end
 

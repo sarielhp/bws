@@ -1,5 +1,9 @@
 # Gemini Documentation - Bubblewrap Sandbox Script
 
+> [!CAUTION]
+> **Freeze Directive: Do Not Update `bw`**
+> Do **NOT** make any further modifications or updates to the `bw` script due to WSL issues until further notice.
+
 This directory contains `bw`, a script that launches a bubblewrap sandbox designed to isolate the directory it is run from while providing a persistent home environment in `~/.sandbox/pi_generic/`.
 
 ## Code Evaluation of Original `bw` Script
