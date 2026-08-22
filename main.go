@@ -8,7 +8,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.13"
+var Version = "0.1.14"
 
 func main() {
 	var forceFlag bool
@@ -17,8 +17,7 @@ func main() {
 	var roFlag bool
 	var verboseFlag bool
 
-	var app *clihelp.App
-	app = &clihelp.App{
+	app := &clihelp.App{
 		Name:        "bw",
 		Description: "Launch a secure bubblewrap sandbox with configurable bind mounts, SSH forwarding, X11, and shell theming.",
 		Version:     Version,
@@ -29,17 +28,6 @@ func main() {
 			clihelp.Bool(&verboseFlag, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
-			{
-				Name:        "help",
-				Description: "Show usage information and help",
-				UsageLine:   "bw help [command]",
-				Run: func(ctx *clihelp.Context) error {
-					if len(ctx.Args) > 0 {
-						return app.Execute(append(ctx.Args, "--help"))
-					}
-					return app.Execute([]string{"--help"})
-				},
-			},
 			{
 				Name:        "scp",
 				Description: "Copy the global config and theme files to a remote host via scp",
@@ -329,7 +317,18 @@ func main() {
 		},
 	}
 
-	if err := app.Execute(os.Args[1:]); err != nil {
+	rawArgs := os.Args[1:]
+	normalizedArgs := make([]string, 0, len(rawArgs))
+	for _, arg := range rawArgs {
+		switch arg {
+		case "help", "-help", "--h", "-?", "-H":
+			normalizedArgs = append(normalizedArgs, "--help")
+		default:
+			normalizedArgs = append(normalizedArgs, arg)
+		}
+	}
+
+	if err := app.Execute(normalizedArgs); err != nil {
 		clihelp.PrintError(err)
 		os.Exit(1)
 	}
