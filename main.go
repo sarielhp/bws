@@ -8,7 +8,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.9"
+var Version = "0.1.10"
 
 func main() {
 	var forceFlag bool
@@ -71,8 +71,19 @@ func main() {
 					{
 						Name:        "path",
 						Description: "Manage sandbox PATH entries",
-						UsageLine:   "bw conf path add|del <directory> -g | -l",
+						UsageLine:   "bw conf path list|add|del [args...]",
 						Subcommands: []clihelp.Command{
+							{
+								Name:        "list",
+								Aliases:     []string{"ls"},
+								Description: "List combined sandbox PATH entries from global and local configs",
+								UsageLine:   "bw conf path list",
+								Args:        clihelp.NoArgs,
+								Run: func(ctx *clihelp.Context) error {
+									cli.HandlePathList()
+									return nil
+								},
+							},
 							{
 								Name:        "add",
 								Description: "Add a directory to the sandbox PATH",
