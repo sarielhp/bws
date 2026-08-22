@@ -8,13 +8,14 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.7"
+var Version = "0.1.8"
 
 func main() {
 	var forceFlag bool
 	var globalFlag bool
 	var localFlag bool
 	var roFlag bool
+	var verboseFlag bool
 
 	app := &clihelp.App{
 		Name:        "bw",
@@ -24,6 +25,7 @@ func main() {
 			clihelp.Bool(&forceFlag, "-f, --force", false, "Bypass the file count safety check"),
 			clihelp.Bool(&globalFlag, "-g, --global", false, "Target the global config file (~/.config/bw/config.jsonc)"),
 			clihelp.Bool(&localFlag, "-l, --local", false, "Target the local config file (.bw.jsonc in current directory)"),
+			clihelp.Bool(&verboseFlag, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
 			{
@@ -47,6 +49,15 @@ func main() {
 					{Text: "Configuration is stored in two JSONC files: global (~/.config/bw/config.jsonc) and local (.bw.jsonc). The local config overrides the global for the current directory only. Without a subcommand, 'bw conf' shows usage information. With -g or -l, it shows the raw file contents."},
 				},
 				Subcommands: []clihelp.Command{
+					{
+						Name:        "info",
+						Description: "Show the merged configuration plan (dry run)",
+						UsageLine:   "bw conf info",
+						Args:        clihelp.NoArgs,
+						Run: func(ctx *clihelp.Context) error {
+							return runConf(verboseFlag)
+						},
+					},
 					{
 						Name:        "path",
 						Description: "Manage config file paths and sandbox PATH entries",
@@ -84,7 +95,7 @@ func main() {
 							},
 						},
 						Run: func(ctx *clihelp.Context) error {
-							cli.PrintConfPathUsage()
+							cli.HandleConfigPath()
 							return nil
 						},
 					},
@@ -247,6 +258,15 @@ func main() {
 				},
 			},
 			{
+				Name:        "exec",
+				Description: "Run an arbitrary command inside the sandbox and exit",
+				UsageLine:   "bw exec <command> [args...]",
+				Run: func(ctx *clihelp.Context) error {
+					return runExec(ctx.Args, forceFlag, verboseFlag)
+				},
+			},
+			{},
+			{
 				Name:        "test",
 				Description: "Run a verification of a tool inside the sandbox and exit",
 				UsageLine:   "bw test <target>",
@@ -257,7 +277,7 @@ func main() {
 						UsageLine:   "bw test opencode",
 						Args:        clihelp.NoArgs,
 						Run: func(ctx *clihelp.Context) error {
-							return runSandboxCommand("opencode", []string{"opencode", "debug", "info"}, forceFlag)
+							return runSandboxCommand("opencode", []string{"opencode", "debug", "info"}, forceFlag, verboseFlag)
 						},
 					},
 					{
@@ -266,7 +286,7 @@ func main() {
 						UsageLine:   "bw test quarto",
 						Args:        clihelp.NoArgs,
 						Run: func(ctx *clihelp.Context) error {
-							return runSandboxCommand("quarto", []string{"quarto", "--version"}, forceFlag)
+							return runSandboxCommand("quarto", []string{"quarto", "--version"}, forceFlag, verboseFlag)
 						},
 					},
 					{
@@ -275,14 +295,14 @@ func main() {
 						UsageLine:   "bw test uv",
 						Args:        clihelp.NoArgs,
 						Run: func(ctx *clihelp.Context) error {
-							return runUVTest(forceFlag)
+							return runUVTest(forceFlag, verboseFlag)
 						},
 					},
 				},
 			},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return runDefault(ctx.Args, forceFlag)
+			return runDefault(ctx.Args, forceFlag, verboseFlag)
 		},
 	}
 
