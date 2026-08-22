@@ -9,7 +9,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.2"
+var Version = "0.1.3"
 
 func main() {
 	var forceFlag bool
