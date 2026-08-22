@@ -8,7 +8,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.8"
+var Version = "0.1.9"
 
 func main() {
 	var forceFlag bool
@@ -59,20 +59,20 @@ func main() {
 						},
 					},
 					{
+						Name:        "where",
+						Description: "Print paths to both config files",
+						UsageLine:   "bw conf where",
+						Args:        clihelp.NoArgs,
+						Run: func(ctx *clihelp.Context) error {
+							cli.HandleConfigWhere()
+							return nil
+						},
+					},
+					{
 						Name:        "path",
-						Description: "Manage config file paths and sandbox PATH entries",
-						UsageLine:   "bw conf path show|add|del [args...]",
+						Description: "Manage sandbox PATH entries",
+						UsageLine:   "bw conf path add|del <directory> -g | -l",
 						Subcommands: []clihelp.Command{
-							{
-								Name:        "show",
-								Description: "Print paths to both config files",
-								UsageLine:   "bw conf path show",
-								Args:        clihelp.NoArgs,
-								Run: func(ctx *clihelp.Context) error {
-									cli.HandleConfigPath()
-									return nil
-								},
-							},
 							{
 								Name:        "add",
 								Description: "Add a directory to the sandbox PATH",
@@ -95,7 +95,7 @@ func main() {
 							},
 						},
 						Run: func(ctx *clihelp.Context) error {
-							cli.HandleConfigPath()
+							cli.PrintConfPathUsage()
 							return nil
 						},
 					},
