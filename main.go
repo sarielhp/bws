@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"bw/internal/cli"
@@ -9,7 +8,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.6"
+var Version = "0.1.7"
 
 func main() {
 	var forceFlag bool
@@ -45,16 +44,47 @@ func main() {
 				Description: "Manage sandbox configuration files and view the merged config plan",
 				UsageLine:   "bw conf [subcommand] [-g | -l]",
 				Notes: []clihelp.Note{
-					{Text: "Configuration is stored in two JSONC files: global (~/.config/bw/config.jsonc) and local (.bw.jsonc). The local config overrides the global for the current directory only. Without a subcommand, 'bw conf' shows the merged plan (same as the old --info flag). With -g or -l, it shows the raw file contents."},
+					{Text: "Configuration is stored in two JSONC files: global (~/.config/bw/config.jsonc) and local (.bw.jsonc). The local config overrides the global for the current directory only. Without a subcommand, 'bw conf' shows usage information. With -g or -l, it shows the raw file contents."},
 				},
 				Subcommands: []clihelp.Command{
 					{
 						Name:        "path",
-						Description: "Print paths to both the global and local config files",
-						UsageLine:   "bw conf path",
-						Args:        clihelp.NoArgs,
+						Description: "Manage config file paths and sandbox PATH entries",
+						UsageLine:   "bw conf path show|add|del [args...]",
+						Subcommands: []clihelp.Command{
+							{
+								Name:        "show",
+								Description: "Print paths to both config files",
+								UsageLine:   "bw conf path show",
+								Args:        clihelp.NoArgs,
+								Run: func(ctx *clihelp.Context) error {
+									cli.HandleConfigPath()
+									return nil
+								},
+							},
+							{
+								Name:        "add",
+								Description: "Add a directory to the sandbox PATH",
+								UsageLine:   "bw conf path add <directory> -g | -l",
+								Args:        clihelp.ExactArgs(1),
+								Run: func(ctx *clihelp.Context) error {
+									cli.HandlePathAdd(ctx.Args[0], globalFlag, localFlag)
+									return nil
+								},
+							},
+							{
+								Name:        "del",
+								Description: "Remove a directory from the sandbox PATH",
+								UsageLine:   "bw conf path del <directory> -g | -l",
+								Args:        clihelp.ExactArgs(1),
+								Run: func(ctx *clihelp.Context) error {
+									cli.HandlePathDel(ctx.Args[0], globalFlag, localFlag)
+									return nil
+								},
+							},
+						},
 						Run: func(ctx *clihelp.Context) error {
-							cli.HandleConfigPath()
+							cli.PrintConfPathUsage()
 							return nil
 						},
 					},
@@ -89,7 +119,8 @@ func main() {
 							} else if localFlag {
 								cli.HandleConfigShowLocal()
 							} else {
-								return fmt.Errorf("bw conf show requires -g or -l")
+								// Default to showing global config if no flag is provided
+								cli.HandleConfigShowGlobal()
 							}
 							return nil
 						},
@@ -104,7 +135,9 @@ func main() {
 						}
 						return nil
 					}
-					return runConf()
+					// Show usage message when no subcommand is provided
+					cli.PrintConfUsage()
+					return nil
 				},
 			},
 			{
