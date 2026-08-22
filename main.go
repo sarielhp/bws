@@ -8,7 +8,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.12"
+var Version = "0.1.13"
 
 func main() {
 	var forceFlag bool
@@ -17,7 +17,8 @@ func main() {
 	var roFlag bool
 	var verboseFlag bool
 
-	app := &clihelp.App{
+	var app *clihelp.App
+	app = &clihelp.App{
 		Name:        "bw",
 		Description: "Launch a secure bubblewrap sandbox with configurable bind mounts, SSH forwarding, X11, and shell theming.",
 		Version:     Version,
@@ -28,6 +29,17 @@ func main() {
 			clihelp.Bool(&verboseFlag, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
+			{
+				Name:        "help",
+				Description: "Show usage information and help",
+				UsageLine:   "bw help [command]",
+				Run: func(ctx *clihelp.Context) error {
+					if len(ctx.Args) > 0 {
+						return app.Execute(append(ctx.Args, "--help"))
+					}
+					return app.Execute([]string{"--help"})
+				},
+			},
 			{
 				Name:        "scp",
 				Description: "Copy the global config and theme files to a remote host via scp",
