@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux)](https://github.com/sarielhp/bws)
 
-**`bws`** is a fast, declarative, unprivileged Linux sandbox launcher and orchestrator built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — an unprivileged containerization engine developed by the Flatpak and Red Hat teams.
+**`bws`** is a declarative, unprivileged Linux sandbox launcher built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — an unprivileged containerization engine developed by the Flatpak and Red Hat teams.
 
 > **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap](https://github.com/containers/bubblewrap). It wraps `bwrap`'s raw namespace primitives into a complete developer workflow with ephemeral home directories, declarative capability profiles, path masking, shell hooks, and automatic SSH integration.
 
@@ -16,6 +16,7 @@
 * [Installation](#installation)
 * [Quick start](#quick-start)
 * [Automatic GitHub deploy keys](#automatic-github-deploy-keys--git-isolation)
+* [Troubleshooting](#troubleshooting)
 * [Documentation guide](#documentation-guide)
 * [License](#license)
 
@@ -25,9 +26,9 @@
 
 * **Zero-privilege sandboxing**: Runs purely in Linux user namespaces (`bwrap` unprivileged mode). No root permissions, setuid binaries, or daemon sockets required.
 * **Disposable ephemeral homes**: Stages an isolated `$HOME` directory (`/tmp/bws/stage_*`) populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) that disappear when the session ends.
-* **Declarative capability profiles**: Compose dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
-* **Path masking & security hardening**: Neutralize host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
-* **Automated smoke testing**: Verify sandbox integrity and tool accessibility before running code (`bws test <profile>`).
+* **Declarative capability profiles**: Composes dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
+* **Path masking & security hardening**: Neutralizes host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
+* **Automated smoke testing**: Verifies sandbox integrity and tool accessibility before running code (`bws test <profile>`).
 * **Automatic SSH & Git integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`.
 * **Safe host pass-through**: Explicit environment variable forwarding (`pass_env`) preserving isolation without secret leakage.
 
@@ -118,7 +119,7 @@ bws exec -- uv run main.py
 Profiles are modular, declarative sandboxing recipes. Instead of manually crafting dozens of complex `bwrap` arguments (specifying cache directories, PATH entries, read-only config mounts, environment variables, and security masks), profiles package all requirements for a tool or language into a reusable definition. You can activate full development stacks or security bundles simply by listing their names in your configuration (e.g. `profiles: ["python-dev", "docker", "no-secrets"]`).
 
 **Thousands of profiles out of the box:**  
-Beyond the embedded profile catalog, `bws` integrates with the [**Homebrew Formula API**](https://brew.sh) (for dependencies, binaries, and package metadata across 7,000+ open-source tools) and [**Firejail Profiles**](https://github.com/netblue30/firejail) (for filesystem access and security rules). This allows `bws` to search and synthesize sandboxing intelligence on-the-fly for additional tools.
+Beyond the embedded profile catalog, `bws` integrates with the [**Homebrew Formula API**](https://brew.sh) (for dependencies, binaries, and package metadata across thousands of open-source tools) and [**Firejail Profiles**](https://github.com/netblue30/firejail) (for filesystem access and security rules). This allows `bws` to search and synthesize sandboxing intelligence on-the-fly for additional tools.
 
 ```bash
 # Search profiles across local, embedded, and Homebrew catalog
@@ -163,14 +164,42 @@ A common problem with developer sandboxes is Git authentication: *how to enable 
 1. **Repository detection**: When run in a Git workspace connected to GitHub, `bws` inspects the origin remote.
 2. **Dedicated key generation**: It creates a unique, isolated SSH keypair in `~/.sandbox/deploy_keys/<owner>_<repo>`.
 3. **Automatic registration**: Using your host `gh` CLI credentials, it registers the public key as a read/write **GitHub Deploy Key**.
-4. **Scoped agent injection**: It loads **only this repository key** into the sandbox SSH agent.
+4. **Scoped agent injection**: It loads **only this repository key** into the sandbox SSH agent (the `~/.sandbox/deploy_keys/` directory is itself masked inside the sandbox).
 
 ```bash
 # Pull, commit, and push inside the sandbox directly over SSH
 bws exec -- git push origin main  # Requires SSH remote (e.g. git@github.com:owner/repo)
 ```
 
-**Zero-trust security guarantee**: If code or an autonomous agent inside the sandbox is compromised, its reach is cryptographically confined to that single repository — your master SSH keys (`~/.ssh`) and personal GitHub account tokens remain strictly on the host.
+**Security boundary**: If code or an autonomous agent inside the sandbox is compromised, its reach is cryptographically confined to that single repository — your master SSH keys (`~/.ssh`) and personal GitHub account tokens remain strictly on the host.
+
+---
+
+## Troubleshooting
+
+**`bws: command not found` after installation**  
+Ensure `~/bin` is in your `$PATH`. Add `export PATH="$HOME/bin:$PATH"` to your `.bashrc` or `.zshrc` and restart your shell.
+
+**`bwrap: command not found`**  
+`bws` requires `bubblewrap` (`bwrap`) installed on the host. See [Prerequisites](#prerequisites).
+
+**User namespaces disabled on host**  
+On some hardened systems, unprivileged user namespaces may be disabled:
+```bash
+# Check current status
+sysctl kernel.unprivileged_userns_clone
+
+# Enable unprivileged user namespaces
+sudo sysctl -w kernel.unprivileged_userns_clone=1
+```
+
+**`go build` (or other compiler) fails inside sandbox**  
+Run `bws init-dev` first to generate `.bws/config.jsonc` and map the required language caches into the sandbox. Then re-enter with `bws`.
+
+**GitHub deploy keys not working**  
+* Verify your remote uses SSH format: `git remote get-url origin` (should look like `git@github.com:owner/repo.git`).
+* Ensure `gh` is authenticated on the host: `gh auth status`.
+* Ensure `auto_repo_deploy_key` is not disabled in your config.
 
 ---
 

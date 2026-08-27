@@ -1,6 +1,6 @@
 # Security & path masking engine
 
-`bws` is designed for unprivileged, hermetic developer environments and zero-trust autonomous AI coding agent execution.
+`bws` is designed for unprivileged, hermetic developer environments and isolated autonomous AI coding agent execution.
 
 ---
 
@@ -18,7 +18,8 @@
 1. **No root permissions**: Bubblewrap runs strictly in unprivileged Linux user namespaces (`CLONE_NEWUSER`).
 2. **Hermetic `$HOME`**: The host user's personal home directory is completely unmapped.
 3. **Environment sanitization**: Host environment variables are not leaked unless explicitly listed in `pass_env`.
-4. **Child process termination**: All spawned sandbox processes terminate automatically when `bws` exits (`--die-with-parent`).
+4. **Child process termination**: All spawned sandbox processes terminate automatically when `bws` exits (`--die-with-parent`), with signals (`SIGINT`, `SIGTERM`) trapped to guarantee cleanup.
+5. **Network access boundary**: `bws` does not isolate network access by default; outbound network access is permitted to allow package managers to function.
 
 ---
 
@@ -26,8 +27,10 @@
 
 `bws` implements zero-trust **path masking** using two non-destructive overlay primitives:
 
-* **Directories (`--tmpfs <path>`)**: Overlays an empty, ephemeral in-memory `tmpfs` over the directory. Any reads see an empty folder; any writes exist only in memory and disappear on session exit.
-* **Files & binaries (`--ro-bind-try /dev/null <path>`)**: Overlays `/dev/null` over the file. Any execution or read attempts fail immediately (0-byte file, unexecutable).
+* **Directories (`--tmpfs <path>`)**: Overlays an empty in-memory `tmpfs` over the directory. Reads return an empty directory; writes exist only in volatile memory and vanish on exit.
+* **Files & binaries (`--ro-bind-try /dev/null <path>`)**: Overlays `/dev/null` over the file. Any read returns EOF (0 bytes) and execution attempts fail immediately.
+
+> **Note on primitives**: `bws` matches the overlay primitive to the target path type (directory vs file). Applying a file overlay to a directory path or vice-versa is prevented by the path masking engine.
 
 ---
 

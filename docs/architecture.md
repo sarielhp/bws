@@ -56,7 +56,7 @@ Rather than exposing or modifying the host user's `$HOME`, `bws` provisions an e
    * Files from `.bws/skeleton/` (project-specific defaults) are overlaid on top.
 3. **Mountpoint pre-creation**: Any directory or file scheduled to be mounted or masked under `@@HOME@@` is pre-created inside the stage directory to guarantee `bwrap` mount targets exist.
 4. **Dynamic `.bashrc` synthesis**: `bws` injects dynamic profile PATH entries, environment variables, and interactive prompt themes (such as `oh-my-posh`) into the staged `.bashrc`.
-5. **Automatic cleanup**: When `bws` exits (even on error or interrupt), the temporary stage directory is deleted from `/tmp/bws/`.
+5. **Automatic cleanup**: When `bws` exits (on normal exit, error status, or interrupted via `SIGINT`/`SIGTERM`), the temporary stage directory is deleted from `/tmp/bws/`.
 
 ---
 
@@ -144,14 +144,14 @@ bws profile fetch <name>
 When launching `bws` in a project directory:
 
 1. **Direct mount**: The current working directory (`$PWD`) is mounted at its exact absolute path inside the sandbox (`--bind $PWD $PWD` by default, or `--ro-bind $PWD $PWD` via `-r`).
-2. **Seamless builds**: Absolute paths in compiler outputs, stack traces, and debuggers match host paths exactly.
+2. **Exact-path builds**: Absolute paths in compiler outputs, stack traces, and debuggers match host paths exactly.
 3. **Host isolation**: The rest of `$HOME` is completely unmapped; only explicit read-only tools and requested caches (`~/.cache/go-build`, `~/.cargo/bin`, etc.) are mounted.
 
 ---
 
 ## 8. Host integration: SSH, WSL2, and X11
 
-* **SSH agent & deploy keys**: Auto-detects `SSH_AUTH_SOCK` or launches a persistent agent. When operating in a Git repository connected to GitHub, `bws` can automatically provision and register an isolated deploy key via `gh` with zero manual configuration.
+* **SSH agent & deploy keys**: Always launches a dedicated isolated `ssh-agent` (never inheriting host `SSH_AUTH_SOCK`). When operating in a Git repository connected to GitHub, `bws` can automatically provision and register an isolated deploy key via `gh` with zero manual configuration.
 * **WSL2 clipboard & interop**: Automatically binds `/run/WSL` and propagates `WSL_INTEROP` so Windows clipboard and tools function inside the sandbox.
 * **X11 GUI forwarding**: Securely binds `/tmp/.X11-unix` and forwards `$DISPLAY` for graphical editors (Emacs, GUI diff tools).
 

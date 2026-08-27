@@ -7,6 +7,7 @@
 * [How does `bws` differ from raw `bwrap` or Firejail?](#how-does-bws-differ-from-raw-bwrap-or-firejail)
 * [Does `bws` require root or daemon processes?](#does-bws-require-root-or-daemon-processes)
 * [Can code or agents inside the sandbox escape or modify host configs?](#can-code-or-agents-inside-the-sandbox-escape-or-modify-host-configs)
+* [Does `bws` restrict outbound network access?](#does-bws-restrict-outbound-network-access)
 * [How does automatic SSH deploy-key generation work?](#how-does-automatic-ssh-deploy-key-generation-work)
 * [What happens to files created inside the sandbox home?](#what-happens-to-files-created-inside-the-sandbox-home)
 
@@ -29,7 +30,7 @@
 
 ## How does `bws` differ from Docker or Podman?
 
-* **Zero daemon overhead**: `bws` runs instantly as a lightweight, unprivileged user process. There are no background daemons, socket permissions, or storage overlay drivers.
+* **Zero daemon overhead**: `bws` runs as an unprivileged user process with no background daemon. There are no background daemons, socket permissions, or storage overlay drivers.
 * **Direct host toolchain access**: Rather than bundling heavy multi-gigabyte container images, `bws` leverages existing host compilers, language servers, and tools inside isolated user namespaces.
 * **In-place startup**: Launches in milliseconds without container image build steps.
 
@@ -61,9 +62,21 @@
 
 When operating in a Git workspace connected to GitHub via SSH (`git@github.com:...`) and authenticated with the `gh` CLI (`gh auth login`):
 1. `bws` detects the remote repository.
-2. If enabled, it automatically generates an isolated, ephemeral SSH key pair.
+2. If enabled, it automatically generates an isolated, per-repository SSH keypair stored in `~/.sandbox/deploy_keys/`.
 3. It registers the key as a repository deploy key using the `gh` CLI.
 4. The key is injected into the sandbox SSH agent without exposing your host personal SSH keys (`~/.ssh`).
+
+---
+
+## Does `bws` restrict outbound network access?
+
+**No.** `bws` does not provide network namespace isolation by default. Sandboxed processes can make outbound TCP/UDP connections to the internet.
+
+This is an intentional design choice: developer tools (package managers like `go`, `npm`, `cargo`, `uv`, language servers, documentation tools) require network access to download packages and update registries.
+
+If you require network isolation for untrusted scripts:
+1. Wrap `bws` inside an isolated network namespace (`unshare --net bws`).
+2. Apply host-level firewall rules (`nftables` / `iptables`) scoped to sandbox cgroups or process groups.
 
 ---
 

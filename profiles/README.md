@@ -29,6 +29,23 @@ When a profile is activated (via `"profiles": ["go-dev"]` in `~/.config/bws/conf
 
 ---
 
+### Security & isolation profiles
+
+`bws` provides dedicated security profiles to isolate sensitive host data:
+
+| Profile | Protects | Targets Blocked |
+| :--- | :--- | :--- |
+| **`no-sudo`** | Root privilege escalation | `sudo`, `su`, `pkexec`, `doas`, `/etc/sudoers` |
+| **`no-ssh`** | SSH host credentials | `~/.ssh`, `/etc/ssh/ssh_config` |
+| **`no-browser`** | Web sessions & passwords | Firefox, Chrome, Chromium, Brave, Edge |
+| **`no-email`** | Local email stores | Thunderbird, Evolution, Mutt, Maildir |
+| **`no-chat`** | Messaging databases | Discord, Slack, Signal, Telegram |
+| **`no-secrets`** | Cloud provider keys | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.gnupg` |
+| **`no-history`**| Command line logs | `.bash_history`, `.zsh_history`, `.python_history` |
+| **`secure-agent`**| All of the above combined | Hardened environment for autonomous AI agents |
+
+---
+
 ## 1. Meta-profiles & developer stacks
 
 Meta-profiles aggregate individual tools into unified, full-stack developer environments:

@@ -39,8 +39,19 @@
 | **`binds_rw`** | `[][2]string` | Read-write bind mounts `[host_path, sandbox_path]` |
 | **`binds_ro`** | `[][2]string` | Read-only bind mounts `[host_path, sandbox_path]` |
 | **`mask`** | `[]string` | Paths to mask (`tmpfs` for directories, `/dev/null` for files) |
-| **`features`** | `object` | Feature toggles (`enable_ssh`, `enable_x11`, `enable_wsl`) |
+| **`features`** | `object` | Feature toggles (`enable_ssh`, `enable_x11`, `enable_wsl`, `auto_repo_deploy_key`) |
 | **`max_file_count`** | `int` | Maximum files allowed in directory before safety prompt (default: 1000) |
+
+---
+
+### Feature toggles (`features`)
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `enable_ssh` | `bool` | `true` | Enable dedicated sandbox SSH agent forwarding |
+| `enable_x11` | `bool` | `false` | Enable X11 socket forwarding for GUI applications |
+| `enable_wsl` | `bool` | `true` | Auto-bind `/run/WSL` and propagate `WSL_INTEROP` on WSL2 |
+| `auto_repo_deploy_key` | `bool` | `true` | Auto-provision and register GitHub Deploy Keys via `gh` |
 
 ---
 
@@ -105,7 +116,7 @@
 
 ## Dynamic environment variable expansion
 
-Values in the `env` map support dynamic `$VAR` expansion:
+Values in the `env` map support shell-style `$VAR` expansion, resolved at sandbox launch time (not at parse time):
 * `"VISUAL": "$EDITOR"` resolves `$EDITOR` dynamically at runtime.
 * `"GOPATH": "@@HOME@@/.go"` resolves `@@HOME@@` to the ephemeral home path.
 
@@ -116,4 +127,4 @@ Values in the `env` map support dynamic `$VAR` expansion:
 `bws` provisions ephemeral dotfiles during startup:
 1. Base dotfiles from `~/.config/bws/skeleton/` (`.bashrc`, `.profile`, `.tmux.conf`).
 2. Project-specific dotfiles from `.bws/skeleton/` (if present in the workspace root; copied into stage before runtime masking).
-3. Dynamic PATH additions and prompt settings are appended automatically to `.bashrc`.
+3. Dynamic PATH additions (from active capability profiles) and prompt settings are appended automatically to staged `.bashrc`.
