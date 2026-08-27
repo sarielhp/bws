@@ -55,10 +55,18 @@ The binary will be compiled and installed to `~/bin/bws`.
 
 ### 1. Launch an ephemeral interactive sandbox
 
+Running `bws` without arguments drops you into a fully isolated, interactive sandbox shell in your current working directory:
+
 ```bash
-# Launch an interactive shell in an isolated bubble
 bws
 ```
+
+**What happens behind the scenes:**
+* **Ephemeral `$HOME` staging**: `bws` provisions a fresh, temporary home directory in `/tmp/bws/stage_*` populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) from your global skeleton (`~/.config/bws/skeleton/`).
+* **In-place workspace mounting**: Your current directory is bind-mounted directly at its exact path, allowing compilers, language tools, and editors to work seamlessly on your project without copying large trees.
+* **Zero-privilege namespaces**: Runs inside unprivileged Linux user, mount, IPC, PID, and UTS namespaces (`bwrap` unprivileged mode) with no root or setuid requirements.
+* **Host privacy protection**: Your host `$HOME` dotfiles, SSH credentials, browser cookies, cloud API keys, and shell histories are shielded from running code.
+* **Clean automatic teardown**: The moment you exit the sandbox (`exit` or `Ctrl+D`), the ephemeral stage directory and all temporary mounts are destroyed cleanly without leaving leftover state on your host.
 
 ### 2. Auto-detect and initialize a project workspace
 
