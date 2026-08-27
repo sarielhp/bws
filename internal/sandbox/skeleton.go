@@ -117,6 +117,51 @@ func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 		return "", nil, fmt.Errorf("appending dynamic shell config: %w", err)
 	}
 
+	// 4. Pre-create mountpoint paths inside staged home
+	home := util.HomeDir()
+	allEntries := append(append([]config.BindEntry{}, cfg.BindsRW...), cfg.BindsRO...)
+	for _, b := range allEntries {
+		dest := b.Sandbox
+		if dest == "" {
+			dest = b.Host
+		}
+		dest = strings.ReplaceAll(dest, config.HomeToken, home)
+		dest = util.ExpandHome(dest)
+		if strings.HasPrefix(dest, home+"/") {
+			rel := strings.TrimPrefix(dest, home+"/")
+			target := filepath.Join(stageDir, rel)
+			host := util.ExpandHome(b.Host)
+			if fi, err := os.Stat(host); err == nil {
+				if fi.IsDir() {
+					os.MkdirAll(target, 0755)
+				} else {
+					os.MkdirAll(filepath.Dir(target), 0755)
+					if _, err := os.Stat(target); os.IsNotExist(err) {
+						os.WriteFile(target, []byte{}, 0644)
+					}
+				}
+			}
+		}
+	}
+	for _, m := range cfg.Mask {
+		expanded := util.ExpandHome(m)
+		expanded = strings.ReplaceAll(expanded, config.HomeToken, home)
+		if strings.HasPrefix(expanded, home+"/") {
+			rel := strings.TrimPrefix(expanded, home+"/")
+			target := filepath.Join(stageDir, rel)
+			if fi, err := os.Stat(expanded); err == nil {
+				if fi.IsDir() {
+					os.MkdirAll(target, 0755)
+				} else {
+					os.MkdirAll(filepath.Dir(target), 0755)
+					if _, err := os.Stat(target); os.IsNotExist(err) {
+						os.WriteFile(target, []byte{}, 0644)
+					}
+				}
+			}
+		}
+	}
+
 	return stageDir, cleanup, nil
 }
 
@@ -179,11 +224,9 @@ func appendDynamicConfig(cfg *config.Config, bashrcPath string) error {
 	if len(cfg.Path) > 0 {
 		resolved := make([]string, 0, len(cfg.Path))
 		for _, p := range cfg.Path {
-			if strings.HasPrefix(p, "~") {
-				resolved = append(resolved, util.ExpandHome(p))
-			} else {
-				resolved = append(resolved, p)
-			}
+			resolvedP := strings.ReplaceAll(p, config.HomeToken, util.HomeDir())
+			resolvedP = util.ExpandHome(resolvedP)
+			resolved = append(resolved, resolvedP)
 		}
 		sb.WriteString(fmt.Sprintf("export PATH=\"%s:$PATH\"\n", strings.Join(resolved, ":")))
 	}

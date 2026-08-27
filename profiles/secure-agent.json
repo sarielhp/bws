@@ -1,0 +1,13 @@
+{
+  "name": "secure-agent",
+  "description": "Hardened AI agent environment with complete isolation from host secrets, browser data, and history",
+  "requires": [
+    "ai",
+    "no-sudo",
+    "no-ssh",
+    "no-browser",
+    "no-email",
+    "no-secrets",
+    "no-history"
+  ]
+}

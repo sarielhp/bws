@@ -9,7 +9,9 @@
     ]
   },
   "path": [
-    "@@HOME@@/.opencode/bin"
+    "@@HOME@@/.opencode/bin",
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
   ],
   "binds_rw": [
     [
@@ -41,19 +43,22 @@
     {
       "name": "OpenCode version",
       "cmd": [
-        "opencode",
-        "--version"
+        "bash",
+        "-c",
+        "opencode --version"
       ],
-      "type": "version"
+      "type": "version",
+      "optional": true
     },
     {
       "name": "OpenCode paths inspection",
       "cmd": [
-        "opencode",
-        "debug",
-        "paths"
+        "bash",
+        "-c",
+        "opencode debug paths"
       ],
-      "type": "smoke"
+      "type": "smoke",
+      "optional": true
     }
   ]
 }

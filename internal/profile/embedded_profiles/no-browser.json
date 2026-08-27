@@ -1,0 +1,25 @@
+{
+  "name": "no-browser",
+  "description": "Mask web browser profiles, saved passwords, and session cookies",
+  "mask": [
+    "~/.mozilla",
+    "~/.cache/mozilla",
+    "~/.config/google-chrome",
+    "~/.cache/google-chrome",
+    "~/.config/chromium",
+    "~/.cache/chromium",
+    "~/.config/BraveSoftware",
+    "~/.config/microsoft-edge"
+  ],
+  "tests": [
+    {
+      "name": "mozilla profile is masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -e ~/.mozilla/firefox/profiles.ini"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

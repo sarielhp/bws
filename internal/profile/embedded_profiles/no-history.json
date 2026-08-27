@@ -1,0 +1,26 @@
+{
+  "name": "no-history",
+  "description": "Mask shell and REPL command history files containing potential secrets",
+  "mask": [
+    "~/.bash_history",
+    "~/.zsh_history",
+    "~/.python_history",
+    "~/.node_repl_history",
+    "~/.psql_history",
+    "~/.mysql_history",
+    "~/.sqlite_history",
+    "~/.lesshst",
+    "~/.viminfo"
+  ],
+  "tests": [
+    {
+      "name": "shell history is masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -s ~/.bash_history && ! test -s ~/.zsh_history"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

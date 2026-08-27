@@ -1,0 +1,22 @@
+{
+  "name": "no-chat",
+  "description": "Mask messaging apps and communication databases",
+  "mask": [
+    "~/.config/discord",
+    "~/.config/Slack",
+    "~/.config/Signal",
+    "~/.local/share/TelegramDesktop",
+    "~/.config/Element"
+  ],
+  "tests": [
+    {
+      "name": "chat directories are masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -s ~/.config/Slack && ! test -s ~/.config/discord"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

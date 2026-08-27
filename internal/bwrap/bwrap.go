@@ -74,6 +74,8 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		if dest == "" {
 			dest = b.Host
 		}
+		dest = strings.ReplaceAll(dest, config.HomeToken, homeDir)
+		dest = util.ExpandHome(dest)
 		host := util.ExpandHome(b.Host)
 		if _, err := os.Stat(host); err == nil {
 			allBinds = append(allBinds, bindItem{host: host, dest: dest, ro: true})
@@ -87,6 +89,8 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		if dest == "" {
 			dest = b.Host
 		}
+		dest = strings.ReplaceAll(dest, config.HomeToken, homeDir)
+		dest = util.ExpandHome(dest)
 		host := util.ExpandHome(b.Host)
 		if sandboxDir != "" && host == sandboxDir && dest == homeDir {
 			continue
@@ -179,11 +183,9 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	if len(cfg.Path) > 0 {
 		resolved := make([]string, 0, len(cfg.Path))
 		for _, p := range cfg.Path {
-			if strings.HasPrefix(p, "~") {
-				resolved = append(resolved, util.ExpandHome(p))
-			} else {
-				resolved = append(resolved, p)
-			}
+			resolvedP := strings.ReplaceAll(p, config.HomeToken, homeDir)
+			resolvedP = util.ExpandHome(resolvedP)
+			resolved = append(resolved, resolvedP)
 		}
 		pathVal := strings.Join(resolved, ":")
 		args = append(args, "--setenv", "PATH", pathVal)

@@ -1,0 +1,27 @@
+{
+  "name": "no-email",
+  "description": "Mask desktop email clients, offline mailboxes, and mail credentials",
+  "mask": [
+    "~/.thunderbird",
+    "~/.cache/thunderbird",
+    "~/.config/evolution",
+    "~/.local/share/evolution",
+    "~/.mutt",
+    "~/.muttrc",
+    "~/.config/aerc",
+    "~/Maildir",
+    "~/Mail",
+    "~/.mail"
+  ],
+  "tests": [
+    {
+      "name": "thunderbird mailbox is masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -e ~/.thunderbird/profiles.ini"
+      ],
+      "type": "smoke"
+    }
+  ]
+}
