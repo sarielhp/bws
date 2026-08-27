@@ -157,20 +157,6 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		}
 	}
 
-	if v := os.Getenv("OPENROUTER_API_KEY"); v != "" {
-		if cfg.Env == nil {
-			args = append(args, "--setenv", "OPENROUTER_API_KEY", v)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --setenv OPENROUTER_API_KEY=<set>\n")
-			}
-		} else if _, ok := cfg.Env["OPENROUTER_API_KEY"]; !ok {
-			args = append(args, "--setenv", "OPENROUTER_API_KEY", v)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --setenv OPENROUTER_API_KEY=<set>\n")
-			}
-		}
-	}
-
 	if len(cfg.Path) > 0 {
 		resolved := make([]string, 0, len(cfg.Path))
 		for _, p := range cfg.Path {

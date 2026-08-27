@@ -205,24 +205,18 @@ func generateDefaultConfig() string {
   },
   "env": {
     "HOME": %[1]q,
-    "TERM": "xterm-256color",
-    "LANG": "C.UTF-8",
-    "LC_ALL": "C.UTF-8",
-    "USER": %[2]q,
-    "LOGNAME": %[3]q,
-    "SHELL": "/bin/bash",
+    "USER": "",
+    "LOGNAME": "",
+    "SHELL": "",
+    "TERM": "",
+    "LANG": "",
+    "LC_ALL": "",
     "EDITOR": "emacs -nw",
-    "VISUAL": "emacs -nw",
-    "OPENROUTER_API_KEY": ""
+    "VISUAL": "emacs -nw"
   },
   "path": [
     "%[1]s/bin",
     "%[1]s/.local/bin",
-    "%[1]s/.opencode/bin",
-    "%[1]s/.cargo/bin",
-    "/usr/local/sbin",
-    "/usr/local/bin",
-    "/usr/sbin",
     "/usr/bin",
     "/sbin",
     "/bin"
