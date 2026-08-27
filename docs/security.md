@@ -51,3 +51,24 @@
 When `bws` launches inside a workspace, the local `.bws/` directory and `.bws.jsonc` file are **automatically masked by default** inside the sandbox:
 * Code running inside the bubble cannot inspect host sandbox configuration.
 * Untrusted build scripts or autonomous agents cannot modify `.bws/config.jsonc` to weaken sandbox rules on future host invocations.
+
+---
+
+## Scoped GitHub deploy keys vs account-wide PATs
+
+Traditional container environments force developers to choose between broken Git commands or exposing account-wide credentials (like personal access tokens or master SSH keyrings).
+
+`bws` implements automatic **repository-scoped Deploy Keys**:
+
+```mermaid
+flowchart LR
+    Host["Host Environment (gh CLI)"] -- Registers --> GitHub["GitHub API (Deploy Key)"]
+    Host -- Generates --> Key["~/.sandbox/deploy_keys/owner_repo"]
+    Key -- Injected into --> Agent["Sandbox SSH Agent"]
+    Agent -- Scoped Git access --> Repo["Single Repository Only"]
+```
+
+### Security advantages
+1. **Confined blast radius**: If a script or AI agent running inside the sandbox attempts to access other private repositories or GitHub organization settings, the request fails.
+2. **Master key protection**: Host keys in `~/.ssh/` (`id_rsa`, `id_ed25519`) are never exposed or mounted into the sandbox.
+3. **Automated lifecycle**: `bws` handles key generation, registration via `gh`, and agent loading in milliseconds without manual intervention.

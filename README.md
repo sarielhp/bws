@@ -15,6 +15,7 @@
 * [Key capabilities](#key-capabilities)
 * [Installation](#installation)
 * [Quick start](#quick-start)
+* [Automatic GitHub deploy keys](#automatic-github-deploy-keys--git-isolation)
 * [Documentation guide](#documentation-guide)
 * [License](#license)
 
@@ -155,6 +156,25 @@ bws test secure-agent
 # Verify that privilege escalation binaries and sudoers are actively blocked
 bws test no-sudo
 ```
+
+---
+
+## Automatic GitHub deploy keys & Git isolation
+
+One of the greatest challenges with developer and AI agent sandboxes is Git authentication: *how do you enable `git push` and `git pull` without exposing your personal host SSH keys or account-wide GitHub tokens?*
+
+`bws` solves this automatically:
+1. **Repository detection**: When run in a Git workspace connected to GitHub, `bws` inspects the origin remote.
+2. **Dedicated key generation**: It creates a unique, isolated SSH keypair in `~/.sandbox/deploy_keys/<owner>_<repo>`.
+3. **Automatic registration**: Using your host `gh` CLI credentials, it registers the public key as a read/write **GitHub Deploy Key**.
+4. **Scoped agent injection**: It loads **only this repository key** into the sandbox SSH agent.
+
+```bash
+# Pull, commit, and push inside the sandbox with zero prompt friction
+bws exec -- git push origin main
+```
+
+**Zero-trust security guarantee**: If code or an autonomous agent inside the sandbox is compromised, its reach is cryptographically confined to that single repository — your master SSH keys (`~/.ssh`) and personal GitHub account tokens remain strictly on the host.
 
 ---
 
