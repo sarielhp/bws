@@ -10,6 +10,16 @@
 
 ---
 
+## Table of contents
+
+* [Key capabilities](#key-capabilities)
+* [Installation](#installation)
+* [Quick start](#quick-start)
+* [Documentation guide](#documentation-guide)
+* [License](#license)
+
+---
+
 ## Key capabilities
 
 * **Zero-privilege sandboxing**: Runs purely in Linux user namespaces (`bwrap` unprivileged mode). No root permissions, setuid binaries, or daemon sockets required.
@@ -148,187 +158,21 @@ bws test no-sudo
 
 ---
 
-## Declarative capability profiles
+## Documentation guide
 
-`bws` features a modular **profile engine** with over 35 pre-configured development stacks and security profiles. See the full [**profiles catalog**](profiles/README.md) for detailed documentation on every profile.
+Detailed guides are modularized across the `docs/` directory:
 
-### Intelligence from Homebrew & Firejail
-
-When you need to sandbox a tool not yet in the embedded catalog, `bws` queries:
-1. [**Homebrew API**](https://formulae.brew.sh): Inspects package metadata, runtime dependencies, binaries, and descriptions.
-2. [**Firejail Catalog**](https://github.com/netblue30/firejail): Adapts proven security profiles, whitelist/blacklist paths, and isolation rules.
-
-```bash
-# Search profiles by keyword or description
-bws profile search <query>
-
-# Generate a new profile from Homebrew & Firejail intelligence
-bws profile new <name>
-
-# List all available profiles (embedded, global, local)
-bws profile list
-
-# Inspect resolved dependency chain, mounts, masked paths, and tests
-bws profile show <name>
-
-# Fetch community profiles from GitHub
-bws profile fetch <name>
-bws profile update
-```
-
-### Meta-profiles & bundles
-
-Profiles can declare dependencies (`requires`) to build complete developer stacks:
-
-```jsonc
-// Embedded go-dev profile (profiles/go-dev.json)
-{
-  "name": "go-dev",
-  "description": "Full Go developer environment",
-  "requires": [
-    "go",
-    "gopls",
-    "git",
-    "gh",
-    "editor"
-  ]
-}
-```
-
----
-
-## Security & path masking engine
-
-`bws` provides **path masking** to overlay empty `tmpfs` mounts over directories or `/dev/null` over binaries, making host utilities invisible inside the sandbox.
-
-### Built-in hardening profiles
-
-* **`no-sudo`**: Blocks `/usr/bin/sudo`, `su`, `pkexec`, `doas`, `gpasswd`, `newgrp`, and masks `/etc/sudoers`.
-* **`no-ssh`**: Blocks `~/.ssh` and `/etc/ssh/ssh_config`.
-* **`no-browser`**: Blocks browser profiles (`~/.mozilla`, Chrome, Chromium, Brave, Edge) to protect session cookies.
-* **`no-email`**: Blocks desktop email databases (`~/.thunderbird`, `~/.config/evolution`, `~/.mutt`, `~/Maildir`).
-* **`no-secrets`**: Blocks cloud credentials (`~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.password-store`, `~/.gnupg`).
-* **`no-history`**: Blocks shell history files (`.bash_history`, `.zsh_history`, `.python_history`, `.psql_history`).
-* **`secure-agent`**: Zero-trust bundle combining all hardening profiles with the `ai` stack for autonomous coding agents.
-
----
-
-## Configuration architecture
-
-`bws` uses a layered, comment-supported **JSONC** configuration hierarchy:
-
-### 1. Global user configuration (`~/.config/bws/`)
-
-Located in your user home directory according to the XDG standard:
-* **`~/.config/bws/config.jsonc`**: Global base settings (preferred editor, default profiles, standard environment pass-through).
-* **`~/.config/bws/skeleton/`**: Default dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) copied into every new sandbox.
-* **`~/.config/bws/profiles/`**: Custom user-authored capability and security profiles.
-
-### 2. Local project configuration (`.bws/` in workspace root)
-
-Local configuration is **scoped directly to your current project/repository** and lives inside the `.bws/` directory at the project root (mirroring conventions like `.vscode/` or `.cargo/`):
-* **`.bws/config.jsonc`**: Workspace-specific overrides (e.g. declaring `profiles: ["go-dev", "no-secrets"]`, adding project-specific bind mounts, custom environment variables).
-* **`.bws/skeleton/`**: Project-specific dotfiles (e.g. a custom `.bws/skeleton/.bashrc` with project aliases or build shortcuts) that overlay on top of the global skeleton.
-
-> **Why `.bws/` instead of `.config/bws/` in projects?**  
-> `~/.config/` is strictly a user-home concept (XDG). In a project repository, having a top-level `.config/` folder is ambiguous and can conflict with project build tools. A dedicated `.bws/` folder in the project root is clean, self-contained, easily gitignored or committed, and follows standard tool patterns (`.vscode/`, `.github/`, `.devcontainer/`).
-
----
-
-### Example global configuration (`~/.config/bws/config.jsonc`)
-
-```jsonc
-{
-  // Active personal defaults across all projects
-  "profiles": [
-    "editor"
-  ],
-
-  // Pass-through safe operational environment variables from host
-  "pass_env": [
-    "USER", "LOGNAME", "SHELL", "TERM", "LANG", "LC_ALL"
-  ],
-
-  // Sandbox environment variables ($VAR expansion supported)
-  "env": {
-    "HOME": "@@HOME@@",
-    "EDITOR": "emacs -nw",
-    "VISUAL": "$EDITOR"
-  },
-
-  // Base read-only protection for host tools
-  "binds_ro": [
-    ["~/.local", "@@HOME@@/.local"]
-  ]
-}
-```
-
-### Example local project configuration (`.bws/config.jsonc`)
-
-Generated automatically via `bws init-dev`:
-
-```jsonc
-{
-  // Stack profiles required specifically for this project
-  "profiles": [
-    "go-dev",
-    "docker",
-    "no-sudo"
-  ],
-
-  // Project-specific environment variables
-  "env": {
-    "CGO_ENABLED": "0"
-  },
-
-  // Project-specific mounts
-  "binds_rw": [
-    ["/data/test_fixtures", "/data/test_fixtures"]
-  ]
-}
-```
-
----
-
-## Skeletons & ephemeral homes
-
-Whenever `bws` launches a sandbox:
-1. It creates an isolated temporary directory in `/tmp/bws/stage_*`.
-2. It copies base dotfiles from the **global skeleton** (`~/.config/bws/skeleton/`).
-3. It overlays workspace dotfiles from the **local skeleton** (`.bws/skeleton/` if present in the project).
-4. It dynamically appends profile PATHs and shell hooks to the staged `.bashrc`.
-5. When the session terminates, the ephemeral home directory is cleanly removed.
-
----
-
-## Command reference
-
-| Command | Description |
+| Document | Description |
 | :--- | :--- |
-| **`bws`** | Launch an interactive sandbox shell |
-| **`bws exec -- <cmd...>`** | Execute a command inside the sandbox |
-| **`bws test <profile>`** | Run multi-command verification tests for a profile |
-| **`bws init-dev`** | Auto-detect workspace and generate `.bws/config.jsonc` |
-| **`bws profile search <query>`** | Search profiles by name, description, and tools |
-| **`bws profile list`** | List all registered profiles |
-| **`bws profile show <name>`** | Display detailed resolution plan for a profile |
-| **`bws profile new <name>`** | Generate a profile via Homebrew API & Firejail |
-| **`bws profile fetch <name>`**| Download a profile from GitHub |
-| **`bws profile update`** | Synchronize all local profiles with GitHub |
-| **`bws conf info`** | Preview merged bwrap argument plan (dry run) |
-| **`bws cbind add <path>`** | Add a bind mount to config |
-| **`bws ccopy add <path>`** | Add a copy path to config |
-| **`bws scp <user@host:>`** | Copy configuration and themes to remote machine |
-
----
-
-## Detailed technical documentation
-
-* [**Architecture & internal design**](docs/architecture.md): Deep dive into Linux user namespaces, ephemeral home staging, path masking, SSH deploy-key injection, and lifecycle sequence.
-* [**Capability profiles catalog**](profiles/README.md): Comprehensive reference of all 35+ embedded development stacks and security profiles.
+| [**Frequently asked questions (FAQ)**](docs/faq.md) | Common questions, design rationale (why `.bws/` in projects), comparisons with Docker & Firejail |
+| [**Configuration reference**](docs/configuration.md) | Full JSONC schema, global vs local merging rules, `$VAR` expansion, and skeletons |
+| [**Security & path masking**](docs/security.md) | Zero-trust threat model, path masking (`tmpfs` / `/dev/null`), and hardening profiles |
+| [**CLI command reference**](docs/commands.md) | Comprehensive usage guide for all subcommands, options, and flags |
+| [**Architecture & internals**](docs/architecture.md) | Deep technical guide to user namespaces, invocation lifecycle, and staging mechanics |
+| [**Capability profiles catalog**](profiles/README.md) | Complete reference and test specifications for all 35+ embedded profiles |
 
 ---
 
 ## License
 
-MIT License. Developed for robust, unprivileged Linux & WSL sandboxing.
+MIT License. Developed for robust, unprivileged Linux sandboxing.
