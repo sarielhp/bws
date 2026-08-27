@@ -2,13 +2,14 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"bw/internal/cli"
 
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.14"
+var Version = "0.1.15"
 
 func main() {
 	var forceFlag bool
@@ -17,17 +18,57 @@ func main() {
 	var roFlag bool
 	var verboseFlag bool
 
+	var dryRunFlag bool
+	var noSSHFlag bool
+	var opencodeFlag bool
+	var presetFlag string
+	var profileFlag string
+
 	app := &clihelp.App{
 		Name:        "bw",
 		Description: "Launch a secure bubblewrap sandbox with configurable bind mounts, SSH forwarding, X11, and shell theming.",
 		Version:     Version,
 		PersistentOptions: []clihelp.Option{
-			clihelp.Bool(&forceFlag, "-f, --force", false, "Bypass the file count safety check"),
+			clihelp.Bool(&forceFlag, "-f, --force", false, "Bypass the file count safety check / force overwrite"),
 			clihelp.Bool(&globalFlag, "-g, --global", false, "Target the global config file (~/.config/bw/config.jsonc)"),
 			clihelp.Bool(&localFlag, "-l, --local", false, "Target the local config file (.bw.jsonc in current directory)"),
 			clihelp.Bool(&verboseFlag, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
+			{
+				Name:        "init-dev",
+				Description: "Automatically inspect workspace and create a hardened .bw.jsonc development configuration",
+				UsageLine:   "bw init-dev [options] [target-dir]",
+				Args:        clihelp.RangeArgs(0, 1),
+				Options: []clihelp.Option{
+					clihelp.Bool(&dryRunFlag, "-n, --dry-run", false, "Print generated configuration to stdout without writing to disk"),
+					clihelp.Bool(&noSSHFlag, "--no-ssh", false, "Disable SSH forwarding and Git SSH commands"),
+					clihelp.Bool(&opencodeFlag, "--opencode", false, "Force inclusion of OpenCode configuration directories"),
+					clihelp.String(&presetFlag, "--preset", "", "Explicitly select a preset stack (go, python, rust, node, latex, agent, all)"),
+					clihelp.String(&profileFlag, "-p, --profile", "", "Explicitly include tool profile(s), comma-separated (e.g. -p oc,quarto)"),
+				},
+				Examples: []clihelp.Example{
+					{Line: "bw init-dev", Description: "Initialize .bw.jsonc in current directory"},
+					{Line: "bw init-dev -n", Description: "Dry run: preview generated config"},
+					{Line: "bw init-dev --preset python", Description: "Initialize with Python/UV settings"},
+					{Line: "bw init-dev -p oc", Description: "Initialize with OpenCode oc profile"},
+				},
+				Run: func(ctx *clihelp.Context) error {
+					targetDir := "."
+					if len(ctx.Args) > 0 {
+						targetDir = ctx.Args[0]
+					}
+					var profs []string
+					if profileFlag != "" {
+						for _, item := range strings.Split(profileFlag, ",") {
+							if trimmed := strings.TrimSpace(item); trimmed != "" {
+								profs = append(profs, trimmed)
+							}
+						}
+					}
+					return cli.HandleInitDev(targetDir, forceFlag, dryRunFlag, noSSHFlag, opencodeFlag, presetFlag, profs)
+				},
+			},
 			{
 				Name:        "scp",
 				Description: "Copy the global config and theme files to a remote host via scp",
@@ -276,39 +317,71 @@ func main() {
 					return runExec(ctx.Args, forceFlag, verboseFlag)
 				},
 			},
+			{
+				Name:        "profile",
+				Aliases:     []string{"prof"},
+				Description: "Manage, search, and generate tool capability profiles",
+				UsageLine:   "bw profile <subcommand>",
+				Subcommands: []clihelp.Command{
+					{
+						Name:        "list",
+						Aliases:     []string{"ls"},
+						Description: "List all registered sandbox profiles",
+						UsageLine:   "bw profile list",
+						Args:        clihelp.NoArgs,
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileList()
+						},
+					},
+					{
+						Name:        "show",
+						Aliases:     []string{"info", "view", "cat"},
+						Description: "Show details, mounts, and smoke tests for a profile",
+						UsageLine:   "bw profile show <name>",
+						Args:        clihelp.ExactArgs(1),
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileShow(ctx.Args[0])
+						},
+					},
+					{
+						Name:        "new",
+						Aliases:     []string{"create", "add", "gen"},
+						Description: "Synthesize a profile from Homebrew and Firejail intelligence",
+						UsageLine:   "bw profile new <name> [-g | -l]",
+						Args:        clihelp.ExactArgs(1),
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileNew(ctx.Args[0], globalFlag, localFlag)
+						},
+					},
+					{
+						Name:        "test",
+						Description: "Run all verification and smoke tests for a profile inside sandbox",
+						UsageLine:   "bw profile test <name>",
+						Args:        clihelp.ExactArgs(1),
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileTest(ctx.Args[0], verboseFlag)
+						},
+					},
+					{
+						Name:        "search",
+						Aliases:     []string{"find"},
+						Description: "Search profiles, host executables, and Homebrew formulae",
+						UsageLine:   "bw profile search <query>",
+						Args:        clihelp.ExactArgs(1),
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileSearch(ctx.Args[0])
+						},
+					},
+				},
+			},
 			{},
 			{
 				Name:        "test",
-				Description: "Run a verification of a tool inside the sandbox and exit",
+				Description: "Run a verification of a tool/profile inside the sandbox and exit",
 				UsageLine:   "bw test <target>",
-				Subcommands: []clihelp.Command{
-					{
-						Name:        "opencode",
-						Description: "Verify opencode loads correctly inside the sandbox",
-						UsageLine:   "bw test opencode",
-						Args:        clihelp.NoArgs,
-						Run: func(ctx *clihelp.Context) error {
-							return runSandboxCommand("opencode", []string{"opencode", "debug", "info"}, forceFlag, verboseFlag)
-						},
-					},
-					{
-						Name:        "quarto",
-						Description: "Verify quarto loads correctly inside the sandbox",
-						UsageLine:   "bw test quarto",
-						Args:        clihelp.NoArgs,
-						Run: func(ctx *clihelp.Context) error {
-							return runSandboxCommand("quarto", []string{"quarto", "--version"}, forceFlag, verboseFlag)
-						},
-					},
-					{
-						Name:        "uv",
-						Description: "Verify uv and uvx load correctly inside the sandbox",
-						UsageLine:   "bw test uv",
-						Args:        clihelp.NoArgs,
-						Run: func(ctx *clihelp.Context) error {
-							return runUVTest(forceFlag, verboseFlag)
-						},
-					},
+				Args:        clihelp.ExactArgs(1),
+				Run: func(ctx *clihelp.Context) error {
+					return cli.HandleProfileTest(ctx.Args[0], verboseFlag)
 				},
 			},
 		},
