@@ -1,5 +1,6 @@
 # Compiled binary
 /bw
+/bws
 
 # Go build/test artifacts
 *.test
@@ -8,6 +9,9 @@
 
 # Local configuration files (contain user-specific paths and possibly secrets)
 .bw.jsonc
+.bw/
+.bws.jsonc
+.bws/
 *.bak
 
 # Legacy/reference files with user-specific data (not for sharing)

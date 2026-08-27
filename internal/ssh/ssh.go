@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"bw/internal/util"
+	"bws/internal/util"
 )
 
 func EnsureAgent(keys []string) string {

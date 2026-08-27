@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"bw/internal/config"
-	"bw/internal/profile"
-	"bw/internal/util"
+	"bws/internal/config"
+	"bws/internal/profile"
+	"bws/internal/util"
 )
 
 // HandleProfileList lists all registered profiles and their source.
@@ -305,7 +305,7 @@ func HandleProfileFetch(name string, global, local bool) error {
 		targetDir = profile.GlobalProfilesDir()
 	}
 
-	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bubblewrap_script/main/profiles/%s.json", cleanName)
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bws/main/profiles/%s.json", cleanName)
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(rawURL)
 

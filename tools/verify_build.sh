@@ -14,7 +14,8 @@ echo "=== go test ==="
 go test ./... -count=1
 
 echo "=== go build ==="
-go build -o bw .
+go build -o bws .
+ln -sf bws bw
 
 echo ""
 echo "All checks passed."

@@ -1,4 +1,4 @@
-module bw
+module bws
 
 go 1.26.5
 

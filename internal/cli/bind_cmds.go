@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"bw/internal/config"
+	"bws/internal/config"
 )
 
 func HandleBindAdd(hostPath, sandboxPath string, ro, global, local bool) {

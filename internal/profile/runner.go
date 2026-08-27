@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"bw/internal/bwrap"
-	"bw/internal/config"
-	"bw/internal/sandbox"
-	"bw/internal/util"
+	"bws/internal/bwrap"
+	"bws/internal/config"
+	"bws/internal/sandbox"
+	"bws/internal/util"
 )
 
 // TestResult stores the outcome of an individual test command execution.

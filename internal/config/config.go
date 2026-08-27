@@ -117,7 +117,15 @@ func LoadFile(path string) (*Config, error) {
 
 func ConfigDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "bw")
+	bwsDir := filepath.Join(home, ".config", "bws")
+	if fi, err := os.Stat(bwsDir); err == nil && fi.IsDir() {
+		return bwsDir
+	}
+	bwDir := filepath.Join(home, ".config", "bw")
+	if fi, err := os.Stat(bwDir); err == nil && fi.IsDir() {
+		return bwDir
+	}
+	return bwsDir
 }
 
 func GlobalPath() string {
@@ -130,19 +138,20 @@ func LocalPath() string {
 }
 
 func FindLocalPath(cwd string) string {
-	p1 := filepath.Join(cwd, ".bw", "config.jsonc")
-	if fi, err := os.Stat(p1); err == nil && !fi.IsDir() {
-		return p1
+	candidates := []string{
+		filepath.Join(cwd, ".bws", "config.jsonc"),
+		filepath.Join(cwd, ".bws", "config.json"),
+		filepath.Join(cwd, ".bws.jsonc"),
+		filepath.Join(cwd, ".bw", "config.jsonc"),
+		filepath.Join(cwd, ".bw", "config.json"),
+		filepath.Join(cwd, ".bw.jsonc"),
 	}
-	p2 := filepath.Join(cwd, ".bw", "config.json")
-	if fi, err := os.Stat(p2); err == nil && !fi.IsDir() {
-		return p2
+	for _, p := range candidates {
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			return p
+		}
 	}
-	p3 := filepath.Join(cwd, ".bw.jsonc")
-	if fi, err := os.Stat(p3); err == nil && !fi.IsDir() {
-		return p3
-	}
-	return p1
+	return filepath.Join(cwd, ".bws", "config.jsonc")
 }
 
 func CreateDefault(path string) error {

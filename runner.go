@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bw/internal/bwrap"
-	"bw/internal/cli"
-	"bw/internal/config"
-	"bw/internal/profile"
-	"bw/internal/sandbox"
-	"bw/internal/util"
+	"bws/internal/bwrap"
+	"bws/internal/cli"
+	"bws/internal/config"
+	"bws/internal/profile"
+	"bws/internal/sandbox"
+	"bws/internal/util"
 )
 
 type sandboxLaunch struct {

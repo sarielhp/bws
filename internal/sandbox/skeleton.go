@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bw/internal/config"
-	"bw/internal/util"
+	"bws/internal/config"
+	"bws/internal/util"
 )
 
 const DefaultTmuxConf = `# Bubblewrap Sandbox tmux configuration

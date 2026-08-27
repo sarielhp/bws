@@ -1,7 +1,8 @@
 .PHONY: build test lint clean install
 
 build:
-	go build -o bw .
+	go build -o bws .
+	ln -sf bws bw
 
 test:
 	go vet ./...
@@ -14,5 +15,5 @@ install:
 	./tools/install
 
 clean:
-	rm -f bw
+	rm -f bws bw
 	go clean

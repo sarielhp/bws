@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"bw/internal/config"
+	"bws/internal/config"
 )
 
 // HandlePathAdd adds a directory to the PATH array in the config

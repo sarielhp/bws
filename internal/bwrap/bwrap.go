@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"bw/internal/config"
-	"bw/internal/util"
+	"bws/internal/config"
+	"bws/internal/util"
 )
 
 func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbose bool) []string {

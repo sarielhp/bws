@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bw/internal/config"
-	"bw/internal/profile"
+	"bws/internal/config"
+	"bws/internal/profile"
 )
 
 // HandleInitDev handles the `bw init-dev` command.

@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"bw/internal/config"
-	"bw/internal/sandbox"
+	"bws/internal/config"
+	"bws/internal/sandbox"
 )
 
 func HandleConfigWhere() {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bw/internal/util"
+	"bws/internal/util"
 )
 
 // TestSpec defines a verification or smoke test command.

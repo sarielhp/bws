@@ -7,10 +7,11 @@ cd "$ROOT"
 BIN_DIR="${HOME}/bin"
 mkdir -p "$BIN_DIR"
 
-echo "=== Building bw ==="
-rm -f "$BIN_DIR/bw"
-go build -o "$BIN_DIR/bw" .
+echo "=== Building bws ==="
+rm -f "$BIN_DIR/bws" "$BIN_DIR/bw"
+go build -o "$BIN_DIR/bws" .
+ln -sf "$BIN_DIR/bws" "$BIN_DIR/bw"
 echo ""
 
-echo "Installed bw to $BIN_DIR/bw"
-ls -la "$BIN_DIR/bw"
+echo "Installed bws to $BIN_DIR/bws (with symlink $BIN_DIR/bw)"
+ls -la "$BIN_DIR/bws" "$BIN_DIR/bw"

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"bw/internal/config"
+	"bws/internal/config"
 )
 
 func TestStageHomeLayering(t *testing.T) {

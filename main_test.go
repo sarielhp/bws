@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"bw/internal/config"
-	"bw/internal/util"
+	"bws/internal/config"
+	"bws/internal/util"
 )
 
 var bwPath string

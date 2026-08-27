@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bw/internal/config"
-	"bw/internal/ssh"
-	"bw/internal/util"
+	"bws/internal/config"
+	"bws/internal/ssh"
+	"bws/internal/util"
 )
 
 func addSSHArgs(cfg *config.Config, sandboxDir string, args *[]string, dryRun bool) {

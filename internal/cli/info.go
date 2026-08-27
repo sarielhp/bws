@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"bw/internal/config"
-	"bw/internal/sandbox"
+	"bws/internal/config"
+	"bws/internal/sandbox"
 )
 
 func PrintInfo(bwrapArgs []string, cfg *config.Config, globalPath, localPath, currentDir string) {

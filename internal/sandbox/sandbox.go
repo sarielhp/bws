@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"bw/internal/config"
-	"bw/internal/util"
+	"bws/internal/config"
+	"bws/internal/util"
 )
 
 type CopyRecord struct {
