@@ -160,6 +160,13 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 				if k == "LOGNAME" && val == "" {
 					val = os.Getenv("USER")
 				}
+			} else if strings.Contains(v, "$") {
+				val = os.Expand(v, func(varName string) string {
+					if envVal, ok := cfg.Env[varName]; ok && envVal != "" && envVal != v {
+						return envVal
+					}
+					return os.Getenv(varName)
+				})
 			}
 			if val != "" {
 				args = append(args, "--setenv", k, val)
@@ -257,7 +264,10 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 }
 
 func addSSHArgs(cfg *config.Config, sandboxDir string, args *[]string, dryRun bool) {
-	sshKeys := cfg.Features.SSHKeys
+	var sshKeys []string
+	if cfg.Features != nil {
+		sshKeys = cfg.Features.SSHKeys
+	}
 	var sshAuthSock string
 
 	if dryRun {

@@ -192,18 +192,12 @@ func generateDefaultConfig() string {
   "profiles": [
     "editor"
   ],
-  "features": {
-    "enable_ssh": true,
-    "ssh_keys": [],
-    "auto_repo_deploy_key": true,
-    "enable_x11": true,
-    "enable_wsl": true,
-    "enable_etc_auto_bind": true,
-    "enable_oh_my_posh": true
-  },
-  "oh_my_posh": {
-    "theme_path": "~/.config/bw/theme.omp.json"
-  },
+  // Features are enabled by default. Uncomment to disable:
+  // "features": {
+  //   "enable_ssh": false,
+  //   "enable_x11": false,
+  //   "enable_wsl": false
+  // },
   "pass_env": [
     "USER",
     "LOGNAME",
@@ -215,7 +209,7 @@ func generateDefaultConfig() string {
   "env": {
     "HOME": %[1]q,
     "EDITOR": "emacs -nw",
-    "VISUAL": "emacs -nw"
+    "VISUAL": "$EDITOR"
   },
   "path": [
     "%[1]s/bin",
