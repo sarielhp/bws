@@ -1,6 +1,6 @@
-# Bubblewrap Automatic Development Sandbox Specification (`bw init-dev`)
+# Bubblewrap Automatic Development Sandbox Specification (`bws init-dev`)
 
-This document specifies the design, requirements, and implementation plan for adding automated development sandbox initialization (`bw init-dev`) natively to the `bw` (bubblewrap sandbox launcher) utility.
+This document specifies the design, requirements, and implementation plan for adding automated development sandbox initialization (`bws init-dev`) natively to the `bw` (bubblewrap sandbox launcher) utility.
 
 ---
 
@@ -10,7 +10,7 @@ This document specifies the design, requirements, and implementation plan for ad
 When developing software or allowing agentic coding assistants (such as Google Antigravity / `agy`) to modify codebases, execution should be confined to the project workspace. However, the agent must retain access to necessary developer toolchains (compilers, linters, package caches, language servers, and Git/SSH credentials) while being prevented from tampering with host system binaries or modifying directories outside the project root.
 
 ### Core Objectives
-1. **Zero-Configuration Setup**: Running `bw init-dev` in any project folder automatically inspects the workspace, identifies the language/tooling stack, and creates a project-specific `.bw.jsonc`.
+1. **Zero-Configuration Setup**: Running `bws init-dev` in any project folder automatically inspects the workspace, identifies the language/tooling stack, and creates a project-specific `.bws/config.jsonc`.
 2. **Security & Containment**: Ensure host binaries (`~/.local/bin`, `~/bin`, `~/.cargo/bin`) and sensitive configuration files (`~/.gitconfig`, `~/.ssh/config`) are mounted **Read-Only**.
 3. **Agent State Persistence**: Ensure agent state (e.g., `~/.gemini` for Antigravity, `~/.config/opencode` for OpenCode) and language caches (e.g., `~/.go`, `~/.cache/go-build`, `~/.cache/uv`) are mounted **Read-Write** in their proper isolated paths.
 4. **Seamless Authentication**: Enable SSH agent forwarding with proper `GIT_SSH_COMMAND` configuration so remote Git operations against GitHub work without revealing private keys on disk.
@@ -38,11 +38,11 @@ When developing software or allowing agentic coding assistants (such as Google A
 
 ## 3. Project Detection Heuristics
 
-`bw init-dev` inspects the project directory and dynamically populates `.bw.jsonc`:
+`bws init-dev` inspects the project directory and dynamically populates `.bws/config.jsonc`:
 
 ```mermaid
 flowchart TD
-    Start["Run bw init-dev in CWD"] --> Scan["Inspect Files in Workspace"]
+    Start["Run bws init-dev in CWD"] --> Scan["Inspect Files in Workspace"]
     Scan --> CheckGo{"go.mod or *.go files?"}
     Scan --> CheckPy{"pyproject.toml, requirements.txt, or uv.lock?"}
     Scan --> CheckOC{".open-mem or opencode.json?"}
@@ -53,12 +53,12 @@ flowchart TD
     CheckOC -- Yes --> AddOC["Add bind ~/.config/opencode, ~/.config/opencode-switcher (RW)"]
     CheckAgy -- Yes --> AddAgy["Add bind ~/.gemini (RW)"]
 
-    AddGo --> Assemble["Assemble Hardened .bw.jsonc"]
+    AddGo --> Assemble["Assemble Hardened .bws/config.jsonc"]
     AddPy --> Assemble
     AddOC --> Assemble
     AddAgy --> Assemble
 
-    Assemble --> WriteConfig["Write .bw.jsonc to CWD"]
+    Assemble --> WriteConfig["Write .bws/config.jsonc to CWD"]
 ```
 
 ### Detection Rules:
@@ -85,11 +85,11 @@ flowchart TD
 
 The source codebase for `bw` is located in `/home/sariel/prog/26/misc/bubblewrap_script/`.
 
-### 4.1 New CLI Command: `bw init-dev` (or `bw conf init --dev`)
+### 4.1 New CLI Command: `bws init-dev` (or `bws conf init --dev`)
 Add a new command in `internal/cli/` (or `main.go`):
-- `bw init-dev [flags] [TARGET_DIR]`
+- `bws init-dev [flags] [TARGET_DIR]`
 - Supported Flags:
-  - `-f, --force`: Overwrite existing `.bw.jsonc` without error.
+  - `-f, --force`: Overwrite existing `.bws/config.jsonc` without error.
   - `-n, --dry-run`: Print the generated JSONC to stdout without writing to disk.
   - `--no-ssh`: Omit SSH forwarding and Git SSH commands.
   - `--opencode`: Force inclusion of OpenCode configuration mounts.
@@ -102,9 +102,9 @@ bubblewrap_script/
 │   ├── config/
 │   │   ├── config.go            # Existing JSONC config parser/merger
 │   │   ├── detect.go            # NEW: Workspace inspection & feature detection
-│   │   └── init_dev.go          # NEW: Generation of hardened .bw.jsonc structure
+│   │   └── init_dev.go          # NEW: Generation of hardened .bws/config.jsonc structure
 │   ├── cli/
-│   │   ├── init_dev_cmd.go      # NEW: Cobra / CLI handler for `bw init-dev`
+│   │   ├── init_dev_cmd.go      # NEW: Cobra / CLI handler for `bws init-dev`
 │   │   └── conf.go              # Existing conf subcommands
 │   └── ...
 ├── main.go
@@ -188,7 +188,7 @@ func GenerateDevConfig(features ProjectFeatures, targetDir string) (*Config, err
 
 ---
 
-## 5. Standard Output Format (`.bw.jsonc`)
+## 5. Standard Output Format (`.bws/config.jsonc`)
 
 Below is the standard generated configuration for a Go + Antigravity workspace:
 
@@ -224,14 +224,14 @@ Below is the standard generated configuration for a Go + Antigravity workspace:
 
 ## 6. Verification and Testing Checklist
 
-When implementing and validating `bw init-dev`:
+When implementing and validating `bws init-dev`:
 
 1. **Unit Tests**:
    - Test feature detection against mock directory trees (Go, Python, OpenCode).
    - Test JSON formatting and JSONC comment preservation.
 2. **Integration Verification inside Sandbox**:
-   - `bw exec -- go env GOPATH` must resolve to `/home/sariel/.go`.
-   - `bw exec -- touch ~/.local/bin/test` must fail with `Read-only file system`.
-   - `bw exec -- touch ~/.ssh/config` must fail with `Read-only file system`.
-   - `bw exec -- git ls-remote git@github.com:...` must authenticate via host SSH agent without errors.
-   - `bw exec -- agy-run -p "..."` must execute and persist transcripts into `~/.gemini`.
+   - `bws exec -- go env GOPATH` must resolve to `/home/sariel/.go`.
+   - `bws exec -- touch ~/.local/bin/test` must fail with `Read-only file system`.
+   - `bws exec -- touch ~/.ssh/config` must fail with `Read-only file system`.
+   - `bws exec -- git ls-remote git@github.com:...` must authenticate via host SSH agent without errors.
+   - `bws exec -- agy-run -p "..."` must execute and persist transcripts into `~/.gemini`.

@@ -18,7 +18,7 @@ func TestStageHomeLayering(t *testing.T) {
 	os.WriteFile(filepath.Join(mockGlobalSkel, ".tmux.conf"), []byte("# global tmux"), 0644)
 	os.WriteFile(filepath.Join(mockGlobalSkel, ".bashrc"), []byte("# global bashrc\n"), 0644)
 
-	// Mock project directory with .bw/skeleton
+	// Mock project directory with .bws/skeleton
 	projectDir := filepath.Join(tmpDir, "myproject")
 	mockLocalSkel := filepath.Join(projectDir, ".bw", "skeleton")
 	os.MkdirAll(mockLocalSkel, 0755)

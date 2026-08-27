@@ -57,12 +57,12 @@ type ResolvedProfile struct {
 	Tests       []TestSpec
 }
 
-// GlobalProfilesDir returns ~/.config/bw/profiles
+// GlobalProfilesDir returns ~/.config/bwss/profiles
 func GlobalProfilesDir() string {
 	return filepath.Join(util.HomeDir(), ".config", "bw", "profiles")
 }
 
-// LocalProfilesDir returns .bw/profiles in the given project directory.
+// LocalProfilesDir returns .bws/profiles in the given project directory.
 func LocalProfilesDir(projectDir string) string {
 	return filepath.Join(projectDir, ".bw", "profiles")
 }
@@ -88,11 +88,11 @@ func LoadRegistry(projectDir string) (map[string]*Profile, error) {
 		}
 	}
 
-	// 2. Global profiles (~/.config/bw/profiles)
+	// 2. Global profiles (~/.config/bwss/profiles)
 	globalDir := GlobalProfilesDir()
 	loadDirProfiles(globalDir, "global", registry)
 
-	// 3. Local project profiles (.bw/profiles)
+	// 3. Local project profiles (.bws/profiles)
 	if projectDir != "" {
 		localDir := LocalProfilesDir(projectDir)
 		loadDirProfiles(localDir, "local", registry)

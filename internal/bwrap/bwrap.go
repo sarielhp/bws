@@ -218,13 +218,13 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	addOptBind(&args)
 	addQuartoBind(&args)
 
-	hostTmp := "/tmp/bw/SANDBOX_TMP"
+	hostTmp := "/tmp/bws/SANDBOX_TMP"
 	if !dryRun {
-		os.MkdirAll("/tmp/bw", 0755)
+		os.MkdirAll("/tmp/bws", 0755)
 		var err error
-		hostTmp, err = os.MkdirTemp("/tmp/bw", "sandbox_")
+		hostTmp, err = os.MkdirTemp("/tmp/bws", "sandbox_")
 		if err != nil {
-			hostTmp = "/tmp/bw/SANDBOX_TMP"
+			hostTmp = "/tmp/bws/SANDBOX_TMP"
 		}
 	}
 

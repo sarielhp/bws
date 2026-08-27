@@ -117,15 +117,7 @@ func LoadFile(path string) (*Config, error) {
 
 func ConfigDir() string {
 	home, _ := os.UserHomeDir()
-	bwsDir := filepath.Join(home, ".config", "bws")
-	if fi, err := os.Stat(bwsDir); err == nil && fi.IsDir() {
-		return bwsDir
-	}
-	bwDir := filepath.Join(home, ".config", "bw")
-	if fi, err := os.Stat(bwDir); err == nil && fi.IsDir() {
-		return bwDir
-	}
-	return bwsDir
+	return filepath.Join(home, ".config", "bws")
 }
 
 func GlobalPath() string {
@@ -142,9 +134,6 @@ func FindLocalPath(cwd string) string {
 		filepath.Join(cwd, ".bws", "config.jsonc"),
 		filepath.Join(cwd, ".bws", "config.json"),
 		filepath.Join(cwd, ".bws.jsonc"),
-		filepath.Join(cwd, ".bw", "config.jsonc"),
-		filepath.Join(cwd, ".bw", "config.json"),
-		filepath.Join(cwd, ".bw.jsonc"),
 	}
 	for _, p := range candidates {
 		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
@@ -275,7 +264,7 @@ const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File 
   },
 
   "oh_my_posh": {
-    "theme_path": "~/.config/bw/theme.omp.json"
+    "theme_path": "~/.config/bwss/theme.omp.json"
   },
 
   "cdtoday": "info/misc",

@@ -55,7 +55,7 @@ func VerifyTools(isDefaultSession, skipFail bool) {
 	}
 
 	if len(missingRecommended) > 0 {
-		fmt.Fprintf(os.Stderr, "[bw] Warning: Recommended tool(s) missing on host:\n")
+		fmt.Fprintf(os.Stderr, "[bws] Warning: Recommended tool(s) missing on host:\n")
 		for _, t := range missingRecommended {
 			fmt.Fprintf(os.Stderr, "  - %s (%s): %s\n", t.name, t.cmd, t.desc)
 		}
@@ -97,7 +97,7 @@ func VerifyBwrapUserns() {
 func HandleSCP(args []string) {
 	if len(args) == 0 || args[0] == "" {
 		fmt.Fprintf(os.Stderr, "Error: Destination must be specified.\n")
-		fmt.Fprintf(os.Stderr, "Usage: bw scp <user@host:>\n")
+		fmt.Fprintf(os.Stderr, "Usage: bws scp <user@host:>\n")
 		os.Exit(1)
 	}
 	dest := args[0]

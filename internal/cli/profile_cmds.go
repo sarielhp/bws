@@ -161,7 +161,7 @@ func HandleProfileNew(name string, global, local bool) error {
 		fmt.Printf("  Tests:       %d checks\n", len(p.Tests))
 	}
 
-	fmt.Println("\nRun 'bw profile test " + name + "' to verify in sandbox.")
+	fmt.Println("\nRun 'bws profile test " + name + "' to verify in sandbox.")
 	return nil
 }
 
@@ -283,7 +283,7 @@ func HandleProfileSearch(query string) error {
 		if err := json.Unmarshal(body, &hb); err == nil && hb.Name != "" {
 			fmt.Println("Available on Homebrew:")
 			fmt.Printf("  • %-12s [Formula]  %s\n", hb.Name, hb.Desc)
-			fmt.Printf("    Run 'bw profile new %s' to generate a sandbox profile.\n\n", hb.Name)
+			fmt.Printf("    Run 'bws profile new %s' to generate a sandbox profile.\n\n", hb.Name)
 		}
 	}
 

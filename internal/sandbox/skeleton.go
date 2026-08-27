@@ -84,8 +84,8 @@ func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 		return "", nil, err
 	}
 
-	os.MkdirAll("/tmp/bw", 0755)
-	stageDir, err := os.MkdirTemp("/tmp/bw", "stage_")
+	os.MkdirAll("/tmp/bws", 0755)
+	stageDir, err := os.MkdirTemp("/tmp/bws", "stage_")
 	if err != nil {
 		return "", nil, fmt.Errorf("creating session stage directory: %w", err)
 	}
@@ -263,7 +263,7 @@ func appendDynamicConfig(cfg *config.Config, bashrcPath string) error {
 		enableOMP = *cfg.Features.EnableOhMyPosh
 	}
 	if enableOMP {
-		themePath := "~/.config/bw/theme.omp.json"
+		themePath := "~/.config/bwss/theme.omp.json"
 		if cfg.OhMyPosh != nil && cfg.OhMyPosh.ThemePath != nil && *cfg.OhMyPosh.ThemePath != "" {
 			themePath = *cfg.OhMyPosh.ThemePath
 		}

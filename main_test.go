@@ -39,7 +39,7 @@ func TestBuildAndConf(t *testing.T) {
 	cmd.Dir = t.TempDir()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf info -f failed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf info -f failed: %v\n%s", err, string(output))
 	}
 
 	if !containsStr(string(output), "Bubblewrap Sandbox Configuration Information") {
@@ -60,8 +60,8 @@ func TestBuildAndVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bw --version failed: %v", err)
 	}
-	if !containsStr(string(output), "bw ") || !containsStr(string(output), ".") {
-		t.Errorf("expected version string like 'bw X.Y.Z', got %q", string(output))
+	if !containsStr(string(output), "bws ") || !containsStr(string(output), ".") {
+		t.Errorf("expected version string like 'bws X.Y.Z', got %q", string(output))
 	}
 }
 
@@ -74,9 +74,9 @@ func TestHelp(t *testing.T) {
 		cmd := exec.Command(bwPath, flag)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("bw %s failed: %v\n%s", flag, err, string(output))
+			t.Fatalf("bws %s failed: %v\n%s", flag, err, string(output))
 		}
-		if !containsStr(string(output), "Usage of bw:") {
+		if !containsStr(string(output), "Usage of bws:") {
 			t.Errorf("expected usage header for flag %q, got %q", flag, string(output))
 		}
 	}
@@ -191,7 +191,7 @@ func TestSafetyFileCountForceFlag(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf info -f in dir with >1000 files should succeed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf info -f in dir with >1000 files should succeed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Bubblewrap Sandbox Configuration Information") {
 		t.Error("expected info header in output")
@@ -206,7 +206,7 @@ func TestConfWhere(t *testing.T) {
 	cmd := exec.Command(bwPath, "conf", "where")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf where failed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf where failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Global:") {
 		t.Errorf("expected Global: in output, got %q", string(output))
@@ -224,7 +224,7 @@ func TestConfPathUsage(t *testing.T) {
 	cmd := exec.Command(bwPath, "conf", "path")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf path failed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf path failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Usage:") || !containsStr(string(output), "add") {
 		t.Errorf("expected usage output, got %q", string(output))
@@ -240,7 +240,7 @@ func TestConfPathList(t *testing.T) {
 	cmd := exec.Command(bwPath, "conf", "path", "list")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf path list failed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf path list failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "[g]") {
 		t.Errorf("expected [g] in output, got %q", string(output))
@@ -256,7 +256,7 @@ func TestConfShowGlobal(t *testing.T) {
 	cmd := exec.Command(bwPath, "conf", "show", "-g")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf show -g failed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf show -g failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "share_net") {
 		t.Errorf("expected config content, got %q", string(output))
@@ -316,7 +316,7 @@ func TestCCopyAddListDel(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw ccopy add failed: %v\n%s", err, string(output))
+		t.Fatalf("bws ccopy add failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Added") {
 		t.Errorf("expected add confirmation, got %q", string(output))
@@ -327,7 +327,7 @@ func TestCCopyAddListDel(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw ccopy list failed: %v\n%s", err, string(output))
+		t.Fatalf("bws ccopy list failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), prog) {
 		t.Errorf("expected prog in list, got %q", string(output))
@@ -338,14 +338,14 @@ func TestCCopyAddListDel(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw ccopy del failed: %v\n%s", err, string(output))
+		t.Fatalf("bws ccopy del failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Removed") {
 		t.Errorf("expected del confirmation, got %q", string(output))
 	}
 
 	// Cleanup local config
-	os.Remove(filepath.Join(tmpDir, ".bw.jsonc"))
+	os.Remove(filepath.Join(tmpDir, ".bws/config.jsonc"))
 }
 
 func TestCBindAddListDel(t *testing.T) {
@@ -354,7 +354,7 @@ func TestCBindAddListDel(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	bindPath := "/tmp/bw-test-bind-addlist"
+	bindPath := "/tmp/bws-test-bind-addlist"
 	os.MkdirAll(bindPath, 0755)
 	defer os.RemoveAll(bindPath)
 
@@ -363,7 +363,7 @@ func TestCBindAddListDel(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw cbind add failed: %v\n%s", err, string(output))
+		t.Fatalf("bws cbind add failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Added") {
 		t.Errorf("expected add confirmation, got %q", string(output))
@@ -374,7 +374,7 @@ func TestCBindAddListDel(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw cbind list failed: %v\n%s", err, string(output))
+		t.Fatalf("bws cbind list failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), bindPath) {
 		t.Errorf("expected bindPath in local list, got %q", string(output))
@@ -385,14 +385,14 @@ func TestCBindAddListDel(t *testing.T) {
 	cmd.Dir = tmpDir
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw cbind del failed: %v\n%s", err, string(output))
+		t.Fatalf("bws cbind del failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Removed") {
 		t.Errorf("expected del confirmation, got %q", string(output))
 	}
 
 	// Cleanup local config
-	os.Remove(filepath.Join(tmpDir, ".bw.jsonc"))
+	os.Remove(filepath.Join(tmpDir, ".bws/config.jsonc"))
 }
 
 func TestConfInitGlobal(t *testing.T) {
@@ -404,7 +404,7 @@ func TestConfInitGlobal(t *testing.T) {
 	cmd := exec.Command(bwPath, "conf", "init", "-g")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw conf init -g failed: %v\n%s", err, string(output))
+		t.Fatalf("bws conf init -g failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Created") {
 		t.Errorf("expected creation confirmation, got %q", string(output))

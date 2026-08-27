@@ -112,10 +112,10 @@ func GetAutoDeployKey() string {
 	keyPath := filepath.Join(keyDir, owner+"_"+repo)
 
 	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "[bw] Creating dedicated GitHub Deploy Key for %s/%s...\n", owner, repo)
+		fmt.Fprintf(os.Stderr, "[bws] Creating dedicated GitHub Deploy Key for %s/%s...\n", owner, repo)
 		cmd := exec.Command("ssh-keygen", "-t", "ed25519", "-f", keyPath, "-N", "", "-C", fmt.Sprintf("bw-auto-deploy-%s-%s", owner, repo))
 		if cmd.Run() == nil {
-			fmt.Fprintf(os.Stderr, "[bw] Registering Deploy Key with GitHub repository via gh CLI...\n")
+			fmt.Fprintf(os.Stderr, "[bws] Registering Deploy Key with GitHub repository via gh CLI...\n")
 			title := fmt.Sprintf("bw-auto-deploy-%s", repo)
 			exec.Command("gh", "repo", "deploy-key", "add", keyPath+".pub", "-R", fmt.Sprintf("%s/%s", owner, repo), "-w", "-t", title).Run()
 		}

@@ -82,7 +82,7 @@ func HandleConfigEdit(global, local bool) {
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "%s config not found at %s. Run 'bw conf init' first.\n", label, path)
+		fmt.Fprintf(os.Stderr, "%s config not found at %s. Run 'bws conf init' first.\n", label, path)
 		os.Exit(1)
 	}
 
@@ -130,7 +130,7 @@ func HandleConfigEditLocal() {
 
 // PrintConfUsage prints the detailed config subcommand help text.
 func PrintConfUsage() {
-	fmt.Print(`Usage: bw conf [subcommand] [options]
+	fmt.Print(`Usage: bws conf [subcommand] [options]
 
   Manage sandbox configuration files.
 
@@ -138,12 +138,12 @@ func PrintConfUsage() {
   directories and files from the host into an isolated filesystem.
   Configuration is stored in two JSONC files (JSON with comments):
 
-    Global:  ~/.config/bw/config.jsonc
-    Local:   .bw.jsonc  (in the current directory)
+    Global:  ~/.config/bwss/config.jsonc
+    Local:   .bws/config.jsonc  (in the current directory)
 
   The global config applies to all sandbox sessions. The local config
   overrides specific settings for the current directory only. When no
-  flag is specified, 'bw conf' shows the merged configuration plan.
+  flag is specified, 'bws conf' shows the merged configuration plan.
 
 Subcommands:
   info                       Show the merged configuration plan (dry run)
@@ -167,19 +167,19 @@ Flags:
   -l, --local                Target the local config file
 
 Examples:
-  bw conf                    Show configuration command usage
-  bw conf info               Show merged configuration plan
-  bw conf where              Show both config file paths
-  bw conf path list          List configured PATH directories
-  bw conf init -g            Reset global config to defaults
-  bw conf edit -l            Edit local config in your editor
-  bw conf show -g            View raw global config contents
+  bws conf                    Show configuration command usage
+  bws conf info               Show merged configuration plan
+  bws conf where              Show both config file paths
+  bws conf path list          List configured PATH directories
+  bws conf init -g            Reset global config to defaults
+  bws conf edit -l            Edit local config in your editor
+  bws conf show -g            View raw global config contents
 `)
 }
 
 // PrintConfPathUsage prints the detailed path subcommand help text.
 func PrintConfPathUsage() {
-	fmt.Print(`Usage: bw conf path list|add|del [args...]
+	fmt.Print(`Usage: bws conf path list|add|del [args...]
 
   Manage the PATH entries in the sandbox configuration.
 
@@ -193,15 +193,15 @@ Flags:
   -l, --local                Target the local config file
 
 Examples:
-  bw conf path list          List all configured PATH entries
-  bw conf path add /home/user/bin -g  Add to global PATH
-  bw conf path del /home/user/bin -l  Remove from local PATH
+  bws conf path list          List all configured PATH entries
+  bws conf path add /home/user/bin -g  Add to global PATH
+  bws conf path del /home/user/bin -l  Remove from local PATH
 `)
 }
 
 // PrintCopyUsage prints the detailed ccopy subcommand help text.
 func PrintCopyUsage() {
-	fmt.Print(`Usage: bw ccopy add|list|del [args...]
+	fmt.Print(`Usage: bws ccopy add|list|del [args...]
 
   Manage the list of programs and files that are copied from the host
   into the sandbox's persistent home directory before each launch.
@@ -229,16 +229,16 @@ Flags:
   -l, --local            Target the local config file
 
 Examples:
-  bw ccopy add /home/user/bin/myprog -g    Add globally
-  bw ccopy add /home/user/scripts/util.sh -l  Add locally
-  bw ccopy list                             Show all
-  bw ccopy del /home/user/bin/myprog -g    Remove globally
+  bws ccopy add /home/user/bin/myprog -g    Add globally
+  bws ccopy add /home/user/scripts/util.sh -l  Add locally
+  bws ccopy list                             Show all
+  bws ccopy del /home/user/bin/myprog -g    Remove globally
 `)
 }
 
 // PrintBindUsage prints the detailed cbind subcommand help text.
 func PrintBindUsage() {
-	fmt.Print(`Usage: bw cbind add|list|del [args...]
+	fmt.Print(`Usage: bws cbind add|list|del [args...]
 
   Manage bind mounts between the host filesystem and the sandbox.
 
@@ -282,9 +282,9 @@ Flags:
   --ro                   Make the bind mount read-only (cbind add only)
 
 Examples:
-  bw cbind add /home/user/projects /projects -g    RW global bind
-  bw cbind add /usr/share/dict --ro -l              RO local bind
-  bw cbind list                                      Show all
-  bw cbind del /home/user/projects -g               Remove global
+  bws cbind add /home/user/projects /projects -g    RW global bind
+  bws cbind add /usr/share/dict --ro -l              RO local bind
+  bws cbind list                                      Show all
+  bws cbind del /home/user/projects -g               Remove global
 `)
 }

@@ -18,7 +18,7 @@ func TestInitDevDryRun(t *testing.T) {
 	cmd := exec.Command(bwPath, "init-dev", "-n", tmpDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw init-dev -n failed: %v\n%s", err, string(output))
+		t.Fatalf("bws init-dev -n failed: %v\n%s", err, string(output))
 	}
 
 	outStr := string(output)
@@ -29,9 +29,9 @@ func TestInitDevDryRun(t *testing.T) {
 		t.Errorf("expected ~/.gemini in dry run output, got:\n%s", outStr)
 	}
 
-	// Make sure .bw.jsonc was NOT written
-	if _, err := os.Stat(filepath.Join(tmpDir, ".bw.jsonc")); err == nil {
-		t.Error(".bw.jsonc should not exist after dry run")
+	// Make sure .bws/config.jsonc was NOT written
+	if _, err := os.Stat(filepath.Join(tmpDir, ".bws/config.jsonc")); err == nil {
+		t.Error(".bws/config.jsonc should not exist after dry run")
 	}
 }
 
@@ -47,22 +47,22 @@ func TestInitDevWriteAndBackup(t *testing.T) {
 	cmd := exec.Command(bwPath, "init-dev", tmpDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bw init-dev failed: %v\n%s", err, string(output))
+		t.Fatalf("bws init-dev failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Initialized development sandbox configuration") {
 		t.Errorf("expected success output, got: %s", string(output))
 	}
 
-	configPath := filepath.Join(tmpDir, ".bw", "config.jsonc")
+	configPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
 	if _, err := os.Stat(configPath); err != nil {
-		t.Fatalf(".bw/config.jsonc was not created: %v", err)
+		t.Fatalf(".bws/config.jsonc was not created: %v", err)
 	}
 
 	// Second init (should backup old)
 	cmd = exec.Command(bwPath, "init-dev", tmpDir)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("second bw init-dev failed: %v\n%s", err, string(output))
+		t.Fatalf("second bws init-dev failed: %v\n%s", err, string(output))
 	}
 	if !containsStr(string(output), "Backed up existing configuration") {
 		t.Errorf("expected backup notice, got: %s", string(output))

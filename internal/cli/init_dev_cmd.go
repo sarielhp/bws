@@ -10,7 +10,7 @@ import (
 	"bws/internal/profile"
 )
 
-// HandleInitDev handles the `bw init-dev` command.
+// HandleInitDev handles the `bws init-dev` command.
 func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset string, profiles []string) error {
 	if targetDir == "" {
 		targetDir = "."

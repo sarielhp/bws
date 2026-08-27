@@ -2,7 +2,6 @@
 
 build:
 	go build -o bws .
-	ln -sf bws bw
 
 test:
 	go vet ./...
@@ -15,5 +14,5 @@ install:
 	./tools/install
 
 clean:
-	rm -f bws bw
+	rm -f bws
 	go clean

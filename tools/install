@@ -10,8 +10,7 @@ mkdir -p "$BIN_DIR"
 echo "=== Building bws ==="
 rm -f "$BIN_DIR/bws" "$BIN_DIR/bw"
 go build -o "$BIN_DIR/bws" .
-ln -sf "$BIN_DIR/bws" "$BIN_DIR/bw"
 echo ""
 
-echo "Installed bws to $BIN_DIR/bws (with symlink $BIN_DIR/bw)"
-ls -la "$BIN_DIR/bws" "$BIN_DIR/bw"
+echo "Installed bws to $BIN_DIR/bws"
+ls -la "$BIN_DIR/bws"

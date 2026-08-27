@@ -84,7 +84,7 @@ bw/
 - **No `ioutil`** (deprecated since Go 1.16) — use `os` and `io` directly.
 - **No external dependencies for trivial things**.
 - **Bump version** on every code change via `./scripts/bump_version.sh` (auto-commits and pushes).
-- **Config path is fixed** — `~/.config/bw/config.jsonc`. Local override: `.bw.jsonc` in the current directory.
+- **Config path is fixed** — `~/.config/bwss/config.jsonc`. Local override: `.bws/config.jsonc` in the current directory.
 
 ## Build & Distribution
 
