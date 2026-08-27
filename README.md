@@ -2,11 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
-[![Platform: Linux](https://img.shields.io/badge/Platform-Linux%20%7C%20WSL-FCC624?logo=linux)](https://github.com/sarielhp/bws)
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux)](https://github.com/sarielhp/bws)
 
 **`bws`** is a fast, declarative, unprivileged Linux sandbox launcher and orchestrator built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — the gold-standard, unprivileged containerization engine developed by the Flatpak and Red Hat teams.
 
-> **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap](https://github.com/containers/bubblewrap). It wraps `bwrap`'s raw namespace primitives into a complete developer workflow with ephemeral home directories, declarative capability profiles, path masking, shell hooks, and automatic SSH/WSL integration.
+> **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap](https://github.com/containers/bubblewrap). It wraps `bwrap`'s raw namespace primitives into a complete developer workflow with ephemeral home directories, declarative capability profiles, path masking, shell hooks, and automatic SSH integration.
 
 ---
 
@@ -17,7 +17,7 @@
 * **Declarative capability profiles**: Compose dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
 * **Path masking & security hardening**: Neutralize host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
 * **Automated smoke testing**: Verify sandbox integrity and tool accessibility before running code (`bws test <profile>`).
-* **Automatic SSH & WSL integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`, X11 display forwarding, and WSL clipboard integration.
+* **Automatic SSH & Git integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`.
 * **Safe host pass-through**: Explicit environment variable forwarding (`pass_env`) preserving isolation without secret leakage.
 
 ---
@@ -36,7 +36,7 @@ The binary will be compiled and installed to `~/bin/bws`.
 
 ### Prerequisites
 
-* **Linux kernel** 3.8+ with user namespaces enabled (standard on Debian, Ubuntu, Fedora, Arch, and WSL2).
+* **Linux kernel** 3.8+ with user namespaces enabled (standard on Debian, Ubuntu, Fedora, and Arch).
 * **`bubblewrap`** (`bwrap`):
   ```bash
   # Debian / Ubuntu / Mint
