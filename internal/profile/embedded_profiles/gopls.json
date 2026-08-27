@@ -1,0 +1,33 @@
+{
+  "name": "gopls",
+  "description": "Official Go Language Server (LSP) daemon",
+  "requires": [
+    "go"
+  ],
+  "path": [
+    "@@HOME@@/.go/bin",
+    "@@HOME@@/bin",
+    "@@HOME@@/.local/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.go",
+      "@@HOME@@/.go"
+    ],
+    [
+      "~/.cache/gopls",
+      "@@HOME@@/.cache/gopls"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Go language server version",
+      "cmd": [
+        "gopls",
+        "version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}
