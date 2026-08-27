@@ -93,6 +93,12 @@ bws/
 - **Comments on exported symbols** only.
 - **Avoid `init()`** — use explicit initialization in `main()`.
 
+## Documentation & writing standards
+- **Sentence-case headings**: Always use clean sentence case for markdown headings (e.g. `## Key capabilities`, `## Quick start`). No title case or shouting.
+- **Zero superlatives or fluff**: Never use hyperbolic marketing language (*"gold-standard"*, *"battle-tested"*, *"seamlessly"*, *"best of both worlds"*, *"instantly"*, *"zero-trust"*). Describe mechanisms, boundaries, and trade-offs factually.
+- **Modular documentation**: Keep `README.md` lean (<200 lines) with a concise overview, prerequisites, 5-step Quick Start, and a Table of Contents delegating deep dives to `docs/` (`faq.md`, `configuration.md`, `security.md`, `commands.md`, `architecture.md`).
+- **Audits & review artifacts**: Store reusable evaluation prompts in `prompts/` and generated review reports in `reviews/`.
+
 ## Key behaviors to preserve
 1. **Safety checks**: block running from `/`, `~/`, or `~/bin/`, file count limit.
 2. **SSH agent**: auto-start, reuse socket, deploy keys via `gh`.
