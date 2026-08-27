@@ -107,16 +107,25 @@ bws exec -- uv run main.py
 
 ### 4. Search and inspect capability profiles
 
-```bash
-# Search profiles across embedded catalog, local profiles, and host tools
-bws profile search python
-bws profile search secret
+**What are capability profiles and why use them?**  
+Profiles are modular, declarative sandboxing recipes. Instead of manually crafting dozens of complex `bwrap` arguments (specifying cache directories, PATH entries, read-only config mounts, environment variables, and security masks), profiles package all requirements for a tool or language into a reusable definition. You can activate full development stacks or security bundles simply by listing their names in your configuration (e.g. `profiles: ["python-dev", "docker", "no-secrets"]`).
 
-# List all available profiles
+**Thousands of profiles out of the box:**  
+Beyond the embedded profile catalog, `bws` integrates with the [**Homebrew Formula API**](https://brew.sh) (for dependencies, binaries, and package metadata across 7,000+ open-source tools) and [**Firejail Profiles**](https://github.com/netblue30/firejail) (for battle-tested filesystem access and security rules). This allows `bws` to search and synthesize sandboxing intelligence on-the-fly for virtually any tool.
+
+```bash
+# Search profiles across local, embedded, and Homebrew catalog
+bws profile search python
+bws profile search ripgrep
+
+# List all locally registered and embedded profiles
 bws profile list
 
-# Inspect resolved dependency chain, mounts, masked paths, and tests
+# Inspect resolved dependency chain, mounts, masked paths, and smoke tests
 bws profile show go-dev
+
+# Generate a tailored sandbox profile on-the-fly for any tool
+bws profile new ripgrep
 ```
 
 ### 5. Verify stack integrity
@@ -133,22 +142,27 @@ bws test secure-agent
 
 `bws` features a modular **profile engine** with over 35 pre-configured development stacks and security profiles. See the full [**profiles catalog**](profiles/README.md) for detailed documentation on every profile.
 
+### Intelligence from Homebrew & Firejail
+
+When you need to sandbox a tool not yet in the embedded catalog, `bws` queries:
+1. [**Homebrew API**](https://formulae.brew.sh): Inspects package metadata, runtime dependencies, binaries, and descriptions.
+2. [**Firejail Catalog**](https://github.com/netblue30/firejail): Adapts proven security profiles, whitelist/blacklist paths, and isolation rules.
+
 ```bash
 # Search profiles by keyword or description
 bws profile search <query>
+
+# Generate a new profile from Homebrew & Firejail intelligence
+bws profile new <name>
 
 # List all available profiles (embedded, global, local)
 bws profile list
 
 # Inspect resolved dependency chain, mounts, masked paths, and tests
-bws profile show go-dev
-bws profile show secure-agent
-
-# Generate a new profile from Homebrew and Firejail rules
-bws profile new ripgrep
+bws profile show <name>
 
 # Fetch community profiles from GitHub
-bws profile fetch zig
+bws profile fetch <name>
 bws profile update
 ```
 
