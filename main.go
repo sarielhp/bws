@@ -9,7 +9,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.15"
+var Version = "0.1.16"
 
 func main() {
 	var forceFlag bool
@@ -351,6 +351,26 @@ func main() {
 						Args:        clihelp.ExactArgs(1),
 						Run: func(ctx *clihelp.Context) error {
 							return cli.HandleProfileNew(ctx.Args[0], globalFlag, localFlag)
+						},
+					},
+					{
+						Name:        "fetch",
+						Aliases:     []string{"pull", "get", "install"},
+						Description: "Download a profile from GitHub repository or synthesize from Homebrew",
+						UsageLine:   "bw profile fetch <name> [-g | -l]",
+						Args:        clihelp.ExactArgs(1),
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileFetch(ctx.Args[0], globalFlag, localFlag)
+						},
+					},
+					{
+						Name:        "update",
+						Aliases:     []string{"sync"},
+						Description: "Update all installed global profiles from the remote repository",
+						UsageLine:   "bw profile update",
+						Args:        clihelp.NoArgs,
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileUpdate()
 						},
 					},
 					{
