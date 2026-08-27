@@ -4,12 +4,12 @@ import (
 	"os"
 	"strings"
 
-	"bw/internal/cli"
+	"bws/internal/cli"
 
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.1.26"
+var Version = "0.1.27"
 
 func main() {
 	var forceFlag bool
@@ -25,8 +25,8 @@ func main() {
 	var profileFlag string
 
 	app := &clihelp.App{
-		Name:        "bw",
-		Description: "Launch a secure bubblewrap sandbox with configurable bind mounts, SSH forwarding, X11, and shell theming.",
+		Name:        "bws",
+		Description: "Launch a declarative, unprivileged Bubblewrap sandbox with composable profiles, SSH forwarding, X11, and shell theming.",
 		Version:     Version,
 		PersistentOptions: []clihelp.Option{
 			clihelp.Bool(&forceFlag, "-f, --force", false, "Bypass the file count safety check / force overwrite"),
