@@ -12,13 +12,6 @@ import (
 )
 
 func EnsureAgent(keys []string) string {
-	sock := os.Getenv("SSH_AUTH_SOCK")
-	if sock != "" {
-		if fi, err := os.Stat(sock); err == nil && fi.Mode()&os.ModeSocket != 0 {
-			return sock
-		}
-	}
-
 	if !util.CommandExists("ssh-agent") || !util.CommandExists("ssh-add") {
 		return ""
 	}

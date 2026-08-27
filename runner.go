@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"bws/internal/bwrap"
 	"bws/internal/cli"
@@ -34,7 +36,7 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 			config.CreateDefault(globalPath)
 			examplePath := filepath.Join(filepath.Dir(globalPath), "example-config.jsonc")
 			config.CreateExampleConfig(examplePath)
-			themePath := filepath.Join(util.HomeDir(), ".config", "bw", "theme.omp.json")
+			themePath := filepath.Join(util.HomeDir(), ".config", "bws", "theme.omp.json")
 			config.CreateDefaultTheme(themePath)
 			fmt.Printf("Created config file: %s\n", globalPath)
 			os.Exit(0)
@@ -231,6 +233,14 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[verbose] Staged ephemeral sandbox home: %s\n", sandboxDir)
 		}
+
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		go func() {
+			<-sigChan
+			cleanup()
+			os.Exit(130)
+		}()
 	} else {
 		sandboxDir = "<ephemeral staged home>"
 	}
@@ -254,11 +264,15 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+	runErr := cmd.Run()
+	if cleanup != nil {
+		cleanup()
+	}
+	if runErr != nil {
+		if exitErr, ok := runErr.(*exec.ExitError); ok {
 			os.Exit(exitErr.ExitCode())
 		}
-		return err
+		return runErr
 	}
 	return nil
 }

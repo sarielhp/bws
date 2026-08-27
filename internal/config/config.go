@@ -129,18 +129,38 @@ func LocalPath() string {
 	return FindLocalPath(cwd)
 }
 
-func FindLocalPath(cwd string) string {
-	candidates := []string{
-		filepath.Join(cwd, ".bws", "config.jsonc"),
-		filepath.Join(cwd, ".bws", "config.json"),
-		filepath.Join(cwd, ".bws.jsonc"),
-	}
-	for _, p := range candidates {
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-			return p
+func FindWorkspaceRoot(startDir string) (rootDir string, configPath string) {
+	home, _ := os.UserHomeDir()
+	homeReal, _ := filepath.EvalSymlinks(home)
+
+	dir := filepath.Clean(startDir)
+	for {
+		candidates := []string{
+			filepath.Join(dir, ".bws", "config.jsonc"),
+			filepath.Join(dir, ".bws", "config.json"),
+			filepath.Join(dir, ".bws.jsonc"),
 		}
+		for _, p := range candidates {
+			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+				return dir, p
+			}
+		}
+		dirReal, _ := filepath.EvalSymlinks(dir)
+		if dir == "/" || dir == "." || dirReal == homeReal || dir == home {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
-	return filepath.Join(cwd, ".bws", "config.jsonc")
+	return startDir, filepath.Join(startDir, ".bws", "config.jsonc")
+}
+
+func FindLocalPath(cwd string) string {
+	_, cfgPath := FindWorkspaceRoot(cwd)
+	return cfgPath
 }
 
 func CreateDefault(path string) error {

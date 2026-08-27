@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"bws/internal/config"
 	"bws/internal/util"
 )
 
@@ -57,14 +58,15 @@ type ResolvedProfile struct {
 	Tests       []TestSpec
 }
 
-// GlobalProfilesDir returns ~/.config/bwss/profiles
+// GlobalProfilesDir returns ~/.config/bws/profiles
 func GlobalProfilesDir() string {
-	return filepath.Join(util.HomeDir(), ".config", "bw", "profiles")
+	return filepath.Join(util.HomeDir(), ".config", "bws", "profiles")
 }
 
 // LocalProfilesDir returns .bws/profiles in the given project directory.
 func LocalProfilesDir(projectDir string) string {
-	return filepath.Join(projectDir, ".bw", "profiles")
+	root, _ := config.FindWorkspaceRoot(projectDir)
+	return filepath.Join(root, ".bws", "profiles")
 }
 
 // LoadRegistry loads all embedded, global, and local project profiles.
