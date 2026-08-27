@@ -9,7 +9,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.2.3"
+var Version = "0.2.4"
 
 func main() {
 	var forceFlag bool
@@ -20,6 +20,7 @@ func main() {
 
 	var dryRunFlag bool
 	var noSSHFlag bool
+	var noNetFlag bool
 	var opencodeFlag bool
 	var presetFlag string
 	var profileFlag string
@@ -30,8 +31,9 @@ func main() {
 		Version:     Version,
 		PersistentOptions: []clihelp.Option{
 			clihelp.Bool(&forceFlag, "-f, --force", false, "Bypass the file count safety check / force overwrite"),
-			clihelp.Bool(&globalFlag, "-g, --global", false, "Target the global config file (~/.config/bwss/config.jsonc)"),
+			clihelp.Bool(&globalFlag, "-g, --global", false, "Target the global config file (~/.config/bws/config.jsonc)"),
 			clihelp.Bool(&localFlag, "-l, --local", false, "Target the local config file (.bws/config.jsonc in current directory)"),
+			clihelp.Bool(&noNetFlag, "-N, --no-net, --offline", false, "Completely block network access (air-gapped network namespace)"),
 			clihelp.Bool(&verboseFlag, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
@@ -314,7 +316,7 @@ func main() {
 				Description: "Run an arbitrary command inside the sandbox and exit",
 				UsageLine:   "bws exec <command> [args...]",
 				Run: func(ctx *clihelp.Context) error {
-					return runExec(ctx.Args, forceFlag, verboseFlag)
+					return runExec(ctx.Args, forceFlag, verboseFlag, noNetFlag)
 				},
 			},
 			{
@@ -408,7 +410,6 @@ func main() {
 					},
 				},
 			},
-			{},
 			{
 				Name:        "test",
 				Description: "Run a verification of a tool/profile inside the sandbox and exit",
@@ -420,7 +421,7 @@ func main() {
 			},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return runDefault(ctx.Args, forceFlag, verboseFlag)
+			return runDefault(ctx.Args, forceFlag, verboseFlag, noNetFlag)
 		},
 	}
 
