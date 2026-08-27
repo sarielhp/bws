@@ -25,6 +25,9 @@ type TestResult struct {
 
 // RunProfileTests executes all tests defined in a resolved profile inside the sandbox.
 func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedProfile, verbose bool) ([]TestResult, error) {
+	if err := util.EnsureBwrap(); err != nil {
+		return nil, err
+	}
 	if len(resolved.Tests) == 0 {
 		return nil, fmt.Errorf("no tests defined for profile %q", resolved.Name)
 	}

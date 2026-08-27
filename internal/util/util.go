@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,21 @@ func CommandExists(cmd string) bool {
 	return false
 }
 
+func EnsureBwrap() error {
+	if CommandExists("bwrap") {
+		return nil
+	}
+	return fmt.Errorf("'bwrap' (Bubblewrap) executable not found in PATH.\n\n" +
+		"bws is a declarative wrapper and launcher for Bubblewrap:\n" +
+		"  https://github.com/containers/bubblewrap\n\n" +
+		"Installation commands:\n" +
+		"  Debian / Ubuntu / Mint:  sudo apt install bubblewrap\n" +
+		"  Fedora / RHEL:           sudo dnf install bubblewrap\n" +
+		"  Arch Linux:              sudo pacman -S bubblewrap\n" +
+		"  Alpine Linux:            sudo apk add bubblewrap\n" +
+		"  openSUSE:                sudo zypper install bubblewrap")
+}
+
 var junkDirs = map[string]bool{
 	".git":         true,
 	"node_modules": true,
@@ -23,6 +39,7 @@ var junkDirs = map[string]bool{
 	"vendor":       true,
 	"__pycache__":  true,
 	".cache":       true,
+	".bws":         true,
 	".bw":          true,
 }
 

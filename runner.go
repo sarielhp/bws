@@ -204,6 +204,12 @@ func safetyChecks(sl *sandboxLaunch, force, verbose bool) (string, error) {
 }
 
 func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []string, verbose bool) error {
+	if !dryRun {
+		if err := util.EnsureBwrap(); err != nil {
+			return err
+		}
+	}
+
 	var sandboxDir string
 	var cleanup func()
 

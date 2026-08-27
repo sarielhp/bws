@@ -4,7 +4,9 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux%20%7C%20WSL-FCC624?logo=linux)](https://github.com/sarielhp/bws)
 
-**`bws`** is a fast, declarative, unprivileged Linux sandbox launcher powered by [Bubblewrap (`bwrap`)](https://github.com/containers/bubblewrap). It enables developers and autonomous AI coding agents to work inside hermetic, disposable, and hardened development environments with zero root requirements.
+**`bws`** is a fast, declarative, unprivileged Linux sandbox launcher and orchestrator built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — the gold-standard, unprivileged containerization engine developed by the Flatpak and Red Hat teams.
+
+> **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap](https://github.com/containers/bubblewrap). It wraps `bwrap`'s raw namespace primitives into a complete developer workflow with ephemeral home directories, declarative capability profiles, path masking, shell hooks, and automatic SSH/WSL integration.
 
 ---
 
