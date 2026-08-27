@@ -106,6 +106,13 @@ func HandleProfileShow(name string) error {
 		}
 	}
 
+	if len(resolved.Mask) > 0 {
+		fmt.Println("\nMasked / Hidden Paths:")
+		for _, m := range resolved.Mask {
+			fmt.Printf("  ⊘ %s\n", m)
+		}
+	}
+
 	if len(resolved.Tests) > 0 {
 		fmt.Println("\nVerification Tests:")
 		for _, t := range resolved.Tests {

@@ -1,0 +1,7 @@
+{
+  "name": "mask-sudo",
+  "description": "Mask privilege escalation and superuser binaries (alias for no-sudo)",
+  "requires": [
+    "no-sudo"
+  ]
+}

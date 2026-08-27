@@ -34,6 +34,7 @@ type Profile struct {
 	Path        []string          `json:"path,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`
 	PassEnv     []string          `json:"pass_env,omitempty"`
+	Mask        []string          `json:"mask,omitempty"`
 	BindsRW     [][]string        `json:"binds_rw,omitempty"`
 	BindsRO     [][]string        `json:"binds_ro,omitempty"`
 	Detect      *DetectSpec       `json:"detect,omitempty"`
@@ -50,6 +51,7 @@ type ResolvedProfile struct {
 	Path        []string
 	Env         map[string]string
 	PassEnv     []string
+	Mask        []string
 	BindsRW     [][]string
 	BindsRO     [][]string
 	Tests       []TestSpec
@@ -172,6 +174,7 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 	seenRO := make(map[string]bool)
 	seenPath := make(map[string]bool)
 	seenPassEnv := make(map[string]bool)
+	seenMask := make(map[string]bool)
 
 	for _, pName := range order {
 		p := registry[pName]
@@ -190,6 +193,13 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 			if !seenPassEnv[pe] {
 				seenPassEnv[pe] = true
 				res.PassEnv = append(res.PassEnv, pe)
+			}
+		}
+
+		for _, m := range p.Mask {
+			if !seenMask[m] {
+				seenMask[m] = true
+				res.Mask = append(res.Mask, m)
 			}
 		}
 

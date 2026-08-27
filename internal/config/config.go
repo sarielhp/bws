@@ -70,6 +70,7 @@ type Config struct {
 	BindsRW         []BindEntry       `json:"binds_rw"`
 	BindsRO         []BindEntry       `json:"binds_ro"`
 	Profiles        []string          `json:"profiles,omitempty"`
+	Mask            []string          `json:"mask,omitempty"`
 	Copy            []string          `json:"copy"`
 }
 

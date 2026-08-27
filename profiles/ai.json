@@ -4,6 +4,7 @@
   "requires": [
     "opencode",
     "oc",
-    "antigravity"
+    "antigravity",
+    "no-sudo"
   ]
 }

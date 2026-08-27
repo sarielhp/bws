@@ -101,6 +101,10 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 	for _, pe := range cfg.PassEnv {
 		seenPassEnv[pe] = true
 	}
+	seenMask := make(map[string]bool)
+	for _, m := range cfg.Mask {
+		seenMask[m] = true
+	}
 
 	for _, pName := range cfg.Profiles {
 		resolved, err := profile.ResolveProfile(pName, registry, ctx)
@@ -114,6 +118,12 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 			if !seenPassEnv[pe] {
 				seenPassEnv[pe] = true
 				cfg.PassEnv = append(cfg.PassEnv, pe)
+			}
+		}
+		for _, m := range resolved.Mask {
+			if !seenMask[m] {
+				seenMask[m] = true
+				cfg.Mask = append(cfg.Mask, m)
 			}
 		}
 		for _, b := range resolved.BindsRW {

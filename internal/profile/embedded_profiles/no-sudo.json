@@ -1,0 +1,34 @@
+{
+  "name": "no-sudo",
+  "description": "Mask privilege escalation and superuser binaries (sudo, su, pkexec, doas)",
+  "mask": [
+    "/usr/bin/sudo",
+    "/bin/sudo",
+    "/usr/bin/su",
+    "/bin/su",
+    "/usr/bin/pkexec",
+    "/usr/bin/doas",
+    "/usr/bin/gpasswd",
+    "/usr/bin/newgrp"
+  ],
+  "tests": [
+    {
+      "name": "sudo is masked and non-executable",
+      "cmd": [
+        "bash",
+        "-c",
+        "! sudo 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "su is masked and non-executable",
+      "cmd": [
+        "bash",
+        "-c",
+        "! su 2>/dev/null"
+      ],
+      "type": "smoke"
+    }
+  ]
+}
