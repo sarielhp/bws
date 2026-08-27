@@ -1,6 +1,6 @@
 {
   "name": "editor",
-  "description": "Default text editor (override in ~/.config/bw/profiles/editor.json to choose emacs, neovim, or vim)",
+  "description": "Default text editor (override in ~/.config/bws/profiles/editor.json to choose emacs, neovim, or vim)",
   "requires": [
     "emacs"
   ],

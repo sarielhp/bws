@@ -1,0 +1,517 @@
+# `bws` Capability Profiles Catalog
+
+This directory contains the declarative **Capability Profiles** for `bws` (Bubblewrap Sandbox).
+Profiles modularize bind mounts, environment variables, path additions, security masks, and verification smoke tests.
+
+---
+
+## Table of Contents
+
+* [Overview & Resolution](#overview--resolution)
+* [Meta-Profiles & Developer Stacks](#1-meta-profiles--developer-stacks)
+* [Language & Compiler Toolchains](#2-language--compiler-toolchains)
+* [AI Agent & Coding Assistant Profiles](#3-ai-agent--coding-assistant-profiles)
+* [Security & Hardening Profiles](#4-security--hardening-profiles)
+* [Developer Tools & Utilities](#5-developer-tools--utilities)
+* [Profile JSON Schema Specification](#profile-json-schema-specification)
+* [Authoring & Testing Profiles](#authoring--testing-profiles)
+
+---
+
+## Overview & Resolution
+
+When a profile is activated (via `"profiles": ["go-dev"]` in `~/.config/bws/config.jsonc` or `.bws/config.jsonc`), `bws`:
+1. **Topologically resolves dependencies** declared in `requires`.
+2. **Merges read-write and read-only bind mounts** without duplicate entries.
+3. **Prepends PATH entries** to ensure tools are immediately executable.
+4. **Applies path masks** (`tmpfs` / `/dev/null`) to block unauthorized host tools.
+5. **Extracts safe pass-through environment variables** (`pass_env`).
+
+---
+
+## 1. Meta-Profiles & Developer Stacks
+
+Meta-profiles aggregate individual tools into unified, full-stack developer environments:
+
+### `editor`
+**Description**: Default text editor (override in ~/.config/bws/profiles/editor.json to choose emacs, neovim, or vim)
+
+**Requires**: `emacs`
+
+### `go-dev`
+**Description**: Full Go developer environment (Go toolchain, Gopls LSP, Git, GitHub CLI, Editor)
+
+**Requires**: `go`, `gopls`, `git`, `gh`, `editor`
+
+### `latex-dev`
+**Description**: Complete LaTeX authoring environment (alias for latex-use)
+
+**Requires**: `latex-use`
+
+### `latex-use`
+**Description**: Complete LaTeX authoring environment (TeX Live, Pandoc, Editor)
+
+**Requires**: `latex`, `pandoc`, `editor`
+
+### `python-dev`
+**Description**: Full Python developer environment (Python3, UV, Git, GitHub CLI, Editor)
+
+**Requires**: `python`, `uv`, `git`, `gh`, `editor`
+
+### `rust-dev`
+**Description**: Full Rust developer environment (Rustc, Cargo, Git, GitHub CLI, Editor)
+
+**Requires**: `rust`, `git`, `gh`, `editor`
+
+---
+
+## 2. Language & Compiler Toolchains
+
+### `go`
+**Description**: Go programming language toolchain and module cache
+
+**PATH Additions**: `@@HOME@@/.go/bin`
+
+**Pass-Through Variables**: `GOPROXY`, `GONOSUMDB`, `GOFLAGS`
+
+**Environment**:
+- `GOPATH=@@HOME@@/.go`
+
+**Read-Write Binds**:
+- `~/.cache/go-build -> @@HOME@@/.cache/go-build`
+- `~/.config/go -> @@HOME@@/.config/go`
+- `~/.go -> @@HOME@@/.go`
+
+**Verification Tests**:
+- `Go binary version`: `go version`
+- `Go compilation & run`: `bash -c echo "package main; import (\"fmt\"); func main(){ fmt.Println(\"Go OK\") }" > /tmp/bw_hello.go && go run /tmp/bw_hello.go && rm -f /tmp/bw_hello.go`
+
+### `gopls`
+**Description**: Official Go Language Server (LSP) daemon
+
+**Requires**: `go`
+
+**PATH Additions**: `@@HOME@@/.go/bin`, `@@HOME@@/bin`, `@@HOME@@/.local/bin`
+
+**Read-Write Binds**:
+- `~/.go -> @@HOME@@/.go`
+- `~/.cache/gopls -> @@HOME@@/.cache/gopls`
+
+**Verification Tests**:
+- `Go language server version`: `gopls version`
+
+### `latex`
+**Description**: TeX Live and LaTeX typesetting environment
+
+**Read-Write Binds**:
+- `~/.texlive2026/texmf-var -> @@HOME@@/.texlive2026/texmf-var`
+- `~/.texlive2026/texmf-config -> @@HOME@@/.texlive2026/texmf-config`
+- `~/.local/share/fonts -> @@HOME@@/.local/share/fonts`
+- `~/.cache/fontconfig -> @@HOME@@/.cache/fontconfig`
+
+**Read-Only Binds**:
+- `/var/lib/texmf -> /var/lib/texmf`
+- `/var/cache/fontconfig -> /var/cache/fontconfig`
+
+**Verification Tests**:
+- `pdfLaTeX binary`: `pdflatex --version`
+- `pdfLaTeX compilation`: `pdflatex -interaction=batchmode -output-directory=/tmp \documentclass{article}\begin{document}Hello\end{document}`
+- `XeLaTeX binary`: `xelatex --version`
+- `LuaLaTeX binary`: `lualatex --version`
+- `Biber binary`: `biber --version`
+- `BibTeX binary`: `bibtex --version`
+- `Latexmk binary`: `latexmk --version`
+
+### `node`
+**Description**: Node.js JavaScript runtime, npm, pnpm, and yarn caches
+
+**Read-Write Binds**:
+- `~/.npm -> @@HOME@@/.npm`
+- `~/.cache/yarn -> @@HOME@@/.cache/yarn`
+- `~/.local/share/pnpm -> @@HOME@@/.local/share/pnpm`
+
+**Verification Tests**:
+- `Node.js version`: `node --version`
+- `Node.js evaluation`: `node -e console.log("Node OK:", process.version)`
+
+### `pandoc`
+**Description**: Universal markup document converter
+
+**Verification Tests**:
+- `Pandoc version`: `pandoc --version`
+- `Pandoc markdown conversion`: `pandoc -f markdown -t html -o /dev/null`
+
+### `python`
+**Description**: Python runtime, pip, and uv package cache
+
+**Pass-Through Variables**: `PYTHONUNBUFFERED`, `PYTHONDONTWRITEBYTECODE`
+
+**Read-Write Binds**:
+- `~/.cache/pip -> @@HOME@@/.cache/pip`
+- `~/.cache/uv -> @@HOME@@/.cache/uv`
+- `~/.cache/pypoetry -> @@HOME@@/.cache/pypoetry`
+
+**Verification Tests**:
+- `Python3 version`: `python3 --version`
+- `Python3 execution`: `python3 -c import sys; print("Python OK: " + sys.version.split()[0])`
+
+### `quarto`
+**Description**: Quarto scientific and technical publishing system
+
+**Verification Tests**:
+- `Quarto binary version`: `quarto --version`
+- `Quarto check`: `quarto check`
+
+### `rust`
+**Description**: Rust language compiler and Cargo package manager
+
+**PATH Additions**: `@@HOME@@/.cargo/bin`
+
+**Pass-Through Variables**: `RUST_BACKTRACE`, `RUST_LOG`
+
+**Environment**:
+- `CARGO_HOME=@@HOME@@/.cargo`
+- `RUSTUP_HOME=@@HOME@@/.rustup`
+
+**Read-Write Binds**:
+- `~/.cargo -> @@HOME@@/.cargo`
+
+**Read-Only Binds**:
+- `~/.rustup -> @@HOME@@/.rustup`
+
+**Verification Tests**:
+- `Rustc version`: `rustc --version`
+- `Cargo version`: `cargo --version`
+
+### `uv`
+**Description**: Fast Python package and project manager written in Rust
+
+**Requires**: `python`
+
+**PATH Additions**: `@@HOME@@/.local/bin`, `@@HOME@@/.cargo/bin`
+
+**Read-Write Binds**:
+- `~/.cache/uv -> @@HOME@@/.cache/uv`
+
+**Verification Tests**:
+- `uv binary version`: `uv --version`
+
+---
+
+## 3. AI Agent & Coding Assistant Profiles
+
+### `ai`
+**Description**: AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher)
+
+**Requires**: `opencode`, `oc`, `antigravity`, `no-sudo`
+
+### `antigravity`
+**Description**: Google Antigravity CLI and coding agent framework
+
+**Read-Write Binds**:
+- `~/.gemini -> @@HOME@@/.gemini`
+- `~/.config/antigravity -> @@HOME@@/.config/antigravity`
+
+**Verification Tests**:
+- `Antigravity CLI version`: `agy --version`
+
+### `oc`
+**Description**: OpenCode profile switcher CLI and configuration
+
+**Requires**: `opencode`
+
+**Read-Write Binds**:
+- `~/.config/open-switcher -> @@HOME@@/.config/open-switcher`
+
+**Verification Tests**:
+- `oc binary version`: `oc --version`
+
+### `opencode`
+**Description**: OpenCode AI coding assistant runtime and caches
+
+**Read-Write Binds**:
+- `~/.opencode -> @@HOME@@/.opencode`
+- `~/.config/opencode -> @@HOME@@/.config/opencode`
+- `~/.config/opencode-switcher -> @@HOME@@/.config/opencode-switcher`
+- `~/.local/share/opencode -> @@HOME@@/.local/share/opencode`
+- `~/.local/state/opencode -> @@HOME@@/.local/state/opencode`
+- `~/.cache/opencode -> @@HOME@@/.cache/opencode`
+
+**Verification Tests**:
+- `OpenCode version`: `bash -c opencode --version`
+- `OpenCode paths inspection`: `bash -c opencode debug paths`
+
+### `secure-agent`
+**Description**: Hardened AI agent environment with complete isolation from host secrets, browser data, and history
+
+**Requires**: `ai`, `no-sudo`, `no-ssh`, `no-browser`, `no-email`, `no-secrets`, `no-history`
+
+---
+
+## 4. Security & Hardening Profiles
+
+Hardening profiles implement zero-trust path masking via `/dev/null` overlays and ephemeral `tmpfs` mounts:
+
+### `mask-sudo`
+**Description**: Mask privilege escalation and superuser binaries (alias for no-sudo)
+
+**Requires**: `no-sudo`
+
+### `no-browser`
+**Description**: Mask web browser profiles, saved passwords, and session cookies
+
+**Masked / Blocked Paths**:
+- ⊘ `~/.mozilla`
+- ⊘ `~/.cache/mozilla`
+- ⊘ `~/.config/google-chrome`
+- ⊘ `~/.cache/google-chrome`
+- ⊘ `~/.config/chromium`
+- ⊘ `~/.cache/chromium`
+- ⊘ `~/.config/BraveSoftware`
+- ⊘ `~/.config/microsoft-edge`
+
+**Verification Tests**:
+- `mozilla profile is masked`: `bash -c ! test -e ~/.mozilla/firefox/profiles.ini`
+
+### `no-chat`
+**Description**: Mask messaging apps and communication databases
+
+**Masked / Blocked Paths**:
+- ⊘ `~/.config/discord`
+- ⊘ `~/.config/Slack`
+- ⊘ `~/.config/Signal`
+- ⊘ `~/.local/share/TelegramDesktop`
+- ⊘ `~/.config/Element`
+
+**Verification Tests**:
+- `chat directories are masked`: `bash -c ! test -s ~/.config/Slack && ! test -s ~/.config/discord`
+
+### `no-email`
+**Description**: Mask desktop email clients, offline mailboxes, and mail credentials
+
+**Masked / Blocked Paths**:
+- ⊘ `~/.thunderbird`
+- ⊘ `~/.cache/thunderbird`
+- ⊘ `~/.config/evolution`
+- ⊘ `~/.local/share/evolution`
+- ⊘ `~/.mutt`
+- ⊘ `~/.muttrc`
+- ⊘ `~/.config/aerc`
+- ⊘ `~/Maildir`
+- ⊘ `~/Mail`
+- ⊘ `~/.mail`
+
+**Verification Tests**:
+- `thunderbird mailbox is masked`: `bash -c ! test -e ~/.thunderbird/profiles.ini`
+
+### `no-history`
+**Description**: Mask shell and REPL command history files containing potential secrets
+
+**Masked / Blocked Paths**:
+- ⊘ `~/.bash_history`
+- ⊘ `~/.zsh_history`
+- ⊘ `~/.python_history`
+- ⊘ `~/.node_repl_history`
+- ⊘ `~/.psql_history`
+- ⊘ `~/.mysql_history`
+- ⊘ `~/.sqlite_history`
+- ⊘ `~/.lesshst`
+- ⊘ `~/.viminfo`
+
+**Verification Tests**:
+- `shell history is masked`: `bash -c ! test -s ~/.bash_history && ! test -s ~/.zsh_history`
+
+### `no-secrets`
+**Description**: Mask cloud provider credentials, GPG keyrings, and password stores
+
+**Masked / Blocked Paths**:
+- ⊘ `~/.aws`
+- ⊘ `~/.azure`
+- ⊘ `~/.config/gcloud`
+- ⊘ `~/.password-store`
+- ⊘ `~/.gnupg`
+- ⊘ `~/.vault-token`
+
+**Verification Tests**:
+- `cloud and gpg secrets are masked`: `bash -c ! test -e ~/.aws/credentials && ! test -e ~/.gnupg/secring.gpg`
+
+### `no-ssh`
+**Description**: Block all SSH access, configuration, and host keys
+
+**Masked / Blocked Paths**:
+- ⊘ `~/.ssh`
+- ⊘ `@@HOME@@/.ssh`
+- ⊘ `/etc/ssh/ssh_config`
+- ⊘ `/etc/ssh/ssh_config.d`
+
+**Verification Tests**:
+- `ssh config is masked and empty`: `bash -c ! test -s ~/.ssh/config && ! test -s ~/.ssh/id_rsa`
+
+### `no-sudo`
+**Description**: Mask privilege escalation binaries, superuser tools, and sudoers configuration
+
+**Masked / Blocked Paths**:
+- ⊘ `/usr/bin/sudo`
+- ⊘ `/bin/sudo`
+- ⊘ `/usr/bin/su`
+- ⊘ `/bin/su`
+- ⊘ `/usr/bin/pkexec`
+- ⊘ `/bin/pkexec`
+- ⊘ `/usr/bin/doas`
+- ⊘ `/bin/doas`
+- ⊘ `/usr/bin/gpasswd`
+- ⊘ `/bin/gpasswd`
+- ⊘ `/usr/bin/newgrp`
+- ⊘ `/bin/newgrp`
+- ⊘ `/etc/sudoers`
+- ⊘ `/etc/sudoers.d`
+
+**Verification Tests**:
+- `sudo binary is blocked`: `bash -c ! sudo 2>/dev/null`
+- `su binary is blocked`: `bash -c ! su 2>/dev/null`
+- `pkexec binary is blocked`: `bash -c ! pkexec 2>/dev/null`
+- `doas binary is blocked`: `bash -c ! doas 2>/dev/null`
+- `gpasswd binary is blocked`: `bash -c ! gpasswd 2>/dev/null`
+- `newgrp binary is blocked`: `bash -c ! newgrp 2>/dev/null`
+- `sudoers file is masked`: `bash -c ! test -s /etc/sudoers`
+
+---
+
+## 5. Developer Tools & Utilities
+
+### `docker`
+**Description**: Docker container CLI and daemon socket integration
+
+**Read-Write Binds**:
+- `~/.docker -> @@HOME@@/.docker`
+- `/var/run/docker.sock -> /var/run/docker.sock`
+- `/run/user/1000/docker.sock -> /run/user/1000/docker.sock`
+
+**Verification Tests**:
+- `Docker CLI version`: `docker --version`
+- `Docker daemon connectivity`: `docker info`
+
+### `emacs`
+**Description**: GNU Emacs extensible text editor and Lisp environment
+
+**Read-Write Binds**:
+- `~/.config/emacs -> @@HOME@@/.config/emacs`
+- `~/.emacs.d -> @@HOME@@/.emacs.d`
+- `~/.cache/emacs -> @@HOME@@/.cache/emacs`
+- `~/.doom.d -> @@HOME@@/.doom.d`
+- `~/.config/doom -> @@HOME@@/.config/doom`
+
+**Read-Only Binds**:
+- `~/.emacs -> @@HOME@@/.emacs`
+
+**Verification Tests**:
+- `Emacs version`: `emacs --version`
+- `Emacs batch Lisp evaluation`: `emacs --batch --eval (message "Emacs Lisp OK: %s" emacs-version)`
+
+### `gh`
+**Description**: GitHub official command-line interface
+
+**Read-Write Binds**:
+- `~/.config/gh -> @@HOME@@/.config/gh`
+- `~/.local/share/gh -> @@HOME@@/.local/share/gh`
+
+**Verification Tests**:
+- `GitHub CLI version`: `gh --version`
+
+### `git`
+**Description**: Git distributed version control system
+
+**Read-Only Binds**:
+- `~/.gitconfig -> @@HOME@@/.gitconfig`
+- `~/.git-credentials -> @@HOME@@/.git-credentials`
+
+**Verification Tests**:
+- `Git binary version`: `git --version`
+
+### `jq`
+**Description**: Lightweight and flexible command-line JSON processor
+
+**Verification Tests**:
+- `jq version`: `jq --version`
+- `jq filter evaluation`: `jq -n {"status":"ok"} | .status`
+
+### `neovim`
+**Description**: Vim-fork focused on extensibility and usability
+
+**Read-Write Binds**:
+- `~/.config/nvim -> @@HOME@@/.config/nvim`
+- `~/.local/share/nvim -> @@HOME@@/.local/share/nvim`
+- `~/.local/state/nvim -> @@HOME@@/.local/state/nvim`
+- `~/.cache/nvim -> @@HOME@@/.cache/nvim`
+
+**Verification Tests**:
+- `Neovim version`: `nvim --version`
+
+### `tmux`
+**Description**: Terminal multiplexer configuration and sockets
+
+**Read-Write Binds**:
+- `~/.tmux.conf -> @@HOME@@/.tmux.conf`
+
+**Verification Tests**:
+- `tmux version`: `tmux -V`
+
+---
+
+## Profile JSON Schema Specification
+
+A valid `bws` profile JSON file accepts the following fields:
+
+```jsonc
+{
+  "name": "profile-name",
+  "description": "Human readable description",
+  "requires": ["dependency-profile-1", "dependency-profile-2"],
+  "path": ["@@HOME@@/bin", "@@HOME@@/.local/bin"],
+  "pass_env": ["SAFE_VAR_1", "SAFE_VAR_2"],
+  "env": {
+    "KEY": "VALUE",
+    "ALIAS": "$KEY"
+  },
+  "binds_rw": [
+    ["~/.cache/mytool", "@@HOME@@/.cache/mytool"]
+  ],
+  "binds_ro": [
+    ["~/.config/mytool", "@@HOME@@/.config/mytool"]
+  ],
+  "mask": [
+    "/usr/bin/unwanted_binary",
+    "~/.sensitive_dir"
+  ],
+  "detect": {
+    "files": ["mytool.config", ".mytoolrc"]
+  },
+  "tests": [
+    {
+      "name": "Verify tool version",
+      "cmd": ["mytool", "--version"],
+      "type": "version"
+    }
+  ]
+}
+```
+
+---
+
+## Authoring & Testing Profiles
+
+### 1. Generate from Homebrew & Firejail
+```bash
+bws profile new <name>
+```
+
+### 2. Test in Sandbox
+```bash
+bws test <name>
+```
+
+### 3. Inspect Plan
+```bash
+bws profile show <name>
+```
+
