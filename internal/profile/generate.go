@@ -57,6 +57,7 @@ func GenerateProfile(name string) (*Profile, error) {
 	fjURL := fmt.Sprintf("https://raw.githubusercontent.com/netblue30/firejail/master/etc/%s.profile", cleanName)
 	var fjWhitelists []string
 	var fjReadOnlys []string
+	var fjKeepVars []string
 	if resp, err := client.Get(fjURL); err == nil && resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
 		scanner := bufio.NewScanner(resp.Body)
@@ -71,6 +72,11 @@ func GenerateProfile(name string) (*Profile, error) {
 			} else if strings.HasPrefix(line, "read-only ") {
 				path := strings.TrimSpace(strings.TrimPrefix(line, "read-only "))
 				fjReadOnlys = append(fjReadOnlys, path)
+			} else if strings.HasPrefix(line, "keep-var ") {
+				varName := strings.TrimSpace(strings.TrimPrefix(line, "keep-var "))
+				for _, v := range strings.Fields(varName) {
+					fjKeepVars = append(fjKeepVars, v)
+				}
 			}
 		}
 	}
@@ -94,7 +100,21 @@ func GenerateProfile(name string) (*Profile, error) {
 		}
 	}
 
-	// 3. Fallback standard XDG directories if no custom whitelists were found
+	// 3. Environment variable extraction & classification
+	seenEnv := make(map[string]bool)
+	for _, v := range fjKeepVars {
+		cleanVar := strings.TrimSpace(v)
+		if cleanVar != "" && !seenEnv[cleanVar] {
+			seenEnv[cleanVar] = true
+			if isSensitiveEnvVar(cleanVar) {
+				// Don't auto-enable sensitive keys in pass_env
+				continue
+			}
+			p.PassEnv = append(p.PassEnv, cleanVar)
+		}
+	}
+
+	// 4. Fallback standard XDG directories if no custom whitelists were found
 	if len(p.BindsRW) == 0 {
 		xdgPaths := []string{
 			fmt.Sprintf("~/.config/%s", cleanName),
@@ -107,7 +127,7 @@ func GenerateProfile(name string) (*Profile, error) {
 		}
 	}
 
-	// 4. Formulate Tests
+	// 5. Formulate Tests
 	p.Tests = []TestSpec{
 		{
 			Name: fmt.Sprintf("%s binary version check", cleanName),
@@ -116,7 +136,7 @@ func GenerateProfile(name string) (*Profile, error) {
 		},
 	}
 
-	// 5. Formulate Detect
+	// 6. Formulate Detect
 	p.Detect = &DetectSpec{
 		Files: []string{
 			fmt.Sprintf("%s.json", cleanName),
@@ -128,6 +148,17 @@ func GenerateProfile(name string) (*Profile, error) {
 	}
 
 	return p, nil
+}
+
+func isSensitiveEnvVar(name string) bool {
+	upper := strings.ToUpper(name)
+	sensitiveTokens := []string{"KEY", "TOKEN", "SECRET", "PASS", "AUTH", "CREDENTIAL"}
+	for _, token := range sensitiveTokens {
+		if strings.Contains(upper, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func convertFirejailPath(raw string) []string {

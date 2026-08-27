@@ -42,5 +42,9 @@
       "type": "smoke",
       "optional": true
     }
+  ],
+  "pass_env": [
+    "DOCKER_HOST",
+    "DOCKER_CONTEXT"
   ]
 }

@@ -99,6 +99,13 @@ func HandleProfileShow(name string) error {
 		}
 	}
 
+	if len(resolved.PassEnv) > 0 {
+		fmt.Println("\nPass-Through Environment:")
+		for _, pe := range resolved.PassEnv {
+			fmt.Printf("  $ %s\n", pe)
+		}
+	}
+
 	if len(resolved.Tests) > 0 {
 		fmt.Println("\nVerification Tests:")
 		for _, t := range resolved.Tests {

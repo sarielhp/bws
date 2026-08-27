@@ -97,6 +97,10 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 	for _, p := range cfg.Path {
 		seenPath[p] = true
 	}
+	seenPassEnv := make(map[string]bool)
+	for _, pe := range cfg.PassEnv {
+		seenPassEnv[pe] = true
+	}
 
 	for _, pName := range cfg.Profiles {
 		resolved, err := profile.ResolveProfile(pName, registry, ctx)
@@ -105,6 +109,12 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 				fmt.Fprintf(os.Stderr, "[verbose] Warning: resolving profile %q: %v\n", pName, err)
 			}
 			continue
+		}
+		for _, pe := range resolved.PassEnv {
+			if !seenPassEnv[pe] {
+				seenPassEnv[pe] = true
+				cfg.PassEnv = append(cfg.PassEnv, pe)
+			}
 		}
 		for _, b := range resolved.BindsRW {
 			key := b[0] + "->" + b[1]

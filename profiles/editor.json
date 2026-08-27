@@ -3,5 +3,8 @@
   "description": "Default text editor (override in ~/.config/bw/profiles/editor.json to choose emacs, neovim, or vim)",
   "requires": [
     "emacs"
+  ],
+  "pass_env": [
+    "PAGER"
   ]
 }

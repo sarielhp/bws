@@ -48,5 +48,10 @@
       ],
       "type": "smoke"
     }
+  ],
+  "pass_env": [
+    "GOPROXY",
+    "GONOSUMDB",
+    "GOFLAGS"
   ]
 }
