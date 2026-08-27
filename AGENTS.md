@@ -1,4 +1,4 @@
-# AI Agent Guidelines for `bw` (Bubblewrap Sandbox Launcher)
+# AI Agent Guidelines for `bws` (Bubblewrap Sandbox Launcher)
 
 ## Quick Commands
 
@@ -11,34 +11,38 @@ go test ./...                 # run all tests
 ./tools/audit_lines.sh        # check 300/500-line limits per file
 ./tools/bump_version.sh       # increment patch, commit, push
 ./tools/bump_version.sh 0.2.0 # set explicit version, commit, push
-./tools/snapshot.sh            # commit all with message & push
-./tools/install               # build and install to ~/bin/bw
+./tools/snapshot.sh           # commit all with message & push
+./tools/install               # build and install to ~/bin/bws
 ```
 
 ## Project Structure
 
 ```
-bw/
+bws/
 ├── main.go                  # Entry point: clihelp App/Command tree, dispatch
 ├── go.mod / go.sum
 ├── Makefile                 # Build, test, lint targets
-├── tools/                 # Developer automation scripts
+├── README.md                # Main documentation
+├── profiles/                # Capability & Security Profiles catalog
+│   ├── README.md            # Detailed profiles catalog documentation
+│   └── *.json               # Profile definitions (embedded in binary)
+├── tools/                   # Developer automation scripts
 │   ├── verify_build.sh      # vet + test + build
-│   ├── test_long             # run all long tests individually
-│   ├── audit_lines.sh        # enforce 300/500-line limits
-│   ├── bump_version.sh       # bump version, commit, push
-│   ├── outline_symbols.sh    # sorted index of exported symbols
-│   ├── show_symbol.sh        # show a symbol's declaration
-│   ├── snapshot.sh           # commit all + push
-│   └── install               # build and install to ~/bin/bw
-├── internal/
-│   ├── config/              # JSONC loading, @@HOME@@ token, global+local merge
-│   ├── sandbox/             # Sandbox preparation (copy files, shell profiles, tmux, oh-my-posh)
-│   ├── bwrap/               # Building bwrap argument list from merged config
-│   ├── ssh/                 # SSH agent lifecycle, auto deploy keys via gh
-│   ├── cli/                 # Subcommand handlers (scp, copy), tool verification, info display
-│   └── util/                # File counting, command detection, path helpers
-└── old_script/              # Original Ruby implementation (reference only)
+│   ├── test_long            # run all long tests individually
+│   ├── audit_lines.sh       # enforce 300/500-line limits
+│   ├── bump_version.sh      # bump version, commit, push
+│   ├── outline_symbols.sh   # sorted index of exported symbols
+│   ├── show_symbol.sh       # show a symbol's declaration
+│   ├── snapshot.sh          # commit all + push
+│   └── install              # build and install to ~/bin/bws
+└── internal/
+    ├── config/              # JSONC loading, @@HOME@@ token, global+local merge
+    ├── profile/             # Profile engine, dependency resolution, test runner
+    ├── sandbox/             # Sandbox staging, skeletons, dotfiles, dynamic config
+    ├── bwrap/               # Building bwrap argument list, path masking, mounts
+    ├── ssh/                 # SSH agent lifecycle, auto deploy keys via gh
+    ├── cli/                 # Subcommand handlers (init-dev, profile, conf, cbind)
+    └── util/                # File counting, command detection, path helpers
 ```
 
 ## Conventions
