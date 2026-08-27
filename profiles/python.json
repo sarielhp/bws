@@ -1,0 +1,50 @@
+{
+  "name": "python",
+  "description": "Python runtime, pip, and uv package cache",
+  "detect": {
+    "files": [
+      "pyproject.toml",
+      "requirements.txt",
+      "Pipfile",
+      "poetry.lock",
+      "uv.lock",
+      "setup.py"
+    ],
+    "globs": [
+      "*.py"
+    ]
+  },
+  "binds_rw": [
+    [
+      "~/.cache/pip",
+      "@@HOME@@/.cache/pip"
+    ],
+    [
+      "~/.cache/uv",
+      "@@HOME@@/.cache/uv"
+    ],
+    [
+      "~/.cache/pypoetry",
+      "@@HOME@@/.cache/pypoetry"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Python3 version",
+      "cmd": [
+        "python3",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Python3 execution",
+      "cmd": [
+        "python3",
+        "-c",
+        "import sys; print(\"Python OK: \" + sys.version.split()[0])"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

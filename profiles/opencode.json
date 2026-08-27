@@ -1,0 +1,59 @@
+{
+  "name": "opencode",
+  "description": "OpenCode AI coding assistant runtime and caches",
+  "detect": {
+    "files": [
+      "opencode.json",
+      ".open-mem",
+      ".opencode"
+    ]
+  },
+  "path": [
+    "@@HOME@@/.opencode/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.opencode",
+      "@@HOME@@/.opencode"
+    ],
+    [
+      "~/.config/opencode",
+      "@@HOME@@/.config/opencode"
+    ],
+    [
+      "~/.config/opencode-switcher",
+      "@@HOME@@/.config/opencode-switcher"
+    ],
+    [
+      "~/.local/share/opencode",
+      "@@HOME@@/.local/share/opencode"
+    ],
+    [
+      "~/.local/state/opencode",
+      "@@HOME@@/.local/state/opencode"
+    ],
+    [
+      "~/.cache/opencode",
+      "@@HOME@@/.cache/opencode"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "OpenCode version",
+      "cmd": [
+        "opencode",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "OpenCode paths inspection",
+      "cmd": [
+        "opencode",
+        "debug",
+        "paths"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

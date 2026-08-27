@@ -1,0 +1,52 @@
+{
+  "name": "emacs",
+  "description": "GNU Emacs extensible text editor and Lisp environment",
+  "binds_rw": [
+    [
+      "~/.config/emacs",
+      "@@HOME@@/.config/emacs"
+    ],
+    [
+      "~/.emacs.d",
+      "@@HOME@@/.emacs.d"
+    ],
+    [
+      "~/.cache/emacs",
+      "@@HOME@@/.cache/emacs"
+    ],
+    [
+      "~/.doom.d",
+      "@@HOME@@/.doom.d"
+    ],
+    [
+      "~/.config/doom",
+      "@@HOME@@/.config/doom"
+    ]
+  ],
+  "binds_ro": [
+    [
+      "~/.emacs",
+      "@@HOME@@/.emacs"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Emacs version",
+      "cmd": [
+        "emacs",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Emacs batch Lisp evaluation",
+      "cmd": [
+        "emacs",
+        "--batch",
+        "--eval",
+        "(message \"Emacs Lisp OK: %s\" emacs-version)"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

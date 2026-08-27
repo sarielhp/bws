@@ -1,0 +1,50 @@
+{
+  "name": "rust",
+  "description": "Rust language compiler and Cargo package manager",
+  "detect": {
+    "files": [
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "globs": [
+      "*.rs"
+    ]
+  },
+  "env": {
+    "CARGO_HOME": "@@HOME@@/.cargo",
+    "RUSTUP_HOME": "@@HOME@@/.rustup"
+  },
+  "path": [
+    "@@HOME@@/.cargo/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.cargo",
+      "@@HOME@@/.cargo"
+    ]
+  ],
+  "binds_ro": [
+    [
+      "~/.rustup",
+      "@@HOME@@/.rustup"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Rustc version",
+      "cmd": [
+        "rustc",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Cargo version",
+      "cmd": [
+        "cargo",
+        "--version"
+      ],
+      "type": "version"
+    }
+  ]
+}

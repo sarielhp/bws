@@ -1,0 +1,23 @@
+{
+  "name": "jq",
+  "description": "Lightweight and flexible command-line JSON processor",
+  "tests": [
+    {
+      "name": "jq version",
+      "cmd": [
+        "jq",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "jq filter evaluation",
+      "cmd": [
+        "jq",
+        "-n",
+        "{\"status\":\"ok\"} | .status"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

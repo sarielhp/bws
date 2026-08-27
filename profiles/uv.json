@@ -1,0 +1,27 @@
+{
+  "name": "uv",
+  "description": "Fast Python package and project manager written in Rust",
+  "requires": [
+    "python"
+  ],
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/.cargo/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.cache/uv",
+      "@@HOME@@/.cache/uv"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "uv binary version",
+      "cmd": [
+        "uv",
+        "--version"
+      ],
+      "type": "version"
+    }
+  ]
+}

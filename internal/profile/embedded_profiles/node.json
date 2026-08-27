@@ -1,0 +1,54 @@
+{
+  "name": "node",
+  "description": "Node.js JavaScript runtime, npm, pnpm, and yarn caches",
+  "detect": {
+    "files": [
+      "package.json",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "bun.lockb"
+    ],
+    "globs": [
+      "*.js",
+      "*.ts",
+      "*.jsx",
+      "*.tsx",
+      "*.mjs",
+      "*.cjs"
+    ]
+  },
+  "binds_rw": [
+    [
+      "~/.npm",
+      "@@HOME@@/.npm"
+    ],
+    [
+      "~/.cache/yarn",
+      "@@HOME@@/.cache/yarn"
+    ],
+    [
+      "~/.local/share/pnpm",
+      "@@HOME@@/.local/share/pnpm"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Node.js version",
+      "cmd": [
+        "node",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Node.js evaluation",
+      "cmd": [
+        "node",
+        "-e",
+        "console.log(\"Node OK:\", process.version)"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

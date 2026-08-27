@@ -1,0 +1,36 @@
+{
+  "name": "pandoc",
+  "description": "Universal markup document converter",
+  "detect": {
+    "globs": [
+      "*.md",
+      "*.rst",
+      "*.docx",
+      "*.epub",
+      "*.org"
+    ]
+  },
+  "tests": [
+    {
+      "name": "Pandoc version",
+      "cmd": [
+        "pandoc",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Pandoc markdown conversion",
+      "cmd": [
+        "pandoc",
+        "-f",
+        "markdown",
+        "-t",
+        "html",
+        "-o",
+        "/dev/null"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

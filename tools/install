@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+BIN_DIR="${HOME}/bin"
+mkdir -p "$BIN_DIR"
+
+echo "=== Building bw ==="
+rm -f "$BIN_DIR/bw"
+go build -o "$BIN_DIR/bw" .
+echo ""
+
+echo "Installed bw to $BIN_DIR/bw"
+ls -la "$BIN_DIR/bw"

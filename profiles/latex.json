@@ -1,0 +1,142 @@
+{
+  "name": "latex",
+  "description": "TeX Live and LaTeX typesetting environment",
+  "detect": {
+    "files": [
+      "latexmkrc",
+      ".latexmkrc",
+      "Tectonic.toml"
+    ],
+    "globs": [
+      "*.tex",
+      "*.sty",
+      "*.cls",
+      "*.dtx",
+      "*.bib",
+      "*.ltx"
+    ]
+  },
+  "binds_rw": [
+    [
+      "~/.texlive2026/texmf-var",
+      "@@HOME@@/.texlive2026/texmf-var"
+    ],
+    [
+      "~/.texlive2026/texmf-config",
+      "@@HOME@@/.texlive2026/texmf-config"
+    ],
+    [
+      "~/.local/share/fonts",
+      "@@HOME@@/.local/share/fonts"
+    ],
+    [
+      "~/.cache/fontconfig",
+      "@@HOME@@/.cache/fontconfig"
+    ]
+  ],
+  "binds_ro": [
+    [
+      "/var/lib/texmf",
+      "/var/lib/texmf"
+    ],
+    [
+      "/var/cache/fontconfig",
+      "/var/cache/fontconfig"
+    ]
+  ],
+  "rules": [
+    {
+      "match": {
+        "distro": [
+          "arch",
+          "manjaro"
+        ]
+      },
+      "binds_ro": [
+        [
+          "/usr/share/texmf-dist",
+          "/usr/share/texmf-dist"
+        ]
+      ]
+    },
+    {
+      "match": {
+        "distro": [
+          "fedora",
+          "rhel"
+        ]
+      },
+      "binds_ro": [
+        [
+          "/usr/share/texlive",
+          "/usr/share/texlive"
+        ]
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "name": "pdfLaTeX binary",
+      "cmd": [
+        "pdflatex",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "pdfLaTeX compilation",
+      "cmd": [
+        "pdflatex",
+        "-interaction=batchmode",
+        "-output-directory=/tmp",
+        "\\documentclass{article}\\begin{document}Hello\\end{document}"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "XeLaTeX binary",
+      "cmd": [
+        "xelatex",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    },
+    {
+      "name": "LuaLaTeX binary",
+      "cmd": [
+        "lualatex",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    },
+    {
+      "name": "Biber binary",
+      "cmd": [
+        "biber",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    },
+    {
+      "name": "BibTeX binary",
+      "cmd": [
+        "bibtex",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    },
+    {
+      "name": "Latexmk binary",
+      "cmd": [
+        "latexmk",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

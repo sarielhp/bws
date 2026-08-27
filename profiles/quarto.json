@@ -1,0 +1,32 @@
+{
+  "name": "quarto",
+  "description": "Quarto scientific and technical publishing system",
+  "detect": {
+    "files": [
+      "_quarto.yml",
+      "_quarto.yaml"
+    ],
+    "globs": [
+      "*.qmd"
+    ]
+  },
+  "tests": [
+    {
+      "name": "Quarto binary version",
+      "cmd": [
+        "quarto",
+        "--version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Quarto check",
+      "cmd": [
+        "quarto",
+        "check"
+      ],
+      "type": "smoke",
+      "optional": true
+    }
+  ]
+}

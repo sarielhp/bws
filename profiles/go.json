@@ -1,0 +1,53 @@
+{
+  "name": "go",
+  "description": "Go programming language toolchain and module cache",
+  "detect": {
+    "files": [
+      "go.mod",
+      "go.work"
+    ],
+    "globs": [
+      "*.go"
+    ]
+  },
+  "env": {
+    "GOPATH": "@@HOME@@/.go"
+  },
+  "path": [
+    "@@HOME@@/.go/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.cache/go-build",
+      "@@HOME@@/.cache/go-build"
+    ],
+    [
+      "~/.config/go",
+      "@@HOME@@/.config/go"
+    ],
+    [
+      "~/.go",
+      "@@HOME@@/.go"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Go binary version",
+      "cmd": [
+        "go",
+        "version"
+      ],
+      "type": "version"
+    },
+    {
+      "name": "Go compilation & run",
+      "cmd": [
+        "go",
+        "run",
+        "-e",
+        "package main; import \"fmt\"; func main(){ fmt.Println(\"Go OK\") }"
+      ],
+      "type": "smoke"
+    }
+  ]
+}

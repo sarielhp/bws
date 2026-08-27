@@ -1,0 +1,28 @@
+{
+  "name": "oc",
+  "description": "OpenCode profile switcher CLI and configuration",
+  "requires": [
+    "opencode"
+  ],
+  "path": [
+    "@@HOME@@/bin",
+    "@@HOME@@/.local/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.config/open-switcher",
+      "@@HOME@@/.config/open-switcher"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "oc binary version",
+      "cmd": [
+        "oc",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+echo "=== Building bw ==="
+go build -o /dev/null .
+echo ""
+
+echo "=== Compiling long tests ==="
+go test -tags=long -c -o /tmp/bw-long-test .
+echo ""
+
+tests=(
+    TestLaTeXInSandbox
+    TestOpenCodeInSandbox
+    TestCppInSandbox
+    TestRustInSandbox
+    TestGoInSandbox
+    TestEmacsInSandbox
+    TestPythonInSandbox
+    TestMakeInSandbox
+    TestQuartoInSandbox
+    TestUVInSandbox
+)
+
+failed=0
+for test in "${tests[@]}"; do
+    printf "  %-35s " "$test"
+    if /tmp/bw-long-test -test.run "^${test}$" -test.v &>/dev/null; then
+        echo "PASS"
+    else
+        echo "FAIL"
+        failed=$((failed + 1))
+    fi
+done
+
+total="${#tests[@]}"
+passed=$((total - failed))
+echo ""
+echo "=== Results: $passed/$total passed, $failed failed ==="
+exit "$failed"
