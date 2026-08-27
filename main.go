@@ -9,7 +9,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.2.2"
+var Version = "0.2.3"
 
 func main() {
 	var forceFlag bool
@@ -174,7 +174,7 @@ func main() {
 					{
 						Name:        "show",
 						Description: "Display the raw contents of a config file",
-						UsageLine:   "bws conf show -g | -l",
+						UsageLine:   "bws conf show [-g | -l]",
 						Args:        clihelp.NoArgs,
 						Run: func(ctx *clihelp.Context) error {
 							if globalFlag {
