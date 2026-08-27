@@ -1,7 +1,5 @@
-# AI Agent Guidelines for `bws` (Bubblewrap Sandbox Launcher)
-
-## Quick Commands
-
+# AI agent guidelines for `bws` (Bubblewrap sandbox launcher)
+## Quick commands
 ```bash
 make                          # build + test + lint (via Makefile)
 ./tools/verify_build.sh       # go vet + go test + go build in one
@@ -15,8 +13,7 @@ go test ./...                 # run all tests
 ./tools/install               # build and install to ~/bin/bws
 ```
 
-## Project Structure
-
+## Project structure
 ```
 bws/
 ├── main.go                  # Entry point: clihelp App/Command tree, dispatch
@@ -46,27 +43,23 @@ bws/
 ```
 
 ## Conventions
-
 - **Use `internal/`** for all packages — this is a single-binary CLI, not a library.
 - **One package per directory**, named after the directory.
 - **`main.go` is thin** — define the clihelp App/Command tree, delegate to packages. No business logic.
 - **CLI framework** — use `github.com/sarielhp/clihelp` for commands, options, help rendering, and validation.
 - **JSONC support** — use the built-in JSONC loader in `internal/config/`. No additional dependencies.
 
-## Configuration Merging
-
+## Configuration merging
 - **Global + local config**: load both, deep-merge hashes, replace arrays. Implemented in `internal/config/merge.go` with unit tests.
 - **`@@HOME@@` token**: replace at load time.
 
-## Error Handling
-
+## Error handling
 - **Return errors, don't panic**. Use `fmt.Errorf` with `%w` for wrapping.
 - **Main exits with `os.Exit(1)`** on fatal errors, printing to `os.Stderr`.
 - **No `log.Fatal`** in packages — only in `main.go`.
 - **clihelp handlers** return errors; the framework prints them with `clihelp.PrintError`.
 
-## Before Committing
-
+## Before committing
 1. Run `go vet ./...` — no warnings.
 2. Run `./scripts/verify_build.sh` — all tests pass, binary compiles.
 3. Run `./scripts/audit_lines.sh` — no file exceeds the 500-line hard limit.
@@ -75,37 +68,32 @@ bws/
    Examples: `feat(safety): block root directory`, `fix(bwrap): correct X11 socket order`, `chore: bump version to 0.1.1`.
 
 ## Testing
-
 - **`*_test.go` alongside every package**.
 - **Table-driven tests** for config merging, bwrap arg building.
 - **Integration tests** in `main_test.go` exercise the built binary for safety checks and --info output.
 - **Run `go vet ./...` and `go test ./...`** before pushing.
 
-## Hard Constraints
-
+## Hard constraints
 - **300-line soft limit**, **500-line hard limit** per `.go` file. Run `./scripts/audit_lines.sh` to verify.
 - **No `log.Fatalf` in handlers** — only in `main.go` for startup-only errors.
 - **No `ioutil`** (deprecated since Go 1.16) — use `os` and `io` directly.
 - **No external dependencies for trivial things**.
 - **Bump version** on every code change via `./scripts/bump_version.sh` (auto-commits and pushes).
-- **Config path is fixed** — `~/.config/bwss/config.jsonc`. Local override: `.bws/config.jsonc` in the current directory.
+- **Config path is fixed** — `~/.config/bws/config.jsonc`. Local override: `.bws/config.jsonc` in the current directory.
 
-## Build & Distribution
-
+## Build & distribution
 - **`Makefile` with targets**: `build`, `test`, `lint`, `clean`.
-- **`go build -o bw .`** produces a single static binary.
+- **`go build -o bws .`** produces a single static binary.
 - **Version** is in `main.go` as `var Version = "X.Y.Z"`. Updated via `scripts/bump_version.sh`.
 
-## Code Style
-
+## Code style
 - **`gofumpt`** for formatting (fallback to `go fmt`).
 - **No naked returns** except in trivial getters.
 - **Explicit error checks** — no ignoring errors.
 - **Comments on exported symbols** only.
 - **Avoid `init()`** — use explicit initialization in `main()`.
 
-## Key Behaviors to Preserve
-
+## Key behaviors to preserve
 1. **Safety checks**: block running from `/`, `~/`, or `~/bin/`, file count limit.
 2. **SSH agent**: auto-start, reuse socket, deploy keys via `gh`.
 3. **X11**: mount socket after `/tmp` bind (order matters).
@@ -114,14 +102,12 @@ bws/
 6. **`--info`**: dry run — no side effects, just print the plan.
 7. **`test <target>`**: run tool, verify exit code, report.
 
-## What NOT to Do
-
+## What not to do
 - Don't shell out to `bwrap` via `os/exec` in packages — build the arg list and let `main.go` call `exec.Command`.
 - Don't embed the default config as a Go string literal — use `//go:embed`.
 - Don't duplicate configuration keys — merge logic lives in `internal/config/merge.go` with tests.
 
-## Scripts Catalog
-
+## Scripts catalog
 | Script | Purpose |
 |---|---|
 | `verify_build.sh` | `go fmt` → `go vet` → `go test` → `go build` |

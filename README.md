@@ -1,4 +1,4 @@
-# bws — Bubblewrap Sandbox Launcher
+# bws — bubblewrap sandbox launcher
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
@@ -10,21 +10,21 @@
 
 ---
 
-## Key Capabilities
+## Key capabilities
 
-* **Zero-Privilege Sandboxing**: Runs purely in Linux user namespaces (`bwrap` unprivileged mode). No root permissions, setuid binaries, or daemon sockets required.
-* **Disposable Ephemeral Homes**: Stages an isolated `$HOME` directory (`/tmp/bws/stage_*`) populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) that disappear when the session ends.
-* **Declarative Capability Profiles**: Compose dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
-* **Path Masking & Security Hardening**: Neutralize host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
-* **Automated Smoke Testing**: Verify sandbox integrity and tool accessibility before running code (`bws test <profile>`).
-* **Automatic SSH & WSL Integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`, X11 display forwarding, and WSL clipboard integration.
-* **Safe Host Pass-Through**: Explicit environment variable forwarding (`pass_env`) preserving isolation without secret leakage.
+* **Zero-privilege sandboxing**: Runs purely in Linux user namespaces (`bwrap` unprivileged mode). No root permissions, setuid binaries, or daemon sockets required.
+* **Disposable ephemeral homes**: Stages an isolated `$HOME` directory (`/tmp/bws/stage_*`) populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) that disappear when the session ends.
+* **Declarative capability profiles**: Compose dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
+* **Path masking & security hardening**: Neutralize host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
+* **Automated smoke testing**: Verify sandbox integrity and tool accessibility before running code (`bws test <profile>`).
+* **Automatic SSH & WSL integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`, X11 display forwarding, and WSL clipboard integration.
+* **Safe host pass-through**: Explicit environment variable forwarding (`pass_env`) preserving isolation without secret leakage.
 
 ---
 
 ## Installation
 
-### From Source
+### From source
 
 ```bash
 git clone https://github.com/sarielhp/bws.git
@@ -51,16 +51,16 @@ The binary will be compiled and installed to `~/bin/bws`.
 
 ---
 
-## Quick Start
+## Quick start
 
-### 1. Launch an Ephemeral Interactive Sandbox
+### 1. Launch an ephemeral interactive sandbox
 
 ```bash
 # Launch an interactive shell in an isolated bubble
 bws
 ```
 
-### 2. Auto-Detect and Initialize a Project Workspace (in local directory)
+### 2. Auto-detect and initialize a project workspace (in local directory)
 
 Inspects the current workspace (detecting Go, Python/UV, Rust, Node, LaTeX, etc.), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` configuration file:
 
@@ -72,7 +72,7 @@ bws init-dev
 bws init-dev -n
 ```
 
-### 3. Run Commands Directly Inside a Sandbox
+### 3. Run commands directly inside a sandbox
 
 ```bash
 # Execute a single command inside a sandbox environment
@@ -80,7 +80,7 @@ bws exec -- go test ./...
 bws exec -- uv run main.py
 ```
 
-### 4. Verify Stack Integrity
+### 4. Verify stack integrity
 
 ```bash
 # Run multi-command verification tests in an isolated sandbox
@@ -90,9 +90,9 @@ bws test secure-agent
 
 ---
 
-## Declarative Capability Profiles
+## Declarative capability profiles
 
-`bws` features a modular **Profile Engine** with over 35 pre-configured development stacks and security profiles.
+`bws` features a modular **profile engine** with over 35 pre-configured development stacks and security profiles.
 
 ```bash
 # List all available profiles (embedded, global, local)
@@ -110,7 +110,7 @@ bws profile fetch zig
 bws profile update
 ```
 
-### Meta-Profiles & Bundles
+### Meta-profiles & bundles
 
 Profiles can declare dependencies (`requires`) to build complete developer stacks:
 
@@ -131,11 +131,11 @@ Profiles can declare dependencies (`requires`) to build complete developer stack
 
 ---
 
-## Security & Path Masking Engine
+## Security & path masking engine
 
-`bws` provides **Path Masking** to overlay empty `tmpfs` mounts over directories or `/dev/null` over binaries, making host utilities invisible inside the sandbox.
+`bws` provides **path masking** to overlay empty `tmpfs` mounts over directories or `/dev/null` over binaries, making host utilities invisible inside the sandbox.
 
-### Built-in Hardening Profiles
+### Built-in hardening profiles
 
 * **`no-sudo`**: Blocks `/usr/bin/sudo`, `su`, `pkexec`, `doas`, `gpasswd`, `newgrp`, and masks `/etc/sudoers`.
 * **`no-ssh`**: Blocks `~/.ssh` and `/etc/ssh/ssh_config`.
@@ -147,17 +147,19 @@ Profiles can declare dependencies (`requires`) to build complete developer stack
 
 ---
 
-## Configuration Architecture
+## Configuration architecture
 
 `bws` uses a layered, comment-supported **JSONC** configuration hierarchy:
 
-### 1. Global User Configuration (`~/.config/bws/`)
+### 1. Global user configuration (`~/.config/bws/`)
+
 Located in your user home directory according to the XDG standard:
 * **`~/.config/bws/config.jsonc`**: Global base settings (preferred editor, default profiles, standard environment pass-through).
 * **`~/.config/bws/skeleton/`**: Default dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) copied into every new sandbox.
 * **`~/.config/bws/profiles/`**: Custom user-authored capability and security profiles.
 
-### 2. Local Project Configuration (`.bws/` in Workspace Root)
+### 2. Local project configuration (`.bws/` in workspace root)
+
 Local configuration is **scoped directly to your current project/repository** and lives inside the `.bws/` directory at the project root (mirroring conventions like `.vscode/` or `.cargo/`):
 * **`.bws/config.jsonc`**: Workspace-specific overrides (e.g. declaring `profiles: ["go-dev", "no-secrets"]`, adding project-specific bind mounts, custom environment variables).
 * **`.bws/skeleton/`**: Project-specific dotfiles (e.g. a custom `.bws/skeleton/.bashrc` with project aliases or build shortcuts) that overlay on top of the global skeleton.
@@ -167,7 +169,7 @@ Local configuration is **scoped directly to your current project/repository** an
 
 ---
 
-### Example Global Configuration (`~/.config/bws/config.jsonc`)
+### Example global configuration (`~/.config/bws/config.jsonc`)
 
 ```jsonc
 {
@@ -195,7 +197,7 @@ Local configuration is **scoped directly to your current project/repository** an
 }
 ```
 
-### Example Local Project Configuration (`.bws/config.jsonc`)
+### Example local project configuration (`.bws/config.jsonc`)
 
 Generated automatically via `bws init-dev`:
 
@@ -222,18 +224,18 @@ Generated automatically via `bws init-dev`:
 
 ---
 
-## Skeletons & Ephemeral Homes
+## Skeletons & ephemeral homes
 
 Whenever `bws` launches a sandbox:
 1. It creates an isolated temporary directory in `/tmp/bws/stage_*`.
-2. It copies base dotfiles from the **Global Skeleton** (`~/.config/bws/skeleton/`).
-3. It overlays workspace dotfiles from the **Local Skeleton** (`.bws/skeleton/` if present in the project).
+2. It copies base dotfiles from the **global skeleton** (`~/.config/bws/skeleton/`).
+3. It overlays workspace dotfiles from the **local skeleton** (`.bws/skeleton/` if present in the project).
 4. It dynamically appends profile PATHs and shell hooks to the staged `.bashrc`.
 5. When the session terminates, the ephemeral home directory is cleanly removed.
 
 ---
 
-## Command Reference
+## Command reference
 
 | Command | Description |
 | :--- | :--- |
