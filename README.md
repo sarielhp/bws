@@ -60,14 +60,9 @@ The binary will be compiled and installed to `~/bin/bws`.
 bws
 ```
 
-### 2. Auto-detect and initialize a project workspace (in local directory)
+### 2. Auto-detect and initialize a project workspace
 
-When you run `bws` in a project directory:
-* **Workspace mounting**: Your current working directory is bind-mounted directly inside the sandbox at its exact path (read-write by default, or read-only via `-r`), so compiling, testing, and editing files works seamlessly without copying large project trees.
-* **Hermetic isolation**: The rest of your host `$HOME` and sensitive system directories remain hidden and isolated.
-* **Automatic `.bws/` masking**: The `.bws/` configuration directory (and `.bws.jsonc` file) is **automatically masked by default** inside the sandbox via an empty `tmpfs` overlay. This prevents running build scripts or autonomous coding agents from inspecting or tampering with host sandbox launcher rules.
-
-The `bws init-dev` command inspects workspace repository markers (such as `go.mod`, `pyproject.toml`, `uv.lock`, `Cargo.toml`, `package.json`, LaTeX sources, or AI agent setups), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` configuration:
+The `bws init-dev` command inspects your workspace (detecting Go, Python/UV, Rust, Node, LaTeX, AI agents, etc.), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` file:
 
 ```bash
 # Auto-detect language stack and initialize .bws/config.jsonc in current directory
@@ -83,6 +78,8 @@ bws init-dev --preset python
 bws init-dev -p docker,quarto
 ```
 
+Your workspace is mounted directly at its exact absolute path inside the sandbox (read-write by default, or read-only via `-r`), allowing compilation and testing to run seamlessly in place while isolating the rest of your system.
+
 ### 3. Run commands directly inside a sandbox
 
 ```bash
@@ -91,7 +88,21 @@ bws exec -- go test ./...
 bws exec -- uv run main.py
 ```
 
-### 4. Verify stack integrity
+### 4. Search and inspect capability profiles
+
+```bash
+# Search profiles across embedded catalog, local profiles, and host tools
+bws profile search python
+bws profile search secret
+
+# List all available profiles
+bws profile list
+
+# Inspect resolved dependency chain, mounts, masked paths, and tests
+bws profile show go-dev
+```
+
+### 5. Verify stack integrity
 
 ```bash
 # Run multi-command verification tests in an isolated sandbox
@@ -103,9 +114,12 @@ bws test secure-agent
 
 ## Declarative capability profiles
 
-`bws` features a modular **profile engine** with over 35 pre-configured development stacks and security profiles.
+`bws` features a modular **profile engine** with over 35 pre-configured development stacks and security profiles. See the full [**profiles catalog**](profiles/README.md) for detailed documentation on every profile.
 
 ```bash
+# Search profiles by keyword or description
+bws profile search <query>
+
 # List all available profiles (embedded, global, local)
 bws profile list
 
@@ -254,6 +268,7 @@ Whenever `bws` launches a sandbox:
 | **`bws exec -- <cmd...>`** | Execute a command inside the sandbox |
 | **`bws test <profile>`** | Run multi-command verification tests for a profile |
 | **`bws init-dev`** | Auto-detect workspace and generate `.bws/config.jsonc` |
+| **`bws profile search <query>`** | Search profiles by name, description, and tools |
 | **`bws profile list`** | List all registered profiles |
 | **`bws profile show <name>`** | Display detailed resolution plan for a profile |
 | **`bws profile new <name>`** | Generate a profile via Homebrew API & Firejail |
@@ -263,6 +278,13 @@ Whenever `bws` launches a sandbox:
 | **`bws cbind add <path>`** | Add a bind mount to config |
 | **`bws ccopy add <path>`** | Add a copy path to config |
 | **`bws scp <user@host:>`** | Copy configuration and themes to remote machine |
+
+---
+
+## Detailed technical documentation
+
+* [**Architecture & internal design**](docs/architecture.md): Deep dive into Linux user namespaces, ephemeral home staging, path masking, SSH deploy-key injection, and lifecycle sequence.
+* [**Capability profiles catalog**](profiles/README.md): Comprehensive reference of all 35+ embedded development stacks and security profiles.
 
 ---
 

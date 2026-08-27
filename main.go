@@ -334,6 +334,20 @@ func main() {
 						},
 					},
 					{
+						Name:        "search",
+						Aliases:     []string{"find"},
+						Description: "Search sandbox profiles by name or description",
+						UsageLine:   "bws profile search <query>",
+						Args:        clihelp.ExactArgs(1),
+						Examples: []clihelp.Example{
+							{Line: "bws profile search python", Description: "Find all Python-related profiles"},
+							{Line: "bws profile search secret", Description: "Find hardening profiles for secrets"},
+						},
+						Run: func(ctx *clihelp.Context) error {
+							return cli.HandleProfileSearch(ctx.Args[0])
+						},
+					},
+					{
 						Name:        "show",
 						Aliases:     []string{"info", "view", "cat"},
 						Description: "Show details, mounts, and smoke tests for a profile",
