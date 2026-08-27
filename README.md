@@ -144,16 +144,29 @@ Profiles can declare dependencies (`requires`) to build complete developer stack
 
 ## Configuration Architecture
 
-`bws` uses clean, comment-supported **JSONC** configuration files:
+`bws` uses a layered, comment-supported **JSONC** configuration hierarchy:
 
-1. **Global User Config**: `~/.config/bws/config.jsonc` (applies to all sandboxes).
-2. **Local Project Config**: `.bws/config.jsonc` (per-project overrides).
+### 1. Global User Configuration (`~/.config/bws/`)
+Located in your user home directory according to the XDG standard:
+* **`~/.config/bws/config.jsonc`**: Global base settings (preferred editor, default profiles, standard environment pass-through).
+* **`~/.config/bws/skeleton/`**: Default dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) copied into every new sandbox.
+* **`~/.config/bws/profiles/`**: Custom user-authored capability and security profiles.
 
-### Example Minimal Global Configuration (`~/.config/bws/config.jsonc`)
+### 2. Local Project Configuration (`.bws/` in Workspace Root)
+Local configuration is **scoped directly to your current project/repository** and lives inside the `.bws/` directory at the project root (mirroring conventions like `.vscode/` or `.cargo/`):
+* **`.bws/config.jsonc`**: Workspace-specific overrides (e.g. declaring `profiles: ["go-dev", "no-secrets"]`, adding project-specific bind mounts, custom environment variables).
+* **`.bws/skeleton/`**: Project-specific dotfiles (e.g. a custom `.bws/skeleton/.bashrc` with project aliases or build shortcuts) that overlay on top of the global skeleton.
+
+> **Why `.bws/` instead of `.config/bws/` in projects?**  
+> `~/.config/` is strictly a user-home concept (XDG). In a project repository, having a top-level `.config/` folder is ambiguous and can conflict with project build tools. A dedicated `.bws/` folder in the project root is clean, self-contained, easily gitignored or committed, and follows standard tool patterns (`.vscode/`, `.github/`, `.devcontainer/`).
+
+---
+
+### Example Global Configuration (`~/.config/bws/config.jsonc`)
 
 ```jsonc
 {
-  // Composable active profiles
+  // Active personal defaults across all projects
   "profiles": [
     "editor"
   ],
@@ -170,9 +183,34 @@ Profiles can declare dependencies (`requires`) to build complete developer stack
     "VISUAL": "$EDITOR"
   },
 
-  // Base read-only protection for host binaries
+  // Base read-only protection for host tools
   "binds_ro": [
     ["~/.local", "@@HOME@@/.local"]
+  ]
+}
+```
+
+### Example Local Project Configuration (`.bws/config.jsonc`)
+
+Generated automatically via `bws init-dev`:
+
+```jsonc
+{
+  // Stack profiles required specifically for this project
+  "profiles": [
+    "go-dev",
+    "docker",
+    "no-sudo"
+  ],
+
+  // Project-specific environment variables
+  "env": {
+    "CGO_ENABLED": "0"
+  },
+
+  // Project-specific mounts
+  "binds_rw": [
+    ["/data/test_fixtures", "/data/test_fixtures"]
   ]
 }
 ```
@@ -183,9 +221,10 @@ Profiles can declare dependencies (`requires`) to build complete developer stack
 
 Whenever `bws` launches a sandbox:
 1. It creates an isolated temporary directory in `/tmp/bws/stage_*`.
-2. It copies dotfiles from the **Global Skeleton** (`~/.config/bws/skeleton/`).
-3. It overlays project-specific dotfiles from the **Local Skeleton** (`.bws/skeleton/` if present).
-4. When the session terminates, the ephemeral home is deleted cleanly.
+2. It copies base dotfiles from the **Global Skeleton** (`~/.config/bws/skeleton/`).
+3. It overlays workspace dotfiles from the **Local Skeleton** (`.bws/skeleton/` if present in the project).
+4. It dynamically appends profile PATHs and shell hooks to the staged `.bashrc`.
+5. When the session terminates, the ephemeral home directory is cleanly removed.
 
 ---
 
