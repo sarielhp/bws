@@ -188,6 +188,9 @@ func generateDefaultConfig() string {
   "tmux_session_name": "bwrap-dev",
   "max_file_count": 1000,
   "cdtoday": "info/misc",
+  "profiles": [
+    "editor"
+  ],
   "features": {
     "enable_ssh": true,
     "ssh_keys": [],

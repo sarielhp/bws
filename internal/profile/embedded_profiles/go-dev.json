@@ -1,11 +1,11 @@
 {
   "name": "go-dev",
-  "description": "Full Go developer environment (Go toolchain, Gopls LSP, Git, GitHub CLI, Emacs)",
+  "description": "Full Go developer environment (Go toolchain, Gopls LSP, Git, GitHub CLI, Editor)",
   "requires": [
     "go",
     "gopls",
     "git",
     "gh",
-    "emacs"
+    "editor"
   ]
 }

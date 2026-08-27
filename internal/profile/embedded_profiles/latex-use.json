@@ -1,9 +1,9 @@
 {
   "name": "latex-use",
-  "description": "Complete LaTeX authoring environment (TeX Live, Pandoc, Emacs)",
+  "description": "Complete LaTeX authoring environment (TeX Live, Pandoc, Editor)",
   "requires": [
     "latex",
     "pandoc",
-    "emacs"
+    "editor"
   ]
 }

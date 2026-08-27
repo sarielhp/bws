@@ -1,11 +1,11 @@
 {
   "name": "python-dev",
-  "description": "Full Python developer environment (Python3, UV, Git, GitHub CLI, Emacs)",
+  "description": "Full Python developer environment (Python3, UV, Git, GitHub CLI, Editor)",
   "requires": [
     "python",
     "uv",
     "git",
     "gh",
-    "emacs"
+    "editor"
   ]
 }
