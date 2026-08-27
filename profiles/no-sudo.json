@@ -1,6 +1,6 @@
 {
   "name": "no-sudo",
-  "description": "Mask privilege escalation and superuser binaries (sudo, su, pkexec, doas)",
+  "description": "Mask privilege escalation binaries, superuser tools, and sudoers configuration",
   "mask": [
     "/usr/bin/sudo",
     "/bin/sudo",
@@ -13,7 +13,9 @@
     "/usr/bin/gpasswd",
     "/bin/gpasswd",
     "/usr/bin/newgrp",
-    "/bin/newgrp"
+    "/bin/newgrp",
+    "/etc/sudoers",
+    "/etc/sudoers.d"
   ],
   "tests": [
     {
@@ -67,6 +69,15 @@
         "bash",
         "-c",
         "! newgrp 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "sudoers file is masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -s /etc/sudoers"
       ],
       "type": "smoke"
     }

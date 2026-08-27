@@ -261,16 +261,17 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 
 	for _, maskPath := range cfg.Mask {
 		expanded := util.ExpandHome(maskPath)
+		expanded = strings.ReplaceAll(expanded, config.HomeToken, homeDir)
 		if fi, err := os.Stat(expanded); err == nil {
 			if fi.IsDir() {
-				args = append(args, "--tmpfs", maskPath)
+				args = append(args, "--tmpfs", expanded)
 				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked directory)\n", maskPath)
+					fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked directory)\n", expanded)
 				}
 			} else {
-				args = append(args, "--ro-bind-try", "/dev/null", maskPath)
+				args = append(args, "--ro-bind-try", "/dev/null", expanded)
 				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked file)\n", maskPath)
+					fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked file)\n", expanded)
 				}
 			}
 		}

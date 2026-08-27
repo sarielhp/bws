@@ -1,0 +1,21 @@
+{
+  "name": "no-ssh",
+  "description": "Block all SSH access, configuration, and host keys",
+  "mask": [
+    "~/.ssh",
+    "@@HOME@@/.ssh",
+    "/etc/ssh/ssh_config",
+    "/etc/ssh/ssh_config.d"
+  ],
+  "tests": [
+    {
+      "name": "ssh config is masked and empty",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -s ~/.ssh/config && ! test -s ~/.ssh/id_rsa"
+      ],
+      "type": "smoke"
+    }
+  ]
+}
