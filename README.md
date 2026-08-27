@@ -60,11 +60,16 @@ The binary will be compiled and installed to `~/bin/bws`.
 bws
 ```
 
-### 2. Auto-Detect and Initialize a Project Workspace
+### 2. Auto-Detect and Initialize a Project Workspace (in local directory)
+
+Inspects the current workspace (detecting Go, Python/UV, Rust, Node, LaTeX, etc.), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` configuration file:
 
 ```bash
-# Inspect current repo (Go, Python/UV, Rust, Node, LaTeX) and generate .bws/config.jsonc
+# Auto-detect language stack and initialize .bws/config.jsonc in current directory
 bws init-dev
+
+# Dry-run preview without writing to disk
+bws init-dev -n
 ```
 
 ### 3. Run Commands Directly Inside a Sandbox
