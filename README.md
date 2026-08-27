@@ -62,14 +62,25 @@ bws
 
 ### 2. Auto-detect and initialize a project workspace (in local directory)
 
-Inspects the current workspace (detecting Go, Python/UV, Rust, Node, LaTeX, etc.), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` configuration file:
+When you run `bws` in a project directory:
+* **Workspace mounting**: Your current working directory is bind-mounted directly inside the sandbox at its exact path (read-write by default, or read-only via `-r`), so compiling, testing, and editing files works seamlessly without copying large project trees.
+* **Hermetic isolation**: The rest of your host `$HOME` and sensitive system directories remain hidden and isolated.
+* **Automatic `.bws/` masking**: The `.bws/` configuration directory (and `.bws.jsonc` file) is **automatically masked by default** inside the sandbox via an empty `tmpfs` overlay. This prevents running build scripts or autonomous coding agents from inspecting or tampering with host sandbox launcher rules.
+
+The `bws init-dev` command inspects workspace repository markers (such as `go.mod`, `pyproject.toml`, `uv.lock`, `Cargo.toml`, `package.json`, LaTeX sources, or AI agent setups), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` configuration:
 
 ```bash
 # Auto-detect language stack and initialize .bws/config.jsonc in current directory
 bws init-dev
 
-# Dry-run preview without writing to disk
+# Dry-run preview: print generated JSONC to stdout without writing to disk
 bws init-dev -n
+
+# Explicitly select a preset stack (go, python, rust, node, latex, agent, all)
+bws init-dev --preset python
+
+# Include additional tool profiles
+bws init-dev -p docker,quarto
 ```
 
 ### 3. Run commands directly inside a sandbox
