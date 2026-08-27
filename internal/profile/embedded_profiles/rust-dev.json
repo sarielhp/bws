@@ -1,0 +1,10 @@
+{
+  "name": "rust-dev",
+  "description": "Full Rust developer environment (Rustc, Cargo, Git, GitHub CLI, Emacs)",
+  "requires": [
+    "rust",
+    "git",
+    "gh",
+    "emacs"
+  ]
+}

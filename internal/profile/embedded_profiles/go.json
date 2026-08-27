@@ -42,10 +42,9 @@
     {
       "name": "Go compilation & run",
       "cmd": [
-        "go",
-        "run",
-        "-e",
-        "package main; import \"fmt\"; func main(){ fmt.Println(\"Go OK\") }"
+        "bash",
+        "-c",
+        "echo \"package main; import (\\\"fmt\\\"); func main(){ fmt.Println(\\\"Go OK\\\") }\" > /tmp/bw_hello.go && go run /tmp/bw_hello.go && rm -f /tmp/bw_hello.go"
       ],
       "type": "smoke"
     }

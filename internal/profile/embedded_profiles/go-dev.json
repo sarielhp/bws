@@ -1,0 +1,10 @@
+{
+  "name": "go-dev",
+  "description": "Full Go developer environment (Go toolchain, Git, GitHub CLI, Emacs)",
+  "requires": [
+    "go",
+    "git",
+    "gh",
+    "emacs"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "python-dev",
+  "description": "Full Python developer environment (Python3, UV, Git, GitHub CLI, Emacs)",
+  "requires": [
+    "python",
+    "uv",
+    "git",
+    "gh",
+    "emacs"
+  ]
+}

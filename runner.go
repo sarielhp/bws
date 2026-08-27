@@ -10,6 +10,7 @@ import (
 	"bw/internal/bwrap"
 	"bw/internal/cli"
 	"bw/internal/config"
+	"bw/internal/profile"
 	"bw/internal/sandbox"
 	"bw/internal/util"
 )
@@ -56,6 +57,10 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 	}
 
 	mergedCfg := config.Merge(globalCfg, localCfg)
+	currentDir, _ := os.Getwd()
+	if err := applyProfiles(mergedCfg, currentDir, verbose); err != nil && verbose {
+		fmt.Fprintf(os.Stderr, "[verbose] Applying profiles warning: %v\n", err)
+	}
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] Merged config PATH entries: %s\n", strings.Join(mergedCfg.Path, ", "))
@@ -68,6 +73,69 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 		globalPath: globalPath,
 		localPath:  localPath,
 	}, nil
+}
+
+func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
+	if len(cfg.Profiles) == 0 {
+		return nil
+	}
+	registry, err := profile.LoadRegistry(currentDir)
+	if err != nil {
+		return err
+	}
+	ctx := profile.DetectMatchContext()
+
+	seenRW := make(map[string]bool)
+	for _, b := range cfg.BindsRW {
+		seenRW[b.Host+"->"+b.Sandbox] = true
+	}
+	seenRO := make(map[string]bool)
+	for _, b := range cfg.BindsRO {
+		seenRO[b.Host+"->"+b.Sandbox] = true
+	}
+	seenPath := make(map[string]bool)
+	for _, p := range cfg.Path {
+		seenPath[p] = true
+	}
+
+	for _, pName := range cfg.Profiles {
+		resolved, err := profile.ResolveProfile(pName, registry, ctx)
+		if err != nil {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "[verbose] Warning: resolving profile %q: %v\n", pName, err)
+			}
+			continue
+		}
+		for _, b := range resolved.BindsRW {
+			key := b[0] + "->" + b[1]
+			if !seenRW[key] {
+				seenRW[key] = true
+				cfg.BindsRW = append(cfg.BindsRW, config.BindEntry{Host: b[0], Sandbox: b[1]})
+			}
+		}
+		for _, b := range resolved.BindsRO {
+			key := b[0] + "->" + b[1]
+			if !seenRO[key] {
+				seenRO[key] = true
+				cfg.BindsRO = append(cfg.BindsRO, config.BindEntry{Host: b[0], Sandbox: b[1]})
+			}
+		}
+		for _, pt := range resolved.Path {
+			if !seenPath[pt] {
+				seenPath[pt] = true
+				cfg.Path = append(cfg.Path, pt)
+			}
+		}
+		for k, v := range resolved.Env {
+			if cfg.Env == nil {
+				cfg.Env = make(map[string]string)
+			}
+			if _, exists := cfg.Env[k]; !exists {
+				cfg.Env[k] = v
+			}
+		}
+	}
+	return nil
 }
 
 func safetyChecks(sl *sandboxLaunch, force, verbose bool) (string, error) {

@@ -37,6 +37,7 @@ func Merge(global, local *Config) *Config {
 	result.Path = mergeStringSlices(global.Path, local.Path)
 	result.BindsRW = mergeBindEntries(global.BindsRW, local.BindsRW)
 	result.BindsRO = mergeBindEntries(global.BindsRO, local.BindsRO)
+	result.Profiles = mergeStringSlices(global.Profiles, local.Profiles)
 	result.Copy = mergeStringSlices(global.Copy, local.Copy)
 
 	return &result

@@ -1,0 +1,9 @@
+{
+  "name": "latex-dev",
+  "description": "Complete LaTeX authoring environment (TeX Live, Pandoc, Emacs)",
+  "requires": [
+    "latex",
+    "pandoc",
+    "emacs"
+  ]
+}

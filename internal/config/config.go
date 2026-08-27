@@ -68,6 +68,7 @@ type Config struct {
 	Path            []string          `json:"path"`
 	BindsRW         []BindEntry       `json:"binds_rw"`
 	BindsRO         []BindEntry       `json:"binds_ro"`
+	Profiles        []string          `json:"profiles,omitempty"`
 	Copy            []string          `json:"copy"`
 }
 

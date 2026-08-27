@@ -1,0 +1,9 @@
+{
+  "name": "ai",
+  "description": "AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher)",
+  "requires": [
+    "opencode",
+    "oc",
+    "antigravity"
+  ]
+}

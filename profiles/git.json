@@ -1,0 +1,31 @@
+{
+  "name": "git",
+  "description": "Git distributed version control system",
+  "detect": {
+    "files": [
+      ".git",
+      ".gitignore",
+      ".gitmodules"
+    ]
+  },
+  "binds_ro": [
+    [
+      "~/.gitconfig",
+      "@@HOME@@/.gitconfig"
+    ],
+    [
+      "~/.git-credentials",
+      "@@HOME@@/.git-credentials"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Git binary version",
+      "cmd": [
+        "git",
+        "--version"
+      ],
+      "type": "version"
+    }
+  ]
+}

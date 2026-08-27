@@ -1,0 +1,46 @@
+{
+  "name": "docker",
+  "description": "Docker container CLI and daemon socket integration",
+  "detect": {
+    "files": [
+      "Dockerfile",
+      "docker-compose.yml",
+      "compose.yaml",
+      ".dockerignore"
+    ]
+  },
+  "binds_rw": [
+    [
+      "~/.docker",
+      "@@HOME@@/.docker"
+    ],
+    [
+      "/var/run/docker.sock",
+      "/var/run/docker.sock"
+    ],
+    [
+      "/run/user/1000/docker.sock",
+      "/run/user/1000/docker.sock"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Docker CLI version",
+      "cmd": [
+        "docker",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    },
+    {
+      "name": "Docker daemon connectivity",
+      "cmd": [
+        "docker",
+        "info"
+      ],
+      "type": "smoke",
+      "optional": true
+    }
+  ]
+}

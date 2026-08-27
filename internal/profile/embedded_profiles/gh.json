@@ -1,0 +1,24 @@
+{
+  "name": "gh",
+  "description": "GitHub official command-line interface",
+  "binds_rw": [
+    [
+      "~/.config/gh",
+      "@@HOME@@/.config/gh"
+    ],
+    [
+      "~/.local/share/gh",
+      "@@HOME@@/.local/share/gh"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "GitHub CLI version",
+      "cmd": [
+        "gh",
+        "--version"
+      ],
+      "type": "version"
+    }
+  ]
+}

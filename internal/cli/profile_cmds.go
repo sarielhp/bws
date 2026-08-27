@@ -276,6 +276,67 @@ func HandleProfileSearch(query string) error {
 	return nil
 }
 
+// HandleProfileFetch downloads a profile from GitHub repository or synthesizes it.
+func HandleProfileFetch(name string, global, local bool) error {
+	cleanName := strings.ToLower(strings.TrimSpace(name))
+	if cleanName == "" {
+		return fmt.Errorf("profile name cannot be empty")
+	}
+
+	cwd, _ := os.Getwd()
+	var targetDir string
+	if local {
+		targetDir = profile.LocalProfilesDir(cwd)
+	} else {
+		targetDir = profile.GlobalProfilesDir()
+	}
+
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bubblewrap_script/main/profiles/%s.json", cleanName)
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(rawURL)
+
+	if err == nil && resp.StatusCode == http.StatusOK {
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		var p profile.Profile
+		if err := json.Unmarshal(body, &p); err == nil && p.Name != "" {
+			targetPath := filepath.Join(targetDir, cleanName+".json")
+			if err := profile.SaveProfile(&p, targetPath); err != nil {
+				return err
+			}
+			fmt.Printf("✓ Fetched profile %q from GitHub repository: %s\n", cleanName, targetPath)
+			return nil
+		}
+	}
+
+	// Fallback to generating from Homebrew/Firejail
+	fmt.Printf("Profile %q not found in remote repository; synthesizing from Homebrew...\n", cleanName)
+	return HandleProfileNew(cleanName, global, local)
+}
+
+// HandleProfileUpdate updates all locally installed global profiles from the remote repository.
+func HandleProfileUpdate() error {
+	globalDir := profile.GlobalProfilesDir()
+	entries, err := os.ReadDir(globalDir)
+	if err != nil {
+		return fmt.Errorf("reading global profiles directory: %w", err)
+	}
+
+	updated := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		pName := strings.TrimSuffix(e.Name(), ".json")
+		if err := HandleProfileFetch(pName, true, false); err == nil {
+			updated++
+		}
+	}
+
+	fmt.Printf("Profile update complete (%d global profiles updated).\n", updated)
+	return nil
+}
+
 func boolPtr(b bool) *bool {
 	return &b
 }

@@ -1,0 +1,37 @@
+{
+  "name": "neovim",
+  "description": "Vim-fork focused on extensibility and usability",
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "binds_rw": [
+    [
+      "~/.config/nvim",
+      "@@HOME@@/.config/nvim"
+    ],
+    [
+      "~/.local/share/nvim",
+      "@@HOME@@/.local/share/nvim"
+    ],
+    [
+      "~/.local/state/nvim",
+      "@@HOME@@/.local/state/nvim"
+    ],
+    [
+      "~/.cache/nvim",
+      "@@HOME@@/.cache/nvim"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Neovim version",
+      "cmd": [
+        "nvim",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}
