@@ -28,6 +28,7 @@
 * **Disposable ephemeral homes**: Stages an isolated `$HOME` directory (`/tmp/bws/stage_*`) populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) that disappear when the session ends.
 * **Declarative capability profiles**: Composes dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
 * **Path masking & security hardening**: Neutralizes host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
+* **Air-gapped offline mode**: Completely isolate the sandbox network namespace via `-N` / `--offline` or the `offline` profile, severing both internet access and host `127.0.0.1` services.
 * **Automated smoke testing**: Verifies sandbox integrity and tool accessibility before running code (`bws test <profile>`).
 * **Automatic SSH & Git integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`.
 * **Safe host pass-through**: Explicit environment variable forwarding (`pass_env`) preserving isolation without secret leakage.
@@ -110,6 +111,7 @@ bws
 ```bash
 # Execute a single command inside a sandbox environment
 bws exec -- go test ./...
+bws exec -N -- go test ./...       # Run tests air-gapped without network
 bws exec -- uv run main.py
 ```
 
@@ -152,6 +154,9 @@ bws test secure-agent
 
 # Verify that privilege escalation binaries and sudoers are actively blocked
 bws test no-sudo
+
+# Verify that outbound network access and host local ports are blocked
+bws test offline
 ```
 
 ---

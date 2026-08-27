@@ -19,7 +19,7 @@
 2. **Hermetic `$HOME`**: The host user's personal home directory is completely unmapped.
 3. **Environment sanitization**: Host environment variables are not leaked unless explicitly listed in `pass_env`.
 4. **Child process termination**: All spawned sandbox processes terminate automatically when `bws` exits (`--die-with-parent`), with signals (`SIGINT`, `SIGTERM`) trapped to guarantee cleanup.
-5. **Network access boundary**: `bws` does not isolate network access by default; outbound network access is permitted to allow package managers to function.
+5. **Network access boundary**: By default, `bws` permits outbound network traffic so package managers (`go`, `npm`, `cargo`, `uv`) can function. When air-gapped isolation is desired, passing `-N` / `--offline` or activating the `offline` profile unshares the network namespace (`CLONE_NEWNET`), completely blocking internet connectivity and isolating loopback so host `127.0.0.1` services (databases, dev servers, Ollama, Docker) cannot be reached.
 
 ---
 
@@ -45,6 +45,7 @@
 | **`no-chat`** | Discord, Slack, Signal, Telegram, Element | Protects messaging databases and tokens |
 | **`no-secrets`** | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.password-store`, `~/.gnupg` | Shields cloud provider credentials and GPG keys |
 | **`no-history`**| `.bash_history`, `.zsh_history`, `.python_history`, `.psql_history` | Prevents scanning command histories for leaked tokens |
+| **`offline`** (`no-net`) | Network namespace (`CLONE_NEWNET`) | Blocks all outbound internet traffic and isolates loopback (host `127.0.0.1` services completely unreachable) |
 | **`secure-agent`**| All of the above combined + `ai` coding assistant stack | Zero-trust developer sandbox for autonomous coding agents |
 
 ---

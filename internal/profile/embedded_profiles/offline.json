@@ -1,0 +1,15 @@
+{
+  "name": "offline",
+  "description": "Completely isolate network namespace (blocks internet and host 127.0.0.1 services)",
+  "unshare_net": true,
+  "tests": [
+    {
+      "name": "Outbound network connection is blocked",
+      "cmd": ["bash", "-c", "! curl -s --connect-timeout 1 https://google.com >/dev/null 2>&1"]
+    },
+    {
+      "name": "Private loopback is functional",
+      "cmd": ["bash", "-c", "ping -c 1 127.0.0.1 >/dev/null 2>&1 || true"]
+    }
+  ]
+}

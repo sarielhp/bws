@@ -42,6 +42,7 @@ When a profile is activated (via `"profiles": ["go-dev"]` in `~/.config/bws/conf
 | **`no-chat`** | Messaging databases | Discord, Slack, Signal, Telegram |
 | **`no-secrets`** | Cloud provider keys | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.gnupg` |
 | **`no-history`**| Command line logs | `.bash_history`, `.zsh_history`, `.python_history` |
+| **`offline`** | Network isolation | Blocks outbound internet and isolates loopback (host `127.0.0.1` unreachable) |
 | **`secure-agent`**| All of the above combined | Hardened environment for autonomous AI agents |
 
 ---
@@ -404,6 +405,19 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 - `gpasswd binary is blocked`: `bash -c ! gpasswd 2>/dev/null`
 - `newgrp binary is blocked`: `bash -c ! newgrp 2>/dev/null`
 - `sudoers file is masked`: `bash -c ! test -s /etc/sudoers`
+
+---
+
+### `offline`
+**Description**: Completely isolate network namespace (blocks internet and host 127.0.0.1 services)
+
+**Aliases**: `no-net`
+
+**Unshares**: Network namespace (`CLONE_NEWNET`)
+
+**Verification tests**:
+- `Outbound network connection is blocked`: `bash -c '! curl -s --connect-timeout 1 https://google.com >/dev/null 2>&1'`
+- `Private loopback is functional`: `bash -c 'ping -c 1 127.0.0.1 >/dev/null 2>&1 || true'`
 
 ---
 

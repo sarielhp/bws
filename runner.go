@@ -156,6 +156,13 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 				cfg.Env[k] = v
 			}
 		}
+		if resolved.UnshareNet {
+			if cfg.Features == nil {
+				cfg.Features = &config.FeaturesConfig{}
+			}
+			t := true
+			cfg.Features.NoNet = &t
+		}
 	}
 	return nil
 }
@@ -277,10 +284,18 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	return nil
 }
 
-func runDefault(args []string, force, verbose bool) error {
+func runDefault(args []string, force, verbose, noNet bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
+	}
+
+	if noNet {
+		if sl.cfg.Features == nil {
+			sl.cfg.Features = &config.FeaturesConfig{}
+		}
+		t := true
+		sl.cfg.Features.NoNet = &t
 	}
 
 	isDefaultSession := len(args) == 0
@@ -435,10 +450,18 @@ func runUVTest(force, verbose bool) error {
 	return nil
 }
 
-func runExec(args []string, force, verbose bool) error {
+func runExec(args []string, force, verbose, noNet bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
+	}
+
+	if noNet {
+		if sl.cfg.Features == nil {
+			sl.cfg.Features = &config.FeaturesConfig{}
+		}
+		t := true
+		sl.cfg.Features.NoNet = &t
 	}
 
 	cli.VerifyTools(false, false)

@@ -23,13 +23,20 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs /etc\n")
 	}
 
-	if cfg.System != nil {
-		if config.GetBool(cfg, func(c *config.Config) *bool { return c.System.ShareNet }, false) {
-			args = append(args, "--share-net")
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --share-net\n")
-			}
+	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.NoNet }) ||
+		config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.UnshareNet }) {
+		args = append(args, "--unshare-net")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose]   --unshare-net (air-gapped network namespace)\n")
 		}
+	} else if cfg.System != nil && config.GetBool(cfg, func(c *config.Config) *bool { return c.System.ShareNet }, false) {
+		args = append(args, "--share-net")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose]   --share-net\n")
+		}
+	}
+
+	if cfg.System != nil {
 		if config.GetBool(cfg, func(c *config.Config) *bool { return c.System.Clearenv }, false) {
 			args = append(args, "--clearenv")
 			if verbose {

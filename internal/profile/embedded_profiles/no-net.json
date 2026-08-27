@@ -1,0 +1,5 @@
+{
+  "name": "no-net",
+  "description": "Completely isolate network namespace (alias for offline)",
+  "requires": ["offline"]
+}

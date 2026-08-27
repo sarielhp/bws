@@ -146,6 +146,12 @@ func mergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.EnableOhMyPosh != nil {
 		r.EnableOhMyPosh = local.EnableOhMyPosh
 	}
+	if local.NoNet != nil {
+		r.NoNet = local.NoNet
+	}
+	if local.UnshareNet != nil {
+		r.UnshareNet = local.UnshareNet
+	}
 	return &r
 }
 

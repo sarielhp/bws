@@ -25,12 +25,14 @@ Launch an interactive sandbox shell in the current directory.
 | `--verbose` | `-v` | `false` | Print detailed bwrap arguments, staging paths, and mount plans to stderr |
 | `--force` | `-f` | `false` | Skip the safety prompt when the directory contains more than `max_file_count` files |
 | `--readonly` | `-r` | `false` | Mount the current workspace read-only inside the sandbox |
+| `--no-net` | `-N` | `false` | Completely block network access (air-gapped network namespace) |
 | `--info` | | `false` | Dry run: display the resolved bwrap argument plan without launching |
 
 ```bash
 bws            # Interactive sandbox (read-write workspace)
 bws -r         # Interactive sandbox (read-only workspace)
 bws -v         # Show full bwrap argument list before launching
+bws -N         # Air-gapped interactive sandbox (no internet or host localhost access)
 bws --info     # Dry run: print the bwrap plan without executing it
 ```
 
@@ -43,6 +45,7 @@ Execute a single command inside the sandbox and exit with the command's status c
 bws exec -- go test ./...
 bws exec -- python -m pytest
 bws exec -r -- uv run main.py
+bws exec -N -- pytest               # Run tests completely offline
 ```
 
 ---

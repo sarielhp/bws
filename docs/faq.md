@@ -70,13 +70,16 @@ When operating in a Git workspace connected to GitHub via SSH (`git@github.com:.
 
 ## Does `bws` restrict outbound network access?
 
-**No.** `bws` does not provide network namespace isolation by default. Sandboxed processes can make outbound TCP/UDP connections to the internet.
+**By default, no** — but it provides native **air-gapped network isolation** via `-N` / `--offline` or the `offline` profile.
 
-This is an intentional design choice: developer tools (package managers like `go`, `npm`, `cargo`, `uv`, language servers, documentation tools) require network access to download packages and update registries.
+### Default behavior
+By default, outbound TCP/UDP traffic is permitted so package managers (`go`, `npm`, `cargo`, `uv`, `pip`) and language servers can fetch packages and dependencies.
 
-If you require network isolation for untrusted scripts:
-1. Wrap `bws` inside an isolated network namespace (`unshare --net bws`).
-2. Apply host-level firewall rules (`nftables` / `iptables`) scoped to sandbox cgroups or process groups.
+### Air-gapped isolation (`-N` / `offline` profile)
+When network isolation is enabled (via `bws -N`, `bws exec -N`, or adding `"offline"` to your `profiles`):
+1. **Internet blocked**: All outbound DNS, HTTP, and socket connections fail immediately.
+2. **Host `127.0.0.1` protected**: The sandbox gets a private loopback interface (`lo`). Services running on the host'''s `127.0.0.1` (e.g. Postgres, Redis, Ollama, Docker TCP, local dev servers) are **completely unreachable**.
+3. **Internal IPC only**: Processes started *inside that same sandbox* can communicate with each other on the sandbox'''s private `127.0.0.1`.
 
 ---
 

@@ -25,6 +25,8 @@ type FeaturesConfig struct {
 	EnableWSL         *bool    `json:"enable_wsl"`
 	EnableEtcAutoBind *bool    `json:"enable_etc_auto_bind"`
 	EnableOhMyPosh    *bool    `json:"enable_oh_my_posh"`
+	NoNet             *bool    `json:"no_net,omitempty"`
+	UnshareNet        *bool    `json:"unshare_net,omitempty"`
 }
 
 type OhMyPoshConfig struct {

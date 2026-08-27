@@ -38,6 +38,8 @@ type Profile struct {
 	Mask        []string          `json:"mask,omitempty"`
 	BindsRW     [][]string        `json:"binds_rw,omitempty"`
 	BindsRO     [][]string        `json:"binds_ro,omitempty"`
+	UnshareNet  bool              `json:"unshare_net,omitempty"`
+	NoNet       bool              `json:"no_net,omitempty"`
 	Detect      *DetectSpec       `json:"detect,omitempty"`
 	Tests       []TestSpec        `json:"tests,omitempty"`
 	Rules       []ProfileRule     `json:"rules,omitempty"`
@@ -55,6 +57,7 @@ type ResolvedProfile struct {
 	Mask        []string
 	BindsRW     [][]string
 	BindsRO     [][]string
+	UnshareNet  bool
 	Tests       []TestSpec
 }
 
@@ -182,6 +185,9 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 		p := registry[pName]
 		if res.Description == "" && p.Description != "" {
 			res.Description = p.Description
+		}
+		if p.UnshareNet || p.NoNet {
+			res.UnshareNet = true
 		}
 
 		for _, pt := range p.Path {
