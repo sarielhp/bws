@@ -31,7 +31,7 @@
 
 * **Zero daemon overhead**: `bws` runs instantly as a lightweight, unprivileged user process. There are no background daemons, socket permissions, or storage overlay drivers.
 * **Direct host toolchain access**: Rather than bundling heavy multi-gigabyte container images, `bws` leverages existing host compilers, language servers, and tools inside isolated user namespaces.
-* **Instant in-place startup**: Launches in milliseconds without container image build steps.
+* **In-place startup**: Launches in milliseconds without container image build steps.
 
 ---
 

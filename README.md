@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux)](https://github.com/sarielhp/bws)
 
-**`bws`** is a fast, declarative, unprivileged Linux sandbox launcher and orchestrator built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — the gold-standard, unprivileged containerization engine developed by the Flatpak and Red Hat teams.
+**`bws`** is a fast, declarative, unprivileged Linux sandbox launcher and orchestrator built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — an unprivileged containerization engine developed by the Flatpak and Red Hat teams.
 
 > **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap](https://github.com/containers/bubblewrap). It wraps `bwrap`'s raw namespace primitives into a complete developer workflow with ephemeral home directories, declarative capability profiles, path masking, shell hooks, and automatic SSH integration.
 
@@ -74,7 +74,7 @@ bws
 
 **What happens behind the scenes:**
 * **Ephemeral `$HOME` staging**: `bws` provisions a fresh, temporary home directory in `/tmp/bws/stage_*` populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) from your global skeleton (`~/.config/bws/skeleton/`).
-* **In-place workspace mounting**: Your current directory is bind-mounted directly at its exact path, allowing compilers, language tools, and editors to work seamlessly on your project without copying large trees.
+* **In-place workspace mounting**: Your current directory is bind-mounted directly at its exact path, allowing compilers, language tools, and editors to work directly on your project without copying large trees.
 * **Zero-privilege namespaces**: Runs inside unprivileged Linux user, mount, IPC, PID, and UTS namespaces (`bwrap` unprivileged mode) with no root or setuid requirements.
 * **Host privacy protection**: Your host `$HOME` dotfiles, SSH credentials, browser cookies, cloud API keys, and shell histories are shielded from running code.
 * **Clean automatic teardown**: The moment you exit the sandbox (`exit` or `Ctrl+D`), the ephemeral stage directory and all temporary mounts are destroyed cleanly without leaving leftover state on your host.
@@ -97,11 +97,11 @@ bws init-dev --preset python
 bws init-dev -p docker,quarto
 ```
 
-Your workspace is mounted directly at its exact absolute path inside the sandbox (read-write by default, or read-only via `-r`), allowing compilation and testing to run seamlessly in place while isolating the rest of your system.
+Your workspace is mounted directly at its exact absolute path inside the sandbox (read-write by default, or read-only via `-r`), allowing compilation and testing to run directly in place while isolating the rest of your system.
 
 **Why is workspace initialization needed?**  
 Because `bws` creates a clean, isolated `$HOME` by default, your personal dotfiles and development toolchain caches are shielded. Initializing your workspace ensures only the specific directories required for your project are mapped into the bubble:
-* **Go**: Exports `~/.go` and `~/.cache/go-build` so `go build`, package modules, and GOPATH function seamlessly.
+* **Go**: Exports `~/.go` and `~/.cache/go-build` so `go build`, package modules, and GOPATH function normally.
 * **Python / UV**: Exports `~/.cache/uv` and `~/.cache/pip` so package managers and virtual environments share cached wheels without re-downloading.
 * **Rust**: Exports `~/.cargo` and `~/.rustup` for compilers, cargo binaries, and crate registries.
 * **Node**: Exports `~/.npm`, `~/.pnpm-store`, and `~/.cache/yarn`.
@@ -122,7 +122,7 @@ bws exec -- uv run main.py
 Profiles are modular, declarative sandboxing recipes. Instead of manually crafting dozens of complex `bwrap` arguments (specifying cache directories, PATH entries, read-only config mounts, environment variables, and security masks), profiles package all requirements for a tool or language into a reusable definition. You can activate full development stacks or security bundles simply by listing their names in your configuration (e.g. `profiles: ["python-dev", "docker", "no-secrets"]`).
 
 **Thousands of profiles out of the box:**  
-Beyond the embedded profile catalog, `bws` integrates with the [**Homebrew Formula API**](https://brew.sh) (for dependencies, binaries, and package metadata across 7,000+ open-source tools) and [**Firejail Profiles**](https://github.com/netblue30/firejail) (for battle-tested filesystem access and security rules). This allows `bws` to search and synthesize sandboxing intelligence on-the-fly for virtually any tool.
+Beyond the embedded profile catalog, `bws` integrates with the [**Homebrew Formula API**](https://brew.sh) (for dependencies, binaries, and package metadata across 7,000+ open-source tools) and [**Firejail Profiles**](https://github.com/netblue30/firejail) (for filesystem access and security rules). This allows `bws` to search and synthesize sandboxing intelligence on-the-fly for additional tools.
 
 ```bash
 # Search profiles across local, embedded, and Homebrew catalog
@@ -161,7 +161,7 @@ bws test no-sudo
 
 ## Automatic GitHub deploy keys & Git isolation
 
-One of the greatest challenges with developer and AI agent sandboxes is Git authentication: *how do you enable `git push` and `git pull` without exposing your personal host SSH keys or account-wide GitHub tokens?*
+A common problem with developer sandboxes is Git authentication: *how to enable `git push` and `git pull` without exposing your personal host SSH keys or account-wide GitHub tokens?*
 
 `bws` solves this automatically:
 1. **Repository detection**: When run in a Git workspace connected to GitHub, `bws` inspects the origin remote.
@@ -170,7 +170,7 @@ One of the greatest challenges with developer and AI agent sandboxes is Git auth
 4. **Scoped agent injection**: It loads **only this repository key** into the sandbox SSH agent.
 
 ```bash
-# Pull, commit, and push inside the sandbox with zero prompt friction
+# Pull, commit, and push inside the sandbox directly over SSH
 bws exec -- git push origin main
 ```
 
