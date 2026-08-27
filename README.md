@@ -130,10 +130,20 @@ bws profile new ripgrep
 
 ### 5. Verify stack integrity
 
+`bws test <profile>` executes automated smoke tests directly inside a real, isolated sandbox session to verify that your specific tools, compilers, and security rules function properly inside the bubble before running code:
+
+* **Tool & compiler execution**: Confirms that binaries are in PATH, package managers work, compilers can build code, and language servers start cleanly.
+* **Security enforcement**: Verifies that sensitive paths (like `sudo`, SSH keys, browser profiles, and cloud secrets) are actively blocked.
+
 ```bash
-# Run multi-command verification tests in an isolated sandbox
+# Verify that the complete Go toolchain (Go compiler, Gopls LSP, Git, GitHub CLI, Editor) works in sandbox
 bws test go-dev
+
+# Verify hardened AI agent environment (OpenCode, Antigravity, and active secret masking)
 bws test secure-agent
+
+# Verify that privilege escalation binaries and sudoers are actively blocked
+bws test no-sudo
 ```
 
 ---
