@@ -154,7 +154,8 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 			if k == "PATH" {
 				continue
 			}
-			val := v
+			val := strings.ReplaceAll(v, config.HomeToken, homeDir)
+			val = util.ExpandHome(val)
 			if v == "@@PASS@@" || v == "@@HOST@@" {
 				val = os.Getenv(k)
 				if k == "LC_ALL" && val == "" {
@@ -163,10 +164,10 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 				if k == "LOGNAME" && val == "" {
 					val = os.Getenv("USER")
 				}
-			} else if strings.Contains(v, "$") {
-				val = os.Expand(v, func(varName string) string {
+			} else if strings.Contains(val, "$") {
+				val = os.Expand(val, func(varName string) string {
 					if envVal, ok := cfg.Env[varName]; ok && envVal != "" && envVal != v {
-						return envVal
+						return strings.ReplaceAll(envVal, config.HomeToken, homeDir)
 					}
 					return os.Getenv(varName)
 				})
