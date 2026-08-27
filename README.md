@@ -88,6 +88,15 @@ bws init-dev -p docker,quarto
 
 Your workspace is mounted directly at its exact absolute path inside the sandbox (read-write by default, or read-only via `-r`), allowing compilation and testing to run seamlessly in place while isolating the rest of your system.
 
+**Why is workspace initialization needed?**  
+Because `bws` creates a clean, isolated `$HOME` by default, your personal dotfiles and development toolchain caches are shielded. Initializing your workspace ensures only the specific directories required for your project are mapped into the bubble:
+* **Go**: Exports `~/.go` and `~/.cache/go-build` so `go build`, package modules, and GOPATH function seamlessly.
+* **Python / UV**: Exports `~/.cache/uv` and `~/.cache/pip` so package managers and virtual environments share cached wheels without re-downloading.
+* **Rust**: Exports `~/.cargo` and `~/.rustup` for compilers, cargo binaries, and crate registries.
+* **Node**: Exports `~/.npm`, `~/.pnpm-store`, and `~/.cache/yarn`.
+
+This gives you full isolation from sensitive personal data and host secrets, while your language toolchains and package caches remain fast and fully operational.
+
 ### 3. Run commands directly inside a sandbox
 
 ```bash
