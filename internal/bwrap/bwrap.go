@@ -127,25 +127,38 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		}
 	}
 
+	for _, k := range cfg.PassEnv {
+		if k == "PATH" {
+			continue
+		}
+		val := os.Getenv(k)
+		if k == "LC_ALL" && val == "" {
+			val = os.Getenv("LANG")
+		}
+		if k == "LOGNAME" && val == "" {
+			val = os.Getenv("USER")
+		}
+		if val != "" {
+			args = append(args, "--setenv", k, val)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (passed)\n", k, val)
+			}
+		}
+	}
+
 	if cfg.Env != nil {
-		for k, defaultVal := range cfg.Env {
+		for k, v := range cfg.Env {
 			if k == "PATH" {
 				continue
 			}
-			val := os.Getenv(k)
-			if val == "" {
-				val = defaultVal
-			}
-			if k == "LC_ALL" && os.Getenv("LC_ALL") == "" {
-				val = os.Getenv("LANG")
-				if val == "" {
-					val = defaultVal
+			val := v
+			if v == "@@PASS@@" || v == "@@HOST@@" {
+				val = os.Getenv(k)
+				if k == "LC_ALL" && val == "" {
+					val = os.Getenv("LANG")
 				}
-			}
-			if k == "LOGNAME" && os.Getenv("LOGNAME") == "" {
-				val = os.Getenv("USER")
-				if val == "" {
-					val = defaultVal
+				if k == "LOGNAME" && val == "" {
+					val = os.Getenv("USER")
 				}
 			}
 			if val != "" {

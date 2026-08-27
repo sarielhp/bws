@@ -34,6 +34,7 @@ func Merge(global, local *Config) *Config {
 	result.OhMyPosh = mergeOhMyPosh(global.OhMyPosh, local.OhMyPosh)
 	result.Env = mergeEnv(global.Env, local.Env)
 
+	result.PassEnv = mergeStringSlices(global.PassEnv, local.PassEnv)
 	result.Path = mergeStringSlices(global.Path, local.Path)
 	result.BindsRW = mergeBindEntries(global.BindsRW, local.BindsRW)
 	result.BindsRO = mergeBindEntries(global.BindsRO, local.BindsRO)

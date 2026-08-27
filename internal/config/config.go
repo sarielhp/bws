@@ -65,6 +65,7 @@ type Config struct {
 	Features        *FeaturesConfig   `json:"features"`
 	OhMyPosh        *OhMyPoshConfig   `json:"oh_my_posh"`
 	Env             map[string]string `json:"env"`
+	PassEnv         []string          `json:"pass_env,omitempty"`
 	Path            []string          `json:"path"`
 	BindsRW         []BindEntry       `json:"binds_rw"`
 	BindsRO         []BindEntry       `json:"binds_ro"`
@@ -203,14 +204,16 @@ func generateDefaultConfig() string {
   "oh_my_posh": {
     "theme_path": "~/.config/bw/theme.omp.json"
   },
+  "pass_env": [
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TERM",
+    "LANG",
+    "LC_ALL"
+  ],
   "env": {
     "HOME": %[1]q,
-    "USER": "",
-    "LOGNAME": "",
-    "SHELL": "",
-    "TERM": "",
-    "LANG": "",
-    "LC_ALL": "",
     "EDITOR": "emacs -nw",
     "VISUAL": "emacs -nw"
   },
