@@ -1,0 +1,19 @@
+# Compiled binary
+/bw
+
+# Go build/test artifacts
+*.test
+*.out
+*.prof
+
+# Local configuration files (contain user-specific paths and possibly secrets)
+.bw.jsonc
+*.bak
+
+# Legacy/reference files with user-specific data (not for sharing)
+/old/
+/old_script/
+
+# Editor/OS cruft
+*~
+.DS_Store
