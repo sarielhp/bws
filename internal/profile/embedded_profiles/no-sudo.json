@@ -7,13 +7,17 @@
     "/usr/bin/su",
     "/bin/su",
     "/usr/bin/pkexec",
+    "/bin/pkexec",
     "/usr/bin/doas",
+    "/bin/doas",
     "/usr/bin/gpasswd",
-    "/usr/bin/newgrp"
+    "/bin/gpasswd",
+    "/usr/bin/newgrp",
+    "/bin/newgrp"
   ],
   "tests": [
     {
-      "name": "sudo is masked and non-executable",
+      "name": "sudo binary is blocked",
       "cmd": [
         "bash",
         "-c",
@@ -22,11 +26,47 @@
       "type": "smoke"
     },
     {
-      "name": "su is masked and non-executable",
+      "name": "su binary is blocked",
       "cmd": [
         "bash",
         "-c",
         "! su 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "pkexec binary is blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! pkexec 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "doas binary is blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! doas 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "gpasswd binary is blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! gpasswd 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "newgrp binary is blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! newgrp 2>/dev/null"
       ],
       "type": "smoke"
     }

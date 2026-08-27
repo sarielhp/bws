@@ -40,6 +40,8 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 	for _, p := range resolved.Path {
 		testCfg.Path = append(testCfg.Path, p)
 	}
+	testCfg.PassEnv = append(testCfg.PassEnv, resolved.PassEnv...)
+	testCfg.Mask = append(testCfg.Mask, resolved.Mask...)
 	for k, v := range resolved.Env {
 		if testCfg.Env == nil {
 			testCfg.Env = make(map[string]string)
