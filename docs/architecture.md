@@ -36,7 +36,7 @@ When a command like `bws`, `bws exec -- <cmd>`, or `bws test <profile>` is invok
 flowchart TD
     A["CLI Entry (main.go)"] --> B["Safety Checks (blocks /, ~, ~/bin, file limits)"]
     B --> C["Config Loading (~/.config/bws/config.jsonc + .bws/config.jsonc)"]
-    C --> D["Profile Dependency Resolution (Topological DAG Sort)"]
+    C --> D["Profile Dependency Resolution (Topological Sort of Profile DAG)"]
     D --> E["Ephemeral Home Staging (/tmp/bws/stage_*)"]
     E --> F["Skeleton Synthesis (Global + Local Dotfiles + Dynamic PATH)"]
     F --> G["Build bwrap Command (Mounts, Masks, PassEnv, Host Intg)"]
@@ -135,7 +135,7 @@ bws profile fetch <name>
 * **`no-email`**: Blocks Thunderbird, Evolution, Mutt, and Maildir mailboxes.
 * **`no-secrets`**: Blocks `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.password-store`, `~/.gnupg`, `~/.vault-token`.
 * **`no-history`**: Blocks `.bash_history`, `.zsh_history`, `.python_history`, `.psql_history`.
-* **`.bws/` workspace auto-masking**: When running in a project workspace, the `.bws/` directory and `.bws.jsonc` file are **automatically masked by default**. In-sandbox processes cannot inspect or tamper with sandbox launcher rules.
+* **`.bws/` workspace auto-masking**: When running in a project workspace, the `.bws/` directory is **automatically masked by default**. In-sandbox processes cannot inspect or tamper with sandbox launcher rules.
 
 ---
 

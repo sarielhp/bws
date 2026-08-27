@@ -62,7 +62,7 @@ Traditional container environments force developers to choose between broken Git
 
 ```mermaid
 flowchart LR
-    Host["Host Environment (gh CLI)"] -- Registers --> GitHub["GitHub API (Deploy Key)"]
+    Host["Host Environment (authenticated gh CLI)"] -- Registers --> GitHub["GitHub API (Deploy Key)"]
     Host -- Generates --> Key["~/.sandbox/deploy_keys/owner_repo"]
     Key -- Injected into --> Agent["Sandbox SSH Agent"]
     Agent -- Scoped Git access --> Repo["Single Repository Only"]

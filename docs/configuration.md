@@ -115,5 +115,5 @@ Values in the `env` map support dynamic `$VAR` expansion:
 
 `bws` provisions ephemeral dotfiles during startup:
 1. Base dotfiles from `~/.config/bws/skeleton/` (`.bashrc`, `.profile`, `.tmux.conf`).
-2. Project-specific dotfiles from `.bws/skeleton/` (if present in the workspace root).
+2. Project-specific dotfiles from `.bws/skeleton/` (if present in the workspace root; copied into stage before runtime masking).
 3. Dynamic PATH additions and prompt settings are appended automatically to `.bashrc`.

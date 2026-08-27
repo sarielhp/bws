@@ -43,11 +43,11 @@ cd bws
 make install
 ```
 
-The binary will be compiled and installed to `~/bin/bws`.
+The binary will be compiled and installed to `~/bin/bws`. Ensure `~/bin` is in your `$PATH` (e.g. `export PATH="$HOME/bin:$PATH"` in your `.bashrc` or `.zshrc`).
 
 ### Prerequisites
 
-* **Linux kernel** 3.8+ with user namespaces enabled (standard on Debian, Ubuntu, Fedora, and Arch).
+* **Linux kernel** 3.8+ with user namespaces enabled (standard on Debian, Ubuntu, Fedora, Arch).
 * **`bubblewrap`** (`bwrap`):
   ```bash
   # Debian / Ubuntu / Mint
@@ -59,54 +59,50 @@ The binary will be compiled and installed to `~/bin/bws`.
   # Arch Linux
   sudo pacman -S bubblewrap
   ```
+* **`gh`** (GitHub CLI, optional): Required for automated repository Deploy Key management (`gh auth login`).
 
 ---
 
 ## Quick start
 
-### 1. Launch an ephemeral interactive sandbox
+### 1. Initialize your project workspace
 
-Running `bws` without arguments drops you into a fully isolated, interactive sandbox shell in your current working directory:
+Before entering a sandbox, `bws` inspects your repository to determine which language toolchains and build caches to map so that builds run directly without exposing your host `$HOME`.
+
+In your project directory, run:
+
+```bash
+# Auto-detect language stack (Go, Python/UV, Rust, Node, LaTeX) and create .bws/config.jsonc
+bws init-dev
+
+# Dry-run preview without writing files
+bws init-dev -n
+
+# Or explicitly select a preset stack
+bws init-dev --preset python
+```
+
+**Why is workspace initialization needed?**  
+`bws` creates a clean, isolated `$HOME` by default. Initializing your project generates `.bws/config.jsonc`, ensuring essential toolchain directories are mapped into the sandbox while keeping all personal host files private:
+* **Go**: Maps `~/.go` and `~/.cache/go-build` so `go build`, modules, and GOPATH function normally.
+* **Python / UV**: Maps `~/.cache/uv` and `~/.cache/pip` so package managers share cached wheels.
+* **Rust**: Maps `~/.cargo` and `~/.rustup` for compilers and crate registries.
+* **Node**: Maps `~/.npm`, `~/.pnpm-store`, and `~/.cache/yarn`.
+
+### 2. Launch an ephemeral interactive sandbox
+
+Now, drop into your isolated development environment:
 
 ```bash
 bws
 ```
 
 **What happens behind the scenes:**
-* **Ephemeral `$HOME` staging**: `bws` provisions a fresh, temporary home directory in `/tmp/bws/stage_*` populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) from your global skeleton (`~/.config/bws/skeleton/`).
-* **In-place workspace mounting**: Your current directory is bind-mounted directly at its exact path, allowing compilers, language tools, and editors to work directly on your project without copying large trees.
-* **Zero-privilege namespaces**: Runs inside unprivileged Linux user, mount, IPC, PID, and UTS namespaces (`bwrap` unprivileged mode) with no root or setuid requirements.
-* **Host privacy protection**: Your host `$HOME` dotfiles, SSH credentials, browser cookies, cloud API keys, and shell histories are shielded from running code.
-* **Clean automatic teardown**: The moment you exit the sandbox (`exit` or `Ctrl+D`), the ephemeral stage directory and all temporary mounts are destroyed cleanly without leaving leftover state on your host.
-
-### 2. Auto-detect and initialize a project workspace
-
-The `bws init-dev` command inspects your workspace (detecting Go, Python/UV, Rust, Node, LaTeX, AI agents, etc.), creates the local `.bws/` subdirectory, and writes a tailored `.bws/config.jsonc` file:
-
-```bash
-# Auto-detect language stack and initialize .bws/config.jsonc in current directory
-bws init-dev
-
-# Dry-run preview: print generated JSONC to stdout without writing to disk
-bws init-dev -n
-
-# Explicitly select a preset stack (go, python, rust, node, latex, agent, all)
-bws init-dev --preset python
-
-# Include additional tool profiles
-bws init-dev -p docker,quarto
-```
-
-Your workspace is mounted directly at its exact absolute path inside the sandbox (read-write by default, or read-only via `-r`), allowing compilation and testing to run directly in place while isolating the rest of your system.
-
-**Why is workspace initialization needed?**  
-Because `bws` creates a clean, isolated `$HOME` by default, your personal dotfiles and development toolchain caches are shielded. Initializing your workspace ensures only the specific directories required for your project are mapped into the bubble:
-* **Go**: Exports `~/.go` and `~/.cache/go-build` so `go build`, package modules, and GOPATH function normally.
-* **Python / UV**: Exports `~/.cache/uv` and `~/.cache/pip` so package managers and virtual environments share cached wheels without re-downloading.
-* **Rust**: Exports `~/.cargo` and `~/.rustup` for compilers, cargo binaries, and crate registries.
-* **Node**: Exports `~/.npm`, `~/.pnpm-store`, and `~/.cache/yarn`.
-
-This gives you full isolation from sensitive personal data and host secrets, while your language toolchains and package caches remain fast and fully operational.
+* **Ephemeral `$HOME` staging**: `bws` provisions a temporary home directory in `/tmp/bws/stage_*` populated with clean dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) from `~/.config/bws/skeleton/`.
+* **In-place workspace mounting**: Your current directory is bind-mounted directly at its exact path, allowing compilers, language tools, and editors to edit and build code directly.
+* **Zero-privilege namespaces**: Runs inside unprivileged Linux user, mount, IPC, PID, and UTS namespaces with zero root requirements.
+* **Host privacy protection**: Personal dotfiles, host SSH keys, browser cookies, cloud API tokens, and command history remain completely hidden.
+* **Clean automatic teardown**: When you exit (`exit` or `Ctrl+D`), the ephemeral stage directory and all temporary mounts are destroyed cleanly.
 
 ### 3. Run commands directly inside a sandbox
 
@@ -171,7 +167,7 @@ A common problem with developer sandboxes is Git authentication: *how to enable 
 
 ```bash
 # Pull, commit, and push inside the sandbox directly over SSH
-bws exec -- git push origin main
+bws exec -- git push origin main  # Requires SSH remote (e.g. git@github.com:owner/repo)
 ```
 
 **Zero-trust security guarantee**: If code or an autonomous agent inside the sandbox is compromised, its reach is cryptographically confined to that single repository — your master SSH keys (`~/.ssh`) and personal GitHub account tokens remain strictly on the host.

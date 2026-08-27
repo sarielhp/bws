@@ -34,9 +34,22 @@ When a profile is activated (via `"profiles": ["go-dev"]` in `~/.config/bws/conf
 Meta-profiles aggregate individual tools into unified, full-stack developer environments:
 
 ### `editor`
-**Description**: Default text editor (override in ~/.config/bws/profiles/editor.json to choose emacs, neovim, or vim)
+**Description**: Default text editor (override in `~/.config/bws/profiles/editor.json` to choose `emacs`, `neovim`, or `vim`).
 
 **Requires**: `emacs`
+
+*Example `~/.config/bws/profiles/editor.json` to use Neovim:*
+```json
+{
+  "name": "editor",
+  "description": "Default text editor (Neovim)",
+  "requires": ["neovim"],
+  "env": {
+    "EDITOR": "nvim",
+    "VISUAL": "nvim"
+  }
+}
+```
 
 ### `go-dev`
 **Description**: Full Go developer environment (Go toolchain, Gopls LSP, Git, GitHub CLI, Editor)

@@ -59,7 +59,7 @@
 
 ## How does automatic SSH deploy-key generation work?
 
-When operating in a Git workspace connected to GitHub:
+When operating in a Git workspace connected to GitHub via SSH (`git@github.com:...`) and authenticated with the `gh` CLI (`gh auth login`):
 1. `bws` detects the remote repository.
 2. If enabled, it automatically generates an isolated, ephemeral SSH key pair.
 3. It registers the key as a repository deploy key using the `gh` CLI.
