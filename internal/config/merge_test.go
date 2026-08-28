@@ -220,19 +220,19 @@ func TestMergeNilSystem(t *testing.T) {
 func TestMergeOhMyPoshDeepMerge(t *testing.T) {
 	global := &Config{
 		OhMyPosh: &OhMyPoshConfig{
-			ThemePath: strPtr("~/.config/bwss/theme.omp.json"),
+			ThemePath: strPtr("~/.config/bws/theme.omp.json"),
 		},
 	}
 	local := &Config{
 		OhMyPosh: &OhMyPoshConfig{
-			ThemePath: strPtr("~/.config/bwss/custom.omp.json"),
+			ThemePath: strPtr("~/.config/bws/custom.omp.json"),
 		},
 	}
 	result := Merge(global, local)
 	if result.OhMyPosh == nil {
 		t.Fatal("expected OhMyPosh to be non-nil")
 	}
-	if *result.OhMyPosh.ThemePath != "~/.config/bwss/custom.omp.json" {
+	if *result.OhMyPosh.ThemePath != "~/.config/bws/custom.omp.json" {
 		t.Errorf("expected ThemePath overridden, got %q", *result.OhMyPosh.ThemePath)
 	}
 }

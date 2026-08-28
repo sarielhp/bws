@@ -284,7 +284,7 @@ const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File 
   },
 
   "oh_my_posh": {
-    "theme_path": "~/.config/bwss/theme.omp.json"
+    "theme_path": "~/.config/bws/theme.omp.json"
   },
 
   "env": {

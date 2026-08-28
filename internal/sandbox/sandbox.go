@@ -127,13 +127,13 @@ func copyDir(src, dest string) {
 }
 
 func setupOhMyPosh(cfg *config.Config, sandboxDir string) {
-	themeSource := filepath.Join(util.HomeDir(), ".config", "bw", "theme.omp.json")
+	themeSource := filepath.Join(util.HomeDir(), ".config", "bws", "theme.omp.json")
 	if cfg.OhMyPosh != nil && cfg.OhMyPosh.ThemePath != nil {
 		themeSource = util.ExpandHome(*cfg.OhMyPosh.ThemePath)
 	}
 
 	if _, err := os.Stat(themeSource); os.IsNotExist(err) {
-		if themeSource == filepath.Join(util.HomeDir(), ".config", "bw", "theme.omp.json") {
+		if themeSource == filepath.Join(util.HomeDir(), ".config", "bws", "theme.omp.json") {
 			os.MkdirAll(filepath.Dir(themeSource), 0755)
 			os.WriteFile(themeSource, []byte(config.DefaultThemeJSON), 0644)
 		}

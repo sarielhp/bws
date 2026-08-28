@@ -89,7 +89,7 @@ func main() {
 				Description: "Manage sandbox configuration files and view the merged config plan",
 				UsageLine:   "bws conf [subcommand] [-g | -l]",
 				Notes: []clihelp.Note{
-					{Text: "Configuration is stored in two JSONC files: global (~/.config/bwss/config.jsonc) and local (.bws/config.jsonc). The local config overrides the global for the current directory only. Without a subcommand, 'bws conf' shows usage information. With -g or -l, it shows the raw file contents."},
+					{Text: "Configuration is stored in two JSONC files: global (~/.config/bws/config.jsonc) and local (.bws/config.jsonc). The local config overrides the global for the current directory only. Without a subcommand, 'bws conf' shows usage information. With -g or -l, it shows the raw file contents."},
 				},
 				Subcommands: []clihelp.Command{
 					{

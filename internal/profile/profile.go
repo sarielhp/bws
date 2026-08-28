@@ -93,7 +93,7 @@ func LoadRegistry(projectDir string) (map[string]*Profile, error) {
 		}
 	}
 
-	// 2. Global profiles (~/.config/bwss/profiles)
+	// 2. Global profiles (~/.config/bws/profiles)
 	globalDir := GlobalProfilesDir()
 	loadDirProfiles(globalDir, "global", registry)
 

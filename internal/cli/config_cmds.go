@@ -138,7 +138,7 @@ func PrintConfUsage() {
   directories and files from the host into an isolated filesystem.
   Configuration is stored in two JSONC files (JSON with comments):
 
-    Global:  ~/.config/bwss/config.jsonc
+    Global:  ~/.config/bws/config.jsonc
     Local:   .bws/config.jsonc  (in the current directory)
 
   The global config applies to all sandbox sessions. The local config
