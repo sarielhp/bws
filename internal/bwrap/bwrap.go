@@ -3,7 +3,6 @@ package bwrap
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -227,30 +226,6 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	addOptBind(&args)
 	addQuartoBind(&args)
 
-	enableOMP := true
-	if cfg.Features != nil && cfg.Features.EnableOhMyPosh != nil {
-		enableOMP = *cfg.Features.EnableOhMyPosh
-	}
-	var resolvedOmpBin string
-	if enableOMP {
-		ompPath := filepath.Join(homeDir, "bin", "oh-my-posh")
-		if _, err := os.Stat(ompPath); err == nil {
-			if realPath, err := filepath.EvalSymlinks(ompPath); err == nil {
-				resolvedOmpBin = realPath
-			} else {
-				resolvedOmpBin = ompPath
-			}
-		} else {
-			if pathBin, err := exec.LookPath("oh-my-posh"); err == nil {
-				if realPath, err := filepath.EvalSymlinks(pathBin); err == nil {
-					resolvedOmpBin = realPath
-				} else {
-					resolvedOmpBin = pathBin
-				}
-			}
-		}
-	}
-
 	hostTmp := "/tmp/bws/SANDBOX_TMP"
 	if !dryRun {
 		os.MkdirAll("/tmp/bws", 0755)
@@ -258,9 +233,6 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		hostTmp, err = os.MkdirTemp("/tmp/bws", "sandbox_")
 		if err != nil {
 			hostTmp = "/tmp/bws/SANDBOX_TMP"
-		}
-		if resolvedOmpBin != "" {
-			os.WriteFile(filepath.Join(hostTmp, "oh-my-posh"), nil, 0755)
 		}
 	}
 
@@ -273,15 +245,9 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		"--bind", currentDir, currentDir,
 		"--chdir", currentDir,
 	)
-	if resolvedOmpBin != "" {
-		args = append(args, "--ro-bind", resolvedOmpBin, "/tmp/oh-my-posh")
-	}
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose]   --bind %s /tmp\n", hostTmp)
-		if resolvedOmpBin != "" {
-			fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind %s /tmp/oh-my-posh\n", resolvedOmpBin)
-		}
 		fmt.Fprintf(os.Stderr, "[verbose]   --proc /proc\n")
 		fmt.Fprintf(os.Stderr, "[verbose]   --dev /dev\n")
 		fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /sys /sys\n")
