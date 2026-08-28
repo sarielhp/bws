@@ -42,6 +42,8 @@ if [ -f "$HOME/.mytheme.omp.json" ]; then
     eval "$(oh-my-posh init bash --config $HOME/.mytheme.omp.json)"
   elif [ -x "$HOME/bin/oh-my-posh" ]; then
     eval "$($HOME/bin/oh-my-posh init bash --config $HOME/.mytheme.omp.json)"
+  elif [ -x "/tmp/oh-my-posh" ]; then
+    eval "$(/tmp/oh-my-posh init bash --config $HOME/.mytheme.omp.json)"
   fi
 fi
 `
@@ -313,8 +315,12 @@ elif [ -x "$HOME/bin/oh-my-posh" ]; then
   if [ -f "%s" ]; then
     eval "$($HOME/bin/oh-my-posh init bash --config %s)"
   fi
+elif [ -x "/tmp/oh-my-posh" ]; then
+  if [ -f "%s" ]; then
+    eval "$(/tmp/oh-my-posh init bash --config %s)"
+  fi
 fi
-`, themePathCheck, themePathCheck, themePathCheck, themePathCheck))
+`, themePathCheck, themePathCheck, themePathCheck, themePathCheck, themePathCheck, themePathCheck))
 		}
 	}
 
