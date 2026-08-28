@@ -21,7 +21,6 @@ func TestMergeScalarOverride(t *testing.T) {
 		ModelsJSONPath:  "~/info/llm/models.json",
 		TmuxSessionName: "bwrap-dev",
 		MaxFileCount:    1000,
-		Cdtoday:         "info/misc",
 	}
 	local := &Config{
 		SandboxPath:     "/home/user/.sandbox/custom",
@@ -40,9 +39,6 @@ func TestMergeScalarOverride(t *testing.T) {
 	}
 	if result.ModelsJSONPath != "~/info/llm/models.json" {
 		t.Errorf("expected ModelsJSONPath preserved as %q, got %q", "~/info/llm/models.json", result.ModelsJSONPath)
-	}
-	if result.Cdtoday != "info/misc" {
-		t.Errorf("expected Cdtoday preserved as %q, got %q", "info/misc", result.Cdtoday)
 	}
 }
 

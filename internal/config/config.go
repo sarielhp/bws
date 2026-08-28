@@ -63,7 +63,6 @@ type Config struct {
 	ModelsJSONPath  string            `json:"models_json_path"`
 	TmuxSessionName string            `json:"tmux_session_name"`
 	MaxFileCount    int               `json:"max_file_count"`
-	Cdtoday         string            `json:"cdtoday"`
 	Features        *FeaturesConfig   `json:"features"`
 	OhMyPosh        *OhMyPoshConfig   `json:"oh_my_posh"`
 	Env             map[string]string `json:"env"`
@@ -209,7 +208,6 @@ func generateDefaultConfig() string {
   "models_json_path": "",
   "tmux_session_name": "bwrap-dev",
   "max_file_count": 1000,
-  "cdtoday": "info/misc",
   "profiles": [
     "editor"
   ],
@@ -288,8 +286,6 @@ const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File 
   "oh_my_posh": {
     "theme_path": "~/.config/bwss/theme.omp.json"
   },
-
-  "cdtoday": "info/misc",
 
   "env": {
     "HOME": "@@HOME@@",

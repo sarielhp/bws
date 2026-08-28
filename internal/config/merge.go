@@ -25,9 +25,6 @@ func Merge(global, local *Config) *Config {
 	if local.MaxFileCount != 0 {
 		result.MaxFileCount = local.MaxFileCount
 	}
-	if local.Cdtoday != "" {
-		result.Cdtoday = local.Cdtoday
-	}
 
 	result.System = mergeSystem(global.System, local.System)
 	result.Features = mergeFeatures(global.Features, local.Features)
