@@ -24,13 +24,8 @@ type FeaturesConfig struct {
 	EnableX11         *bool    `json:"enable_x11"`
 	EnableWSL         *bool    `json:"enable_wsl"`
 	EnableEtcAutoBind *bool    `json:"enable_etc_auto_bind"`
-	EnableOhMyPosh    *bool    `json:"enable_oh_my_posh"`
 	NoNet             *bool    `json:"no_net,omitempty"`
 	UnshareNet        *bool    `json:"unshare_net,omitempty"`
-}
-
-type OhMyPoshConfig struct {
-	ThemePath *string `json:"theme_path"`
 }
 
 type BindEntry struct {
@@ -64,7 +59,6 @@ type Config struct {
 	TmuxSessionName string            `json:"tmux_session_name"`
 	MaxFileCount    int               `json:"max_file_count"`
 	Features        *FeaturesConfig   `json:"features"`
-	OhMyPosh        *OhMyPoshConfig   `json:"oh_my_posh"`
 	Env             map[string]string `json:"env"`
 	PassEnv         []string          `json:"pass_env,omitempty"`
 	Path            []string          `json:"path"`
@@ -177,12 +171,6 @@ func CreateExampleConfig(path string) error {
 	return os.WriteFile(path, []byte(ExampleConfigContent), 0644)
 }
 
-func CreateDefaultTheme(path string) error {
-	dir := filepath.Dir(path)
-	os.MkdirAll(dir, 0755)
-	return os.WriteFile(path, []byte(DefaultThemeJSON), 0644)
-}
-
 func generateDefaultConfig() string {
 	h := os.Getenv("HOME")
 	if h == "" {
@@ -279,12 +267,7 @@ const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File 
     "enable_ssh": false,
     "enable_x11": false,
     "enable_wsl": true,
-    "enable_etc_auto_bind": false,
-    "enable_oh_my_posh": false
-  },
-
-  "oh_my_posh": {
-    "theme_path": "~/.config/bws/theme.omp.json"
+    "enable_etc_auto_bind": false
   },
 
   "env": {
@@ -310,57 +293,6 @@ const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File 
 
   "binds_ro": [
     // ["/path/to/host/file_or_dir", "/path/to/sandbox/file_or_dir"]
-  ]
-}
-`
-
-const DefaultThemeJSON = `{
-  "version": 4,
-  "final_space": true,
-  "blocks": [
-    {
-      "type": "prompt",
-      "alignment": "left",
-      "newline": true,
-      "segments": [
-        {
-          "type": "text",
-          "style": "diamond",
-          "foreground": "#ffffff",
-          "background": "#8a2be2",
-          "leading_diamond": "\u{e0b6}",
-          "trailing_diamond": "\u{e0b0}",
-          "template": " \u{2b22} BUBBLE "
-        },
-        {
-          "type": "session",
-          "style": "powerline",
-          "powerline_symbol": "\u{e0b0}",
-          "foreground": "#ffffff",
-          "background": "#3a3a3a",
-          "template": " {{ .UserName }}@{{ .HostName }} "
-        },
-        {
-          "type": "path",
-          "style": "powerline",
-          "powerline_symbol": "\u{e0b0}",
-          "foreground": "#ffffff",
-          "background": "#1c2e4a",
-          "template": " {{ .Path }} ",
-          "properties": {
-            "style": "folder"
-          }
-        },
-        {
-          "type": "git",
-          "style": "powerline",
-          "powerline_symbol": "\u{e0b0}",
-          "foreground": "#101010",
-          "background": "#2e9599",
-          "template": " {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }} "
-        }
-      ]
-    }
   ]
 }
 `

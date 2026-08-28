@@ -62,8 +62,6 @@ func HandleConfigInit(global, local bool) {
 		config.CreateDefault(path)
 		examplePath := filepath.Join(filepath.Dir(path), "example-config.jsonc")
 		config.CreateExampleConfig(examplePath)
-		themePath := filepath.Join(config.ConfigDir(), "theme.omp.json")
-		config.CreateDefaultTheme(themePath)
 		sandbox.EnsureGlobalSkeleton()
 	} else {
 		os.MkdirAll(filepath.Dir(path), 0755)

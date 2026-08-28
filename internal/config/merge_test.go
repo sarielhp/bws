@@ -80,16 +80,14 @@ func TestMergeFeaturesDeepMerge(t *testing.T) {
 		Features: &FeaturesConfig{
 			EnableSSH:         boolPtr(true),
 			EnableX11:         boolPtr(true),
-			EnableOhMyPosh:    boolPtr(true),
 			AutoRepoDeployKey: boolPtr(true),
 			SSHKeys:           []string{},
 		},
 	}
 	local := &Config{
 		Features: &FeaturesConfig{
-			EnableSSH:      boolPtr(false),
-			EnableOhMyPosh: boolPtr(false),
-			SSHKeys:        []string{"/home/user/.ssh/id_ed25519"},
+			EnableSSH: boolPtr(false),
+			SSHKeys:   []string{"/home/user/.ssh/id_ed25519"},
 		},
 	}
 	result := Merge(global, local)
@@ -101,9 +99,6 @@ func TestMergeFeaturesDeepMerge(t *testing.T) {
 	}
 	if *result.Features.EnableX11 != true {
 		t.Errorf("expected EnableX11 preserved as true, got %t", *result.Features.EnableX11)
-	}
-	if *result.Features.EnableOhMyPosh != false {
-		t.Errorf("expected EnableOhMyPosh false, got %t", *result.Features.EnableOhMyPosh)
 	}
 	if *result.Features.AutoRepoDeployKey != true {
 		t.Errorf("expected AutoRepoDeployKey preserved as true, got %t", *result.Features.AutoRepoDeployKey)
@@ -214,26 +209,6 @@ func TestMergeNilSystem(t *testing.T) {
 	}
 	if *result.System.Hostname != "custom" {
 		t.Errorf("expected Hostname custom, got %q", *result.System.Hostname)
-	}
-}
-
-func TestMergeOhMyPoshDeepMerge(t *testing.T) {
-	global := &Config{
-		OhMyPosh: &OhMyPoshConfig{
-			ThemePath: strPtr("~/.config/bws/theme.omp.json"),
-		},
-	}
-	local := &Config{
-		OhMyPosh: &OhMyPoshConfig{
-			ThemePath: strPtr("~/.config/bws/custom.omp.json"),
-		},
-	}
-	result := Merge(global, local)
-	if result.OhMyPosh == nil {
-		t.Fatal("expected OhMyPosh to be non-nil")
-	}
-	if *result.OhMyPosh.ThemePath != "~/.config/bws/custom.omp.json" {
-		t.Errorf("expected ThemePath overridden, got %q", *result.OhMyPosh.ThemePath)
 	}
 }
 

@@ -36,8 +36,6 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 			config.CreateDefault(globalPath)
 			examplePath := filepath.Join(filepath.Dir(globalPath), "example-config.jsonc")
 			config.CreateExampleConfig(examplePath)
-			themePath := filepath.Join(util.HomeDir(), ".config", "bws", "theme.omp.json")
-			config.CreateDefaultTheme(themePath)
 			fmt.Printf("Created config file: %s\n", globalPath)
 			os.Exit(0)
 		}

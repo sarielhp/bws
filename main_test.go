@@ -24,8 +24,6 @@ func ensureGlobalConfig(t *testing.T) {
 		config.CreateDefault(globalPath)
 		examplePath := filepath.Join(filepath.Dir(globalPath), "example-config.jsonc")
 		config.CreateExampleConfig(examplePath)
-		themePath := filepath.Join(util.HomeDir(), ".config", "bw", "theme.omp.json")
-		config.CreateDefaultTheme(themePath)
 	}
 }
 

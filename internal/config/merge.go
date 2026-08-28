@@ -28,7 +28,6 @@ func Merge(global, local *Config) *Config {
 
 	result.System = mergeSystem(global.System, local.System)
 	result.Features = mergeFeatures(global.Features, local.Features)
-	result.OhMyPosh = mergeOhMyPosh(global.OhMyPosh, local.OhMyPosh)
 	result.Env = mergeEnv(global.Env, local.Env)
 
 	result.PassEnv = mergeStringSlices(global.PassEnv, local.PassEnv)
@@ -140,28 +139,11 @@ func mergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.EnableEtcAutoBind != nil {
 		r.EnableEtcAutoBind = local.EnableEtcAutoBind
 	}
-	if local.EnableOhMyPosh != nil {
-		r.EnableOhMyPosh = local.EnableOhMyPosh
-	}
 	if local.NoNet != nil {
 		r.NoNet = local.NoNet
 	}
 	if local.UnshareNet != nil {
 		r.UnshareNet = local.UnshareNet
-	}
-	return &r
-}
-
-func mergeOhMyPosh(global, local *OhMyPoshConfig) *OhMyPoshConfig {
-	if local == nil {
-		return global
-	}
-	if global == nil {
-		return local
-	}
-	r := *global
-	if local.ThemePath != nil {
-		r.ThemePath = local.ThemePath
 	}
 	return &r
 }
