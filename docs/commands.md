@@ -224,6 +224,27 @@ bws config show -g
 bws config show -l
 ```
 
+### `bws config set <key> <value> [-g | -l]`
+Set a configuration key value in local or global configuration without opening an editor.
+```bash
+bws config set enable_proxy true       # Enable proxy in local workspace
+bws config set enable_ssh true -g      # Enable SSH forwarding globally
+bws config set max_file_count 25000    # Set file count safety limit
+```
+
+### `bws config get <key> [-g | -l]`
+Read a configuration key value from local or global configuration.
+```bash
+bws config get enable_proxy
+bws config get max_file_count -g
+```
+
+### `bws config unset <key> [-g | -l]`
+Remove a configuration key from local or global configuration.
+```bash
+bws config unset enable_proxy
+```
+
 ### `bws config edit [-g | -l]`
 Open configuration file in `$EDITOR`.
 ```bash

@@ -109,6 +109,83 @@ func HandleConfigEdit(global, local bool) {
 	}
 }
 
+// HandleConfigSet sets a configuration key value in target config.
+func HandleConfigSet(key, value string, global, local bool) {
+	if !global && !local {
+		local = true
+	}
+	path := configFilePath(global)
+	label := "global"
+	if !global {
+		label = "local"
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if global {
+			config.CreateDefault(path)
+		} else {
+			_ = os.MkdirAll(filepath.Dir(path), 0755)
+			_ = os.WriteFile(path, []byte("{\n}\n"), 0644)
+		}
+	}
+
+	if err := config.SetConfigKV(path, key, value); err != nil {
+		fmt.Fprintf(os.Stderr, "Error setting config key %q: %v\n", key, err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Set %s in %s configuration (%s) = %s\n", key, label, path, value)
+}
+
+// HandleConfigGet reads a configuration key value from target config.
+func HandleConfigGet(key string, global, local bool) {
+	if !global && !local {
+		local = true
+	}
+	path := configFilePath(global)
+	label := "global"
+	if !global {
+		label = "local"
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "%s config not found at %s\n", label, path)
+		os.Exit(1)
+	}
+
+	val, err := config.GetConfigKV(path, key)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", key, err)
+		os.Exit(1)
+	}
+
+	fmt.Println(val)
+}
+
+// HandleConfigUnset removes a configuration key from target config.
+func HandleConfigUnset(key string, global, local bool) {
+	if !global && !local {
+		local = true
+	}
+	path := configFilePath(global)
+	label := "global"
+	if !global {
+		label = "local"
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "%s config not found at %s\n", label, path)
+		os.Exit(1)
+	}
+
+	if err := config.UnsetConfigKV(path, key); err != nil {
+		fmt.Fprintf(os.Stderr, "Error unsetting %s: %v\n", key, err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Unset %s from %s configuration (%s)\n", key, label, path)
+}
+
 // HandleConfigPush copies global configuration & theme files to a remote host via SCP.
 func HandleConfigPush(destination string) {
 	HandleSCP([]string{destination})
