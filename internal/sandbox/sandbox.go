@@ -246,6 +246,20 @@ func setupTmuxConfig(sandboxDir string) {
 	data, _ := os.ReadFile(tmuxConf)
 	content := string(data)
 
+	// Ensure mouse mode and smooth wheel scrolling into copy mode
+	mouseBlock := "\n# Enhanced mouse scrolling & copy mode\n" +
+		"set -g mouse on\n" +
+		"set -s set-clipboard on\n" +
+		"bind-key -n WheelUpPane if-shell -F -t = \"#{mouse_any_flag}\" \"send-keys -M\" \"if -Ft= '#{pane_in_mode}' 'send-keys -M' 'copy-mode -et='\"\n" +
+		"bind-key -n WheelDownPane select-pane -t= \\; send-keys -M\n" +
+		"bind-key -T copy-mode-vi WheelUpPane send-keys -X -N 5 scroll-up\n" +
+		"bind-key -T copy-mode-vi WheelDownPane send-keys -X -N 5 scroll-down\n" +
+		"bind-key -T copy-mode-emacs WheelUpPane send-keys -X -N 5 scroll-up\n" +
+		"bind-key -T copy-mode-emacs WheelDownPane send-keys -X -N 5 scroll-down\n" +
+		"bind-key -T copy-mode WheelUpPane send-keys -X -N 5 scroll-up\n" +
+		"bind-key -T copy-mode WheelDownPane send-keys -X -N 5 scroll-down\n"
+	content += mouseBlock
+
 	if needsBubble || !strings.Contains(content, "BUBBLE") {
 		content += "\n# Sandbox indicator in status bar\nset -g status-left-length 20\nset -g status-left \"#[fg=white,bg=purple,bold] BUBBLE #[default] \"\nset -g status-style bg=colour234,fg=colour137\n"
 	}
