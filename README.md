@@ -12,6 +12,7 @@
 
 ## Table of contents
 
+* [Why bws? Autonomous agent sandboxing without Docker](#why-bws-autonomous-agent-sandboxing-without-docker)
 * [Key capabilities](#key-capabilities)
 * [Installation](#installation)
 * [Quick start](#quick-start)
@@ -19,6 +20,29 @@
 * [Troubleshooting](#troubleshooting)
 * [Documentation guide](#documentation-guide)
 * [License](#license)
+
+---
+
+## Why bws? Autonomous agent sandboxing without Docker
+
+When developers run autonomous AI coding agents (such as Google Antigravity/`agy`, OpenCode, Claude Code, Aider, or Cline) with auto-approve flags enabled (`--dangerously-skip-permissions`, `--yes`), the agent gains unrestricted command execution rights on the local machine. This introduces concrete operational and security boundaries:
+
+* **Host credential exposure**: Sandboxed commands can inspect ambient private keys (`~/.ssh`), cloud tokens (`~/.aws`, `~/.config/gcloud`), and browser sessions.
+* **Privilege escalation & host mutation**: Uncontrolled subshells can overwrite host shell profiles, install background services, or mutate host dotfiles.
+* **Git hook escapes**: Worktree-based sandboxes share `.git/hooks` with the host repository, allowing an agent to plant malicious hook scripts that execute on the host during future developer commits.
+
+### Technical trade-offs compared to alternatives
+
+| Dimension | Virtual Machines | Docker / Devcontainers | `bws` (Bubblewrap) |
+| :--- | :--- | :--- | :--- |
+| **Startup latency** | Seconds (slow) | ~1-2 seconds | **<10 ms (sub-millisecond)** |
+| **Privilege model** | Hypervisor / kernel | Root daemon / privileged socket | **Unprivileged user namespaces (`CLONE_NEWUSER`)** |
+| **Resource overhead** | High RAM / CPU allocation | Moderate (daemon bridge) | **0% overhead (native kernel processes)** |
+| **Home directory** | Static guest disk | Shared host `$HOME` unless image re-baked | **Ephemeral `tmpfs` `$HOME` with skeleton dotfiles** |
+| **Git security** | Isolated | Shared via bind mount | **Isolated Clone-Fetch workflow (`bws gw`)** |
+| **SSH handling** | Key copying required | Sockets exposed or keys shared | **On-the-fly per-repo GitHub deploy keys via `gh`** |
+
+`bws` combines unprivileged Linux kernel namespaces (`CLONE_NEWUSER`, `CLONE_NEWNS`, `CLONE_NEWPID`, `CLONE_NEWIPC`) with declarative capability profiles to provide a zero-daemon execution environment for fast, safe autonomous agent runs.
 
 ---
 
