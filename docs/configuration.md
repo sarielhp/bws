@@ -48,6 +48,7 @@
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
+| `enable_proxy` | `bool` | `false` | Tunnel outbound sandbox traffic through an in-process IPv4 proxy |
 | `enable_ssh` | `bool` | `true` | Enable dedicated sandbox SSH agent forwarding |
 | `enable_x11` | `bool` | `false` | Enable X11 socket forwarding for GUI applications |
 | `enable_wsl` | `bool` | `true` | Auto-bind `/run/WSL` and propagate `WSL_INTEROP` on WSL2 |

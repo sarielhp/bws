@@ -26,6 +26,8 @@
 
 * **Zero-privilege sandboxing**: Runs purely in Linux user namespaces (`bwrap` unprivileged mode). No root permissions, setuid binaries, or daemon sockets required.
 * **Disposable ephemeral homes**: Stages an isolated `$HOME` directory (`/tmp/bws/stage_*`) populated with clean skeleton dotfiles (`.bashrc`, `.profile`, `.tmux.conf`) that disappear when the session ends.
+* **Disposable Git agent workflow (`bws gw`)**: Runs autonomous coding agents in an ephemeral clone (`/tmp/bws/agent_*`) with air-gapped SSH, auto-commits on exit, and interactive Merge/Squash/Keep/Discard triage.
+* **In-process forward proxy (`--proxy`)**: Ephemeral host proxy providing IPv4 tunneling to avoid kernel IPv6 routing probe failures in containers.
 * **Declarative capability profiles**: Composes dev stacks and toolchains with a single line (e.g. `profiles: ["go-dev"]` or `profiles: ["secure-agent"]`).
 * **Path masking & security hardening**: Neutralizes host privilege escalation tools (`no-sudo`), SSH credentials (`no-ssh`), browser cookies (`no-browser`), cloud keys (`no-secrets`), and command history (`no-history`).
 * **Air-gapped offline mode**: Completely isolate the sandbox network namespace via `-N` / `--offline` or the `offline` profile, severing both internet access and host `127.0.0.1` services.
@@ -115,7 +117,29 @@ bws run -N pytest               # Run tests air-gapped without network
 bws run uv run main.py
 ```
 
-### 4. Search and inspect capability profiles
+### 4. Run autonomous AI coding agents in a disposable Git branch (`bws gw`)
+
+When running autonomous AI agents (e.g. Google Antigravity `agy`), `bws gw` (alias `git-workflow`) provisions an isolated, ephemeral Git clone (`/tmp/bws/agent_*`) with air-gapped SSH (`--no-ssh`).
+
+```bash
+# Run Antigravity autonomously in a disposable clone
+bws gw agy
+
+# Run on a named branch with a prompt
+bws gw -b fix-auth -- agy "Fix the OAuth token refresh bug"
+
+# Auto-stash current uncommitted work before starting
+bws gw --stash
+```
+
+When the session finishes, `bws` auto-commits any pending changes, fetches the branch back to your host repository, and presents a 1-key triage menu:
+* `[m]` **Merge**: Fast-forward/merge changes into your current branch.
+* `[s]` **Squash**: Squash-merge all agent commits into a single commit on your branch.
+* `[k]` **Keep**: Preserve the branch on the host for manual review.
+* `[d]` **Discard**: Delete the branch and discard changes.
+* `[v]` **View**: Open full `git diff` in your pager.
+
+### 5. Search and inspect capability profiles
 
 **What are capability profiles and why use them?**  
 Profiles are modular, declarative sandboxing recipes. Instead of manually crafting dozens of complex `bwrap` arguments (specifying cache directories, PATH entries, read-only config mounts, environment variables, and security masks), profiles package all requirements for a tool or language into a reusable definition. You can activate full development stacks or security bundles simply by listing their names in your configuration (e.g. `profiles: ["python-dev", "docker", "no-secrets"]`).
@@ -138,7 +162,7 @@ bws profile show go-dev
 bws profile new ripgrep
 ```
 
-### 5. Verify stack integrity
+### 6. Verify stack integrity
 
 `bws test <profile>` executes automated smoke tests directly inside a real, isolated sandbox session to verify that your specific tools, compilers, and security rules function properly inside the bubble before running code:
 
