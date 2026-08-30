@@ -4,9 +4,9 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux)](https://github.com/sarielhp/bws)
 
-**`bws`** is a declarative, unprivileged Linux sandbox launcher built on top of [**Bubblewrap (`bwrap`)**](https://github.com/containers/bubblewrap) — an unprivileged containerization engine developed by the Flatpak and Red Hat teams.
+**`bws`** is an unprivileged Linux sandbox launcher designed to run autonomous AI coding agents (such as Google Antigravity, OpenCode, Claude Code, Aider, or Cline) and development toolchains inside disposable [Bubblewrap](https://github.com/containers/bubblewrap) environments. It provides container-grade filesystem and credential isolation without requiring Docker, root daemons, or virtual machines—running at native kernel speed with sub-millisecond startup, zero idle resource overhead, and automated Git merge workflows.
 
-> **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap](https://github.com/containers/bubblewrap). It wraps `bwrap`'s raw namespace primitives into a complete developer workflow with ephemeral home directories, declarative capability profiles, path masking, shell hooks, and automatic SSH integration.
+> **Note on Bubblewrap**: `bws` is a higher-level declarative frontend for [Bubblewrap (`bwrap`)](https://github.com/containers/bubblewrap)—an unprivileged container engine developed by the Flatpak and Red Hat teams. It wraps Linux user and mount namespaces into an integrated workflow featuring ephemeral `$HOME` staging, capability profiles, credential masking, network proxying, and isolated Git triage.
 
 ---
 
