@@ -117,6 +117,7 @@ func TestAppAudit(t *testing.T) {
 }
 
 func TestClihelpAbbrevAndCompletion(t *testing.T) {
+	ensureGlobalConfig(t)
 	app := buildApp()
 
 	// Test shell completion generator

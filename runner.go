@@ -34,13 +34,17 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 	globalCfg, err := config.LoadFile(globalPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			config.CreateDefault(globalPath)
+			_ = config.CreateDefault(globalPath)
 			examplePath := filepath.Join(filepath.Dir(globalPath), "example-config.jsonc")
-			config.CreateExampleConfig(examplePath)
+			_ = config.CreateExampleConfig(examplePath)
 			fmt.Printf("Created config file: %s\n", globalPath)
-			os.Exit(0)
+			globalCfg, _ = config.LoadFile(globalPath)
+			if globalCfg == nil {
+				globalCfg = &config.Config{}
+			}
+		} else {
+			return nil, fmt.Errorf("loading global config: %w", err)
 		}
-		return nil, fmt.Errorf("loading global config: %w", err)
 	}
 
 	localPath := config.LocalPath()

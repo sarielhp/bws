@@ -15,6 +15,21 @@ func TestMergeNilLocal(t *testing.T) {
 	}
 }
 
+func TestMergeNilGlobal(t *testing.T) {
+	local := &Config{SandboxPath: "/home/user/.sandbox/local"}
+	result := Merge(nil, local)
+	if result.SandboxPath != "/home/user/.sandbox/local" {
+		t.Errorf("expected SandboxPath %q, got %q", "/home/user/.sandbox/local", result.SandboxPath)
+	}
+}
+
+func TestMergeNilBoth(t *testing.T) {
+	result := Merge(nil, nil)
+	if result == nil {
+		t.Fatal("expected non-nil Config from Merge(nil, nil)")
+	}
+}
+
 func TestMergeScalarOverride(t *testing.T) {
 	global := &Config{
 		SandboxPath:     "/home/user/.sandbox",

@@ -8,6 +8,12 @@ func boolPtrVal(b *bool) bool {
 }
 
 func Merge(global, local *Config) *Config {
+	if global == nil && local == nil {
+		return &Config{}
+	}
+	if global == nil {
+		return local
+	}
 	if local == nil {
 		return global
 	}
