@@ -163,6 +163,35 @@ When the session finishes, `bws` auto-commits any pending changes, fetches the b
 * `[d]` **Discard**: Delete the branch and discard changes.
 * `[v]` **View**: Open full `git diff` in your pager.
 
+#### End-to-end terminal walkthrough
+
+```text
+$ bws gw -b feat-auth-refresh -- agy "Implement token refresh and tests"
+
+=== Entering Bubblewrap Agent Sandbox (feat-auth-refresh) ===
+[agent] Reading auth/token.go...
+[agent] Updating token refresh handler...
+[agent] Running go test ./... -> PASS (12 tests)
+[agent] Goal complete. Exiting.
+
+=== Sandbox Session Ended ===
+Auto-committing remaining changes in agent workspace...
+
+Agent changes on branch feat-auth-refresh:
+ auth/token.go      | 42 ++++++++++++++++++++++++++++++------------
+ auth/token_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 12 deletions(-)
+
+What would you like to do with branch "feat-auth-refresh"?
+  [m] Merge   - Fast-forward or merge into current branch
+  [s] Squash  - Squash all commits into one commit on current branch
+  [k] Keep    - Keep branch for manual inspection
+  [d] Discard - Delete branch and discard all agent changes
+  [v] View    - Open full diff in pager
+> m
+Merged feat-auth-refresh into main and removed temporary branch.
+```
+
 ### 5. Search and inspect capability profiles
 
 **What are capability profiles and why use them?**  
