@@ -50,10 +50,12 @@ type TraceResult struct {
 
 // TraceOptions configures the execution and parsing of a trace session.
 type TraceOptions struct {
-	Command []string
-	WorkDir string
-	HomeDir string
-	Verbose bool
+	Command  []string
+	WorkDir  string
+	HomeDir  string
+	PathEnv  string
+	PathDirs []string
+	Verbose  bool
 }
 
 // ToProfile converts a TraceResult into a declarative capability Profile.

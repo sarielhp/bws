@@ -11,31 +11,71 @@ func TestPathFiltering(t *testing.T) {
 	workDir := "/home/user/myproject"
 
 	tests := []struct {
+		name       string
 		path       string
+		pathDirs   []string
 		shouldHide bool
 	}{
-		{"/proc/cpuinfo", true},
-		{"/sys/class/net", true},
-		{"/dev/null", true},
-		{"/usr/lib/libc.so", true},
-		{"/bin/bash", true},
-		{"/etc/ld.so.cache", true},
-		{"/etc/resolv.conf", true},
-		{"/tmp/tempfile.dat", true},
-		{"/var/tmp/temp.dat", true},
-		{"/home/user", true},
-		{"/home/user/myproject", true},
-		{"/home/user/myproject/src/main.go", true},
-		{"/home/user/.config/myapp/config.json", false},
-		{"/home/user/.gitconfig", false},
-		{"/opt/custom/bin/tool", false},
+		{"proc cpuinfo", "/proc/cpuinfo", nil, true},
+		{"sys net", "/sys/class/net", nil, true},
+		{"dev null", "/dev/null", nil, true},
+		{"usr libc", "/usr/lib/libc.so", nil, true},
+		{"bin bash", "/bin/bash", nil, true},
+		{"etc ld.so.cache", "/etc/ld.so.cache", nil, true},
+		{"etc resolv.conf", "/etc/resolv.conf", nil, true},
+		{"etc hosts", "/etc/hosts", nil, true},
+		{"etc fonts", "/etc/fonts/fonts.conf", nil, true},
+		{"etc custom", "/etc/custom/app.conf", nil, true},
+		{"tmp file", "/tmp/tempfile.dat", nil, true},
+		{"var tmp file", "/var/tmp/temp.dat", nil, true},
+		{"home root", "/home/user", nil, true},
+		{"workspace root", "/home/user/myproject", nil, true},
+		{"workspace file", "/home/user/myproject/src/main.go", nil, true},
+		{"user local bin dir", "/home/user/.local/bin", nil, true},
+		{"user local bin exec", "/home/user/.local/bin/black", nil, true},
+		{"user bin dir", "/home/user/bin", nil, true},
+		{"user bin exec", "/home/user/bin/helper", nil, true},
+		{"user cargo bin dir", "/home/user/.cargo/bin", nil, true},
+		{"user cargo bin exec", "/home/user/.cargo/bin/rustc", nil, true},
+		{"user go bin dir", "/home/user/go/bin", nil, true},
+		{"user go bin exec", "/home/user/go/bin/gopls", nil, true},
+		{"user config file", "/home/user/.config/myapp/config.json", nil, false},
+		{"user gitconfig", "/home/user/.gitconfig", nil, false},
+		{"user cargo config", "/home/user/.cargo/config.toml", nil, false},
+		{"user local share", "/home/user/.local/share/myapp/data", nil, false},
+		{"opt tool not in PATH", "/opt/custom/bin/tool", nil, false},
+		{"opt tool in custom PATH", "/opt/custom/bin/tool", []string{"/opt/custom/bin"}, true},
+		{"opt lib with custom PATH", "/opt/custom/lib/liba.so", []string{"/opt/custom/bin"}, false},
 	}
 
 	for _, tt := range tests {
-		got := ShouldFilterPath(tt.path, workDir, homeDir)
-		if got != tt.shouldHide {
-			t.Errorf("ShouldFilterPath(%q) = %v, want %v", tt.path, got, tt.shouldHide)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			got := ShouldFilterPath(tt.path, workDir, homeDir, tt.pathDirs...)
+			if got != tt.shouldHide {
+				t.Errorf("ShouldFilterPath(%q) = %v, want %v", tt.path, got, tt.shouldHide)
+			}
+		})
+	}
+}
+
+func TestAccessModeFiltering(t *testing.T) {
+	homeDir := "/home/user"
+	workDir := "/home/user/myproject"
+
+	// Read on /etc should be hidden; write on /etc should NOT be hidden
+	if !ShouldFilterAccess("/etc/myapp/config.conf", AccessRead, workDir, homeDir) {
+		t.Errorf("expected read on /etc to be filtered")
+	}
+	if ShouldFilterAccess("/etc/myapp/config.conf", AccessWrite, workDir, homeDir) {
+		t.Errorf("expected write on /etc NOT to be filtered")
+	}
+
+	// Read/probe on PATH executable should be hidden; write should NOT be hidden
+	if !ShouldFilterAccess("/home/user/.local/bin/black", AccessRead, workDir, homeDir) {
+		t.Errorf("expected read probe in PATH to be filtered")
+	}
+	if ShouldFilterAccess("/home/user/.local/bin/black", AccessWrite, workDir, homeDir) {
+		t.Errorf("expected write in PATH NOT to be filtered")
 	}
 }
 
@@ -51,11 +91,14 @@ func TestCollapseAndClassify(t *testing.T) {
 		"/home/user/.ssh/known_hosts":             AccessRead,  // RO
 		"/home/user/.gemini/session.json":         AccessWrite, // ~/.gemini is RW
 		"/opt/custom/lib/liba.so":                 AccessRead,  // /opt/custom is RO
+		"/etc/fonts/fonts.conf":                   AccessRead,  // Read-only /etc should be ignored
+		"/etc/custom/app.conf":                    AccessWrite, // Write to /etc should be captured
 	}
 
 	bindsRW, bindsRO := CollapseAndClassify(accesses, homeDir)
 
 	wantRW := []string{
+		"/etc/custom",
 		"~/.cache/myapp",
 		"~/.config/myapp",
 		"~/.gemini",
@@ -111,7 +154,14 @@ func TestSocketAndFeatureDetection(t *testing.T) {
 func TestAnalyzeTraceLines(t *testing.T) {
 	lines := []string{
 		`1001 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3`,
+		`1001 openat(AT_FDCWD, "/etc/hosts", O_RDONLY) = 3`,
+		`1001 openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY) = 3`,
+		`1001 openat(AT_FDCWD, "/etc/fonts/fonts.conf", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/usr/lib/libc.so.6", O_RDONLY|O_CLOEXEC) = 3`,
+		`1001 stat("/home/user/.local/bin/mytool", 0x7ffd) = -1 ENOENT`,
+		`1001 access("/home/user/bin/mytool", X_OK) = -1 ENOENT`,
+		`1001 newfstatat(AT_FDCWD, "/home/user/.cargo/bin", {st_mode=S_IFDIR|0755}, 0) = 0`,
+		`1001 openat(AT_FDCWD, "/home/user/.cargo/bin/rustc", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/home/user/.gitconfig", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/config.toml", O_RDONLY) = 4`,
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/state.db", O_RDWR|O_CREAT, 0644) = 5`,

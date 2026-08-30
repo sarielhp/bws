@@ -84,6 +84,10 @@ func CollapseAndClassify(accesses map[string]AccessMode, homeDir string) ([]stri
 		if norm == "" || norm == "~" || norm == "/" {
 			continue
 		}
+		// Ignore all read-only accesses under /etc
+		if (norm == "/etc" || strings.HasPrefix(norm, "/etc/")) && (mode&AccessWrite == 0) {
+			continue
+		}
 		collapsed := CollapsePath(norm)
 		if collapsed == "" || collapsed == "~" || collapsed == "/" {
 			continue

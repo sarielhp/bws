@@ -100,6 +100,8 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 		opts.WorkDir, _ = os.Getwd()
 	}
 
+	pathDirs := GetPathDirectories(opts.HomeDir, opts.PathEnv, opts.PathDirs...)
+
 	features := DetectedFeatures{}
 	accesses := make(map[string]AccessMode)
 
@@ -121,7 +123,7 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 
 			DetectPathFeatures(absPath, &features)
 
-			if ShouldFilterPath(absPath, opts.WorkDir, opts.HomeDir) {
+			if ShouldFilterAccess(absPath, parsed.Mode, opts.WorkDir, opts.HomeDir, pathDirs...) {
 				continue
 			}
 
