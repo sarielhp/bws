@@ -23,8 +23,8 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs /etc\n")
 	}
 
-	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.NoNet }) ||
-		config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.UnshareNet }) {
+	if config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.NoNet }, false) ||
+		config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.UnshareNet }, false) {
 		args = append(args, "--unshare-net")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[verbose]   --unshare-net (air-gapped network namespace)\n")

@@ -270,7 +270,7 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		fmt.Fprintf(os.Stderr, "[verbose] Current directory: %s\n", currentDir)
 	}
 
-	if !dryRun && config.FeatureEnabled(sl.cfg, func(f *config.FeaturesConfig) *bool { return f.EnableProxy }) {
+	if !dryRun && config.FeatureEnabledDefault(sl.cfg, func(f *config.FeaturesConfig) *bool { return f.EnableProxy }, false) {
 		proxyServer, err := proxy.Start()
 		if err != nil {
 			return fmt.Errorf("starting internal proxy: %w", err)

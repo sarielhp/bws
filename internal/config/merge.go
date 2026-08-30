@@ -188,12 +188,16 @@ func GetString(cfg *Config, getter func(*Config) *string, defaultVal string) str
 }
 
 func FeatureEnabled(cfg *Config, getter func(*FeaturesConfig) *bool) bool {
+	return FeatureEnabledDefault(cfg, getter, true)
+}
+
+func FeatureEnabledDefault(cfg *Config, getter func(*FeaturesConfig) *bool, defaultVal bool) bool {
 	if cfg == nil || cfg.Features == nil {
-		return true
+		return defaultVal
 	}
 	b := getter(cfg.Features)
 	if b != nil {
 		return *b
 	}
-	return true
+	return defaultVal
 }
