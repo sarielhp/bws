@@ -355,14 +355,14 @@ func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy bool
 
 	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy)
 
-	isDefaultSession := len(args) == 0
-	cli.VerifyTools(isDefaultSession, false)
-	cli.VerifyBwrapUserns()
-
 	currentDir, err := safetyChecks(sl, force, verbose)
 	if err != nil {
 		return err
 	}
+
+	isDefaultSession := len(args) == 0
+	cli.VerifyTools(isDefaultSession, false)
+	cli.VerifyBwrapUserns()
 
 	var execArgs []string
 	if len(args) == 0 {

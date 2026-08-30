@@ -38,7 +38,6 @@ func initCmd(f *appFlags) clihelp.Command {
 		Args:        clihelp.RangeArgs(0, 1),
 		Options: []clihelp.Option{
 			clihelp.Bool(&f.dryRun, "-n, --dry-run", false, "Print generated configuration to stdout without writing to disk"),
-			clihelp.Bool(&f.noSSH, "--no-ssh", false, "Disable SSH forwarding and Git SSH commands"),
 			clihelp.Bool(&f.opencode, "--opencode", false, "Force inclusion of OpenCode configuration directories"),
 			presetOpt,
 			profileOpt,

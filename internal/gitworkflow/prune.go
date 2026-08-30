@@ -75,10 +75,31 @@ func PruneInDir(dir string, opts PruneOptions) error {
 		fmt.Fprintf(os.Stderr, "[verbose] Not in a git repo: %v\n", err)
 	}
 
+	execPath, _ := os.Executable()
+	execPathReal, _ := filepath.EvalSymlinks(execPath)
+
+	cwd, _ := os.Getwd()
+	cwdReal, _ := filepath.EvalSymlinks(cwd)
+	repoRootReal, _ := filepath.EvalSymlinks(repoRoot)
+
 	if entries, err := os.ReadDir(baseTemp); err == nil {
 		for _, e := range entries {
 			if strings.HasPrefix(e.Name(), "agent_") && e.IsDir() {
 				targetPath := filepath.Join(baseTemp, e.Name())
+				targetReal, _ := filepath.EvalSymlinks(targetPath)
+				if targetReal == "" {
+					targetReal = targetPath
+				}
+
+				if (cwdReal != "" && (targetReal == cwdReal || strings.HasPrefix(cwdReal, targetReal+string(filepath.Separator)))) ||
+					(repoRootReal != "" && (targetReal == repoRootReal || strings.HasPrefix(repoRootReal, targetReal+string(filepath.Separator)))) ||
+					(execPathReal != "" && (targetReal == filepath.Dir(execPathReal) || strings.HasPrefix(execPathReal, targetReal+string(filepath.Separator)))) {
+					if opts.Verbose {
+						fmt.Fprintf(os.Stderr, "[verbose] Skipping active directory: %s\n", targetPath)
+					}
+					continue
+				}
+
 				if opts.DryRun {
 					result.PrunedDirs = append(result.PrunedDirs, targetPath)
 				} else {

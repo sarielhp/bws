@@ -15,8 +15,12 @@ import (
 var bwPath string
 
 func init() {
-	bwPath, _ = os.Getwd()
-	bwPath = filepath.Join(bwPath, "bw")
+	cwd, _ := os.Getwd()
+	if _, err := os.Stat(filepath.Join(cwd, "bws")); err == nil {
+		bwPath = filepath.Join(cwd, "bws")
+	} else {
+		bwPath = filepath.Join(cwd, "bw")
+	}
 }
 
 func ensureGlobalConfig(t *testing.T) {

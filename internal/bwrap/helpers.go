@@ -51,7 +51,7 @@ func addSSHArgs(cfg *config.Config, sandboxDir string, args *[]string, dryRun bo
 					filepath.Join(util.HomeDir(), ".ssh", "config"))
 			}
 			if fi, err := os.Stat(filepath.Join(hostSSHDir, "known_hosts")); err == nil && !fi.IsDir() {
-				*args = append(*args, "--bind", filepath.Join(hostSSHDir, "known_hosts"),
+				*args = append(*args, "--ro-bind", filepath.Join(hostSSHDir, "known_hosts"),
 					filepath.Join(util.HomeDir(), ".ssh", "known_hosts"))
 			}
 		}
@@ -91,16 +91,6 @@ func addX11Args(args *[]string) {
 	if fi, err := os.Stat(xauth); err == nil && !fi.IsDir() {
 		*args = append(*args, "--ro-bind", xauth, filepath.Join(util.HomeDir(), ".Xauthority"))
 		*args = append(*args, "--setenv", "XAUTHORITY", filepath.Join(util.HomeDir(), ".Xauthority"))
-	}
-
-	uid := os.Getuid()
-	userRunDir := os.Getenv("XDG_RUNTIME_DIR")
-	if userRunDir == "" {
-		userRunDir = fmt.Sprintf("/run/user/%d", uid)
-	}
-	if fi, err := os.Stat(userRunDir); err == nil && fi.IsDir() {
-		*args = append(*args, "--bind-try", userRunDir, userRunDir)
-		*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", userRunDir)
 	}
 
 	*args = append(*args, "--setenv", "NO_AT_SPI", "1")

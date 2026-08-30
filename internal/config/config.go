@@ -242,7 +242,6 @@ func generateDefaultConfig() string {
     ["/run/systemd/journal", "/run/systemd/journal"],
     ["~/.local", "%[1]s/.local"],
     ["~/.gitconfig", "%[1]s/.gitconfig"],
-    ["~/.git-credentials", "%[1]s/.git-credentials"],
     ["~/.config/git", "%[1]s/.config/git"],
     ["~/.ssh/config", "%[1]s/.ssh/config"],
     ["~/.ssh/known_hosts", "%[1]s/.ssh/known_hosts"]

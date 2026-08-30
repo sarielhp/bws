@@ -19,8 +19,10 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	}
 
 	args = append(args, "--tmpfs", "/etc")
+	args = append(args, "--unshare-ipc")
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs /etc\n")
+		fmt.Fprintf(os.Stderr, "[verbose]   --unshare-ipc\n")
 	}
 
 	if config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.NoNet }, false) ||
