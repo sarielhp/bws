@@ -6,7 +6,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.6"
+var Version = "0.3.7"
 
 func buildApp() *clihelp.App {
 	f := &appFlags{}
@@ -40,6 +40,7 @@ func buildApp() *clihelp.App {
 			mountCmd(f, glValidator),
 			copyCmd(f, glValidator),
 			pathCmd(f, glValidator),
+			gitWorkflowCmd(f),
 			runCmd(f),
 			testCmd(f),
 			profileCmd(f, glValidator),
