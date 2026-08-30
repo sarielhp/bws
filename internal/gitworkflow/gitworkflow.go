@@ -141,11 +141,11 @@ func promptTriage(hostRepo, baseBranch, branchName string) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf("\nWhat would you like to do with branch %q?\n", branchName)
-		fmt.Println("  [m] Merge   - Fast-forward or merge into current branch")
-		fmt.Println("  [s] Squash  - Squash all commits into one commit on current branch")
-		fmt.Println("  [k] Keep    - Keep branch for manual inspection")
-		fmt.Println("  [d] Discard - Delete branch and discard all agent changes")
-		fmt.Println("  [v] View    - Open full diff in pager")
+		fmt.Println("  [m] Merge        - Fast-forward or merge branch into current branch")
+		fmt.Println("  [s] Squash-merge - Merge as a single commit into current branch")
+		fmt.Println("  [k] Keep         - Keep branch for manual inspection without merging")
+		fmt.Println("  [d] Discard      - Delete branch and discard all agent changes")
+		fmt.Println("  [v] View         - Open full diff in pager")
 		fmt.Print("> ")
 
 		input, _ := reader.ReadString('\n')
@@ -162,7 +162,7 @@ func promptTriage(hostRepo, baseBranch, branchName string) {
 			fmt.Printf("Merged %s into %s and removed temporary branch.\n", branchName, baseBranch)
 			return
 
-		case "s", "squash":
+		case "s", "squash", "squash-merge":
 			if err := runCmd(hostRepo, "git", "merge", "--squash", branchName); err != nil {
 				fmt.Fprintf(os.Stderr, "Squash merge failed: %v\n", err)
 				return
