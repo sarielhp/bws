@@ -24,6 +24,7 @@ type FeaturesConfig struct {
 	EnableX11         *bool    `json:"enable_x11"`
 	EnableWSL         *bool    `json:"enable_wsl"`
 	EnableEtcAutoBind *bool    `json:"enable_etc_auto_bind"`
+	EnableProxy       *bool    `json:"enable_proxy,omitempty"`
 	NoNet             *bool    `json:"no_net,omitempty"`
 	UnshareNet        *bool    `json:"unshare_net,omitempty"`
 }

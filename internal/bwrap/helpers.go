@@ -129,7 +129,7 @@ func addEtcAutoBindArgs(args *[]string) {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if name != "resolv.conf" {
+		if name != "resolv.conf" && name != "gai.conf" && name != "hosts" {
 			path := filepath.Join("/etc", name)
 			*args = append(*args, "--ro-bind-try", path, path)
 		}

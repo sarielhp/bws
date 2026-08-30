@@ -97,7 +97,7 @@ func VerifyBwrapUserns() {
 func HandleSCP(args []string) {
 	if len(args) == 0 || args[0] == "" {
 		fmt.Fprintf(os.Stderr, "Error: Destination must be specified.\n")
-		fmt.Fprintf(os.Stderr, "Usage: bws scp <user@host:>\n")
+		fmt.Fprintf(os.Stderr, "Usage: bws config push <user@host:>\n")
 		os.Exit(1)
 	}
 	dest := args[0]
@@ -107,8 +107,8 @@ func HandleSCP(args []string) {
 		os.Exit(1)
 	}
 
-	configDir := filepath.Join(util.HomeDir(), ".config", "bw")
-	globalConfig := filepath.Join(configDir, "config.jsonc")
+	globalConfig := config.GlobalPath()
+	configDir := filepath.Dir(globalConfig)
 
 	if _, err := os.Stat(globalConfig); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "Error: Config file not found at %s.\n", globalConfig)
@@ -134,7 +134,9 @@ func HandleSCP(args []string) {
 }
 
 func HandleCopyAdd(prog string, global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	path := configFilePath(global)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -206,7 +208,9 @@ func HandleCopyList() {
 }
 
 func HandleCopyDel(prog string, global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	path := configFilePath(global)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {

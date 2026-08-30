@@ -35,14 +35,38 @@ func Prepare(cfg *config.Config, sandboxDir string) {
 		CopiedFiles = append(CopiedFiles, CopyRecord{Src: modelsSrc, Dest: filepath.Join(sandboxDir, ".pi", "agent", "models.json"), Copied: true})
 	}
 
-	if data, err := os.ReadFile("/etc/resolv.conf"); err == nil {
+	resolvSrc := "/run/systemd/resolve/resolv.conf"
+	if _, err := os.Stat(resolvSrc); err != nil {
+		resolvSrc = "/etc/resolv.conf"
+	}
+	if data, err := os.ReadFile(resolvSrc); err == nil {
 		dest := filepath.Join(sandboxDir, "etc", "resolv.conf")
 		copied := false
 		if existing, err := os.ReadFile(dest); err != nil || string(existing) != string(data) {
 			os.WriteFile(dest, data, 0644)
 			copied = true
 		}
-		CopiedFiles = append(CopiedFiles, CopyRecord{Src: "/etc/resolv.conf", Dest: dest, Copied: copied})
+		CopiedFiles = append(CopiedFiles, CopyRecord{Src: resolvSrc, Dest: dest, Copied: copied})
+	}
+
+	gaiDest := filepath.Join(sandboxDir, "etc", "gai.conf")
+	gaiContent := "precedence ::ffff:0:0/96 100\n"
+	if existing, err := os.ReadFile(gaiDest); err != nil || string(existing) != gaiContent {
+		os.WriteFile(gaiDest, []byte(gaiContent), 0644)
+	}
+
+	if data, err := os.ReadFile("/etc/hosts"); err == nil {
+		hostsContent := string(data)
+		if !strings.Contains(hostsContent, "daily-cloudcode-pa.googleapis.com") {
+			hostsContent += "\n172.217.114.4 daily-cloudcode-pa.googleapis.com cloudcode-pa.googleapis.com\n"
+		}
+		dest := filepath.Join(sandboxDir, "etc", "hosts")
+		copied := false
+		if existing, err := os.ReadFile(dest); err != nil || string(existing) != hostsContent {
+			os.WriteFile(dest, []byte(hostsContent), 0644)
+			copied = true
+		}
+		CopiedFiles = append(CopiedFiles, CopyRecord{Src: "/etc/hosts", Dest: dest, Copied: copied})
 	}
 
 	setupShellConfig(cfg, sandboxDir)

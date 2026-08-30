@@ -8,10 +8,10 @@ Comprehensive reference for all commands and options in `bws`.
 
 * [Core execution commands](#core-execution-commands)
 * [Workspace initialization](#workspace-initialization)
+* [Environment status & plan](#environment-status--plan)
 * [Capability profile management](#capability-profile-management)
-* [Configuration inspection & editing](#configuration-inspection--editing)
-* [Custom bind & copy management](#custom-bind--copy-management)
-* [Remote synchronization](#remote-synchronization)
+* [Environment modifiers (mount, copy, path)](#environment-modifiers-mount-copy-path)
+* [Configuration management & remote sync](#configuration-management--remote-sync)
 
 ---
 
@@ -24,163 +24,228 @@ Launch an interactive sandbox shell in the current directory.
 | :--- | :--- | :--- | :--- |
 | `--verbose` | `-v` | `false` | Print detailed bwrap arguments, staging paths, and mount plans to stderr |
 | `--force` | `-f` | `false` | Skip the safety prompt when the directory contains more than `max_file_count` files |
-| `--readonly` | `-r` | `false` | Mount the current workspace read-only inside the sandbox |
-| `--no-net` | `-N` | `false` | Completely block network access (air-gapped network namespace) |
-| `--info` | | `false` | Dry run: display the resolved bwrap argument plan without launching |
+| `--no-net` | `-N`, `--offline` | `false` | Completely block network access (air-gapped network namespace) |
 
 ```bash
 bws            # Interactive sandbox (read-write workspace)
-bws -r         # Interactive sandbox (read-only workspace)
-bws -v         # Show full bwrap argument list before launching
-bws -N         # Air-gapped interactive sandbox (no internet or host localhost access)
-bws --info     # Dry run: print the bwrap plan without executing it
+bws -v         # Show full debug information before launching
+bws -N         # Air-gapped interactive sandbox (no network access)
 ```
 
 ---
 
-### `bws exec [flags] -- <cmd...>`
-Execute a single command inside the sandbox and exit with the command's status code.
+### `bws run [flags] <cmd> [args...]`
+Execute a single command inside the sandbox and exit with the command's status code (alias: `bws exec`).
 
 ```bash
-bws exec -- go test ./...
-bws exec -- python -m pytest
-bws exec -r -- uv run main.py
-bws exec -N -- pytest               # Run tests completely offline
+bws run go test ./...
+bws run python -m pytest
+bws run -N pytest               # Run tests completely offline
 ```
 
 ---
 
-### `bws test <profile>`
+### `bws test <target>`
 Run automated smoke tests for a profile inside an isolated sandbox.
 
 ```bash
-bws test go-dev
-bws test secure-agent
-bws test no-sudo
+bws test python
+bws test rust
+bws test node
 ```
 
 ---
 
-## Workspace initialization
+## Current environment
 
-### `bws init-dev [options] [dir]`
-Inspect workspace repository markers and generate `.bws/config.jsonc`. If `[dir]` is omitted, defaults to current directory.
+### `bws init [options] [dir]`
+Inspect workspace repository markers and generate `.bws/config.jsonc` (aliases: `setup`, `init-dev`). If `[dir]` is omitted, defaults to current directory.
 
 | Option | Description |
 | :--- | :--- |
 | `-n`, `--dry-run` | Preview generated JSONC on stdout without creating `.bws/` |
 | `--preset <name>` | Force stack preset (`go`, `python`, `rust`, `node`, `latex`, `agent`, `all`) |
-| `-p`, `--profiles <list>`| Comma-separated extra capability profile names to include (e.g. `docker,quarto`) |
+| `-p`, `--profile <name>`| Comma-separated extra capability profile names to include |
 
 ```bash
-bws init-dev                        # Auto-detect current directory
-bws init-dev -n                     # Dry run: preview generated JSONC
-bws init-dev --preset python        # Explicitly select Python stack
-bws init-dev -p docker,quarto       # Include extra tool profiles
-bws init-dev /path/to/project       # Initialize specific directory
+bws init                        # Auto-detect current directory
+bws init -n                     # Dry run: preview generated JSONC
+bws init --preset python        # Explicitly select Python stack
+bws init -p docker,pandoc       # Include extra tool profiles
+bws init /path/to/project       # Initialize specific directory
 ```
 
 ---
 
-## Capability profile management
+### `bws status [all]`
+Display active environment status and installed capability profiles (aliases: `info`, `current`). Pass `all` to see the full execution plan.
 
-### `bws profile search <query>`
-Search profiles across embedded catalog, local files, and Homebrew registry.
 ```bash
-bws profile search python
-bws profile search ripgrep
+bws status                      # Show installed profiles in resolved order
+bws status all                  # Show full bwrap execution plan and mounts
+```
+
+---
+
+### `bws plan`
+Display the complete resolved sandbox execution plan, mounts, variables, and flags (Terraform-style dry-run inspector).
+
+```bash
+bws plan
+```
+
+---
+
+### `bws add <profile...> [-g | -l]`
+Add and enable one or more capability profiles in the current environment (defaults to local workspace `-l`; pass `-g` for global). Alias: `enable`.
+```bash
+bws add python                  # Enable python in local workspace
+bws add python node rust        # Enable multiple profiles at once
+bws add docker -g               # Enable docker globally
+```
+
+---
+
+### `bws rm <profile...> [-g | -l]`
+Remove and disable one or more capability profiles from the current environment. Aliases: `del`, `remove`, `disable`.
+```bash
+bws rm python                   # Remove python from local workspace
+bws rm node rust                # Remove multiple profiles at once
 ```
 
 ### `bws profile list`
-List all locally registered and embedded profiles.
+List all locally registered and embedded profiles (alias: `ls`).
 ```bash
 bws profile list
 ```
 
+### `bws profile search <query>`
+Search profiles across embedded catalog, local files, and Homebrew registry (alias: `find`).
+```bash
+bws profile search python
+```
+
 ### `bws profile show <name>`
-Display resolved dependency chain, mounts, and smoke tests for a profile.
+Display resolved dependency chain, mounts, environment, and smoke tests for a profile (aliases: `view`, `cat`, `info`).
 ```bash
-bws profile show go-dev
+bws profile show python
 ```
 
-### `bws profile new <name>`
-Synthesize a new profile using Homebrew Formula API and Firejail intelligence.
+### `bws profile generate <name> [-g | -l]`
+Synthesize a new profile definition from Homebrew Formula API and Firejail intelligence (aliases: `create`, `new`, `gen`, `synthesize`).
 ```bash
-bws profile new ripgrep
+bws profile generate ripgrep
 ```
 
-### `bws profile fetch <name>`
-Download a community profile from GitHub or synthesize from Homebrew.
+### `bws profile fetch <name> [-g | -l]`
+Download a community profile definition from GitHub repository (aliases: `pull`, `get`, `install`).
 ```bash
 bws profile fetch zig
 ```
 
 ### `bws profile update`
-Synchronize all installed global profiles from GitHub repository.
+Synchronize all installed global profiles from GitHub repository (alias: `sync`).
 ```bash
 bws profile update
 ```
 
 ---
 
-## Configuration inspection & editing
+## Environment modifiers (mount, copy, path)
 
-### `bws conf info`
-Show merged bwrap argument plan (dry run). Note: `<ephemeral staged home>` is shown as a placeholder for the runtime `/tmp/bws/stage_*` directory.
+### `bws mount add <host-path> [dest] [-g | -l] [--ro]`
+Add a persistent bind mount to configuration (defaults to local workspace `-l`).
 ```bash
-bws conf info
+bws mount add /opt/tools /tools           # Read-write mount
+bws mount add /data/models /models --ro   # Read-only mount
+bws mount add /opt/global-tools -g        # Global mount
 ```
 
-### `bws conf edit [-g | -l]`
-Open global or local config in `$EDITOR`.
+### `bws mount rm <host-path> [-g | -l]`
+Remove a bind mount by its host path (aliases: `del`, `delete`, `remove`).
 ```bash
-bws conf edit -g    # Edit ~/.config/bws/config.jsonc
-bws conf edit -l    # Edit .bws/config.jsonc in current workspace
+bws mount rm /opt/tools
 ```
 
-### `bws conf show [-g | -l]`
-Display raw JSONC content of config file (defaults to global if no flag given).
+### `bws mount list`
+List configured bind mounts (alias: `ls`).
 ```bash
-bws conf show -g
-bws conf show -l
-```
-
----
-
-## Custom bind & copy management
-
-### `bws cbind add <host-path> [dest] [-g | -l]`
-Add a persistent read-write bind mount to configuration.
-
-The mount is appended to `binds_rw` in your global (`-g`) or local project (`-l`) config and will be mounted on every subsequent `bws` launch.
-
-| Flag | Description |
-| :--- | :--- |
-| `-g` | Add to global config (`~/.config/bws/config.jsonc`) |
-| `-l` | Add to local project config (`.bws/config.jsonc`) |
-
-```bash
-bws cbind add /opt/tools -g          # Bind /opt/tools globally
-bws cbind add /data/fixtures -l      # Bind /data/fixtures for this project only
+bws mount list
 ```
 
 ---
 
-### `bws ccopy add <host-path> [-g | -l]`
-Add a file to be copied into the staged ephemeral `$HOME` at sandbox launch.
-
-Unlike a bind mount, a copied file appears as a regular independent file in the sandbox home rather than a symlink to the host.
-
+### `bws copy add <host-path> [-g | -l]`
+Add a host file to be copied into the staged ephemeral `$HOME` before launch.
 ```bash
-bws ccopy add ~/bin/helper -g        # Copy ~/bin/helper into staged $HOME at launch
+bws copy add ~/bin/custom_helper.sh
+```
+
+### `bws copy rm <host-path> [-g | -l]`
+Remove a path from the copy list (aliases: `del`, `delete`, `remove`).
+```bash
+bws copy rm ~/bin/custom_helper.sh
+```
+
+### `bws copy list`
+List configured copy paths (alias: `ls`).
+```bash
+bws copy list
 ```
 
 ---
 
-## Remote synchronization
-
-### `bws scp <user@host:>`
-Copy global configuration and themes to a remote host.
+### `bws path add <directory> [-g | -l]`
+Add a directory to the sandbox `PATH`.
 ```bash
-bws scp user@server:
+bws path add /extc/opt/custom/bin
+```
+
+### `bws path rm <directory> [-g | -l]`
+Remove a directory from the sandbox `PATH` (aliases: `del`, `delete`, `remove`).
+```bash
+bws path rm /extc/opt/custom/bin
+```
+
+### `bws path list`
+List configured extra `PATH` directories (alias: `ls`).
+```bash
+bws path list
+```
+
+---
+
+## Configuration management & remote sync
+
+### `bws config show [-g | -l]`
+Display raw JSONC content of config file (aliases: `cat`, `view`).
+```bash
+bws config show -g
+bws config show -l
+```
+
+### `bws config edit [-g | -l]`
+Open configuration file in `$EDITOR`.
+```bash
+bws config edit -l    # Edit local .bws/config.jsonc
+bws config edit -g    # Edit global ~/.config/bws/config.jsonc
+```
+
+### `bws config where`
+Print filepaths of active global and local configuration files (alias: `paths`).
+```bash
+bws config where
+```
+
+### `bws config reset [-g | -l]`
+Reset configuration file to clean defaults (backs up existing to `.bak`; alias: `init`).
+```bash
+bws config reset -g
+bws config reset -l
+```
+
+### `bws config push <user@host:>`
+Copy global configuration and themes to a remote host via SCP (aliases: `scp`, `sync`).
+```bash
+bws config push user@server:
 ```

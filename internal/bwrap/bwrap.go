@@ -29,7 +29,7 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[verbose]   --unshare-net (air-gapped network namespace)\n")
 		}
-	} else if cfg.System != nil && config.GetBool(cfg, func(c *config.Config) *bool { return c.System.ShareNet }, false) {
+	} else {
 		args = append(args, "--share-net")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[verbose]   --share-net\n")
@@ -137,21 +137,34 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		}
 	}
 
-	for _, k := range cfg.PassEnv {
-		if k == "PATH" {
-			continue
-		}
-		val := os.Getenv(k)
-		if k == "LC_ALL" && val == "" {
-			val = os.Getenv("LANG")
-		}
-		if k == "LOGNAME" && val == "" {
-			val = os.Getenv("USER")
-		}
-		if val != "" {
-			args = append(args, "--setenv", k, val)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (passed)\n", k, val)
+	for _, pattern := range cfg.PassEnv {
+		if strings.HasSuffix(pattern, "*") {
+			prefix := strings.TrimSuffix(pattern, "*")
+			for _, envItem := range os.Environ() {
+				parts := strings.SplitN(envItem, "=", 2)
+				if len(parts) == 2 && strings.HasPrefix(parts[0], prefix) {
+					args = append(args, "--setenv", parts[0], parts[1])
+					if verbose {
+						fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (passed wildcard)\n", parts[0], parts[1])
+					}
+				}
+			}
+		} else {
+			if pattern == "PATH" {
+				continue
+			}
+			val := os.Getenv(pattern)
+			if pattern == "LC_ALL" && val == "" {
+				val = os.Getenv("LANG")
+			}
+			if pattern == "LOGNAME" && val == "" {
+				val = os.Getenv("USER")
+			}
+			if val != "" {
+				args = append(args, "--setenv", pattern, val)
+				if verbose {
+					fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (passed)\n", pattern, val)
+				}
 			}
 		}
 	}
@@ -261,12 +274,30 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 			args = append(args, "--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix")
 		}
 	}
+	args = append(args, "--ro-bind-try", "/run/systemd/resolve", "/run/systemd/resolve")
+	args = append(args, "--ro-bind-try", "/run/dbus", "/run/dbus")
+	args = append(args, "--ro-bind-try", "/opt/google", "/opt/google")
+	args = append(args, "--ro-bind-try", "/etc/ssl", "/etc/ssl")
+	args = append(args, "--ro-bind-try", "/etc/ca-certificates", "/etc/ca-certificates")
+	args = append(args, "--ro-bind-try", "/usr/share/ca-certificates", "/usr/share/ca-certificates")
 
 	resolvPath := filepath.Join(sandboxDir, "etc", "resolv.conf")
 	if _, err := os.Stat(resolvPath); err == nil {
 		args = append(args, "--ro-bind", resolvPath, "/etc/resolv.conf")
+	} else if _, err := os.Stat("/run/systemd/resolve/resolv.conf"); err == nil {
+		args = append(args, "--ro-bind", "/run/systemd/resolve/resolv.conf", "/etc/resolv.conf")
 	} else if _, err := os.Stat("/etc/resolv.conf"); err == nil {
 		args = append(args, "--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf")
+	}
+
+	gaiPath := filepath.Join(sandboxDir, "etc", "gai.conf")
+	if _, err := os.Stat(gaiPath); err == nil {
+		args = append(args, "--ro-bind", gaiPath, "/etc/gai.conf")
+	}
+
+	hostsPath := filepath.Join(sandboxDir, "etc", "hosts")
+	if _, err := os.Stat(hostsPath); err == nil {
+		args = append(args, "--ro-bind", hostsPath, "/etc/hosts")
 	}
 
 	for _, maskPath := range cfg.Mask {

@@ -10,6 +10,7 @@ import (
 	"bws/internal/sandbox"
 )
 
+// HandleConfigWhere prints the filepaths for global and local configs and skeletons.
 func HandleConfigWhere() {
 	cwd, _ := os.Getwd()
 	fmt.Printf("Global:          %s\n", config.GlobalPath())
@@ -18,11 +19,11 @@ func HandleConfigWhere() {
 	fmt.Printf("Local Skeleton:  %s\n", sandbox.LocalSkeletonDir(cwd))
 }
 
-func HandleConfigPath() {
-	HandleConfigWhere()
-}
-
-func HandleConfigShow(global bool) {
+// HandleConfigShow prints the raw content of the target configuration file.
+func HandleConfigShow(global, local bool) {
+	if !global && !local {
+		local = true
+	}
 	path := configFilePath(global)
 
 	data, err := os.ReadFile(path)
@@ -41,11 +42,14 @@ func HandleConfigShow(global bool) {
 	fmt.Print(string(data))
 }
 
-func HandleConfigInit(global, local bool) {
-	ValidateGL(global, local)
+// HandleConfigReset resets the target configuration file to clean defaults.
+func HandleConfigReset(global, local bool) {
+	if !global && !local {
+		local = true
+	}
 	path := configFilePath(global)
 	label := "global"
-	if local {
+	if !global {
 		label = "local"
 	}
 
@@ -68,19 +72,22 @@ func HandleConfigInit(global, local bool) {
 		os.WriteFile(path, []byte(config.ExampleConfigContent), 0644)
 	}
 
-	fmt.Printf("Created %s config: %s\n", label, path)
+	fmt.Printf("Created clean %s config: %s\n", label, path)
 }
 
+// HandleConfigEdit opens the target config file in $EDITOR.
 func HandleConfigEdit(global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	path := configFilePath(global)
 	label := "global"
-	if local {
+	if !global {
 		label = "local"
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "%s config not found at %s. Run 'bws conf init' first.\n", label, path)
+		fmt.Fprintf(os.Stderr, "%s config not found at %s. Run 'bws config reset' first.\n", label, path)
 		os.Exit(1)
 	}
 
@@ -102,20 +109,25 @@ func HandleConfigEdit(global, local bool) {
 	}
 }
 
+// HandleConfigPush copies global configuration & theme files to a remote host via SCP.
+func HandleConfigPush(destination string) {
+	HandleSCP([]string{destination})
+}
+
 func HandleConfigShowGlobal() {
-	HandleConfigShow(true)
+	HandleConfigShow(true, false)
 }
 
 func HandleConfigShowLocal() {
-	HandleConfigShow(false)
+	HandleConfigShow(false, true)
 }
 
 func HandleConfigInitGlobal() {
-	HandleConfigInit(true, false)
+	HandleConfigReset(true, false)
 }
 
 func HandleConfigInitLocal() {
-	HandleConfigInit(false, true)
+	HandleConfigReset(false, true)
 }
 
 func HandleConfigEditGlobal() {
@@ -124,165 +136,4 @@ func HandleConfigEditGlobal() {
 
 func HandleConfigEditLocal() {
 	HandleConfigEdit(false, true)
-}
-
-// PrintConfUsage prints the detailed config subcommand help text.
-func PrintConfUsage() {
-	fmt.Print(`Usage: bws conf [subcommand] [options]
-
-  Manage sandbox configuration files.
-
-  Bubblewrap (bwrap) creates a lightweight container by mounting
-  directories and files from the host into an isolated filesystem.
-  Configuration is stored in two JSONC files (JSON with comments):
-
-    Global:  ~/.config/bws/config.jsonc
-    Local:   .bws/config.jsonc  (in the current directory)
-
-  The global config applies to all sandbox sessions. The local config
-  overrides specific settings for the current directory only. When no
-  flag is specified, 'bws conf' shows the merged configuration plan.
-
-Subcommands:
-  info                       Show the merged configuration plan (dry run)
-
-  where                      Print paths to both config files
-
-  path list|add|del          Manage sandbox PATH entries
-
-  init -g | -l               Regenerate a config file from default settings.
-                              Requires -g or -l. Existing file is backed up
-                              with a .bak suffix.
-
-  edit -g | -l               Open a config file in $EDITOR / $VISUAL / vi.
-                              Requires -g or -l.
-
-  show -g | -l               Display the raw contents of a config file.
-                              Requires -g or -l.
-
-Flags:
-  -g, --global               Target the global config file
-  -l, --local                Target the local config file
-
-Examples:
-  bws conf                    Show configuration command usage
-  bws conf info               Show merged configuration plan
-  bws conf where              Show both config file paths
-  bws conf path list          List configured PATH directories
-  bws conf init -g            Reset global config to defaults
-  bws conf edit -l            Edit local config in your editor
-  bws conf show -g            View raw global config contents
-`)
-}
-
-// PrintConfPathUsage prints the detailed path subcommand help text.
-func PrintConfPathUsage() {
-	fmt.Print(`Usage: bws conf path list|add|del [args...]
-
-  Manage the PATH entries in the sandbox configuration.
-
-Subcommands:
-  list                       List configured PATH entries with [g] and [l]
-  add <directory> -g | -l    Add a directory to the sandbox PATH
-  del <directory> -g | -l    Remove a directory from the sandbox PATH
-
-Flags:
-  -g, --global               Target the global config file
-  -l, --local                Target the local config file
-
-Examples:
-  bws conf path list          List all configured PATH entries
-  bws conf path add /home/user/bin -g  Add to global PATH
-  bws conf path del /home/user/bin -l  Remove from local PATH
-`)
-}
-
-// PrintCopyUsage prints the detailed ccopy subcommand help text.
-func PrintCopyUsage() {
-	fmt.Print(`Usage: bws ccopy add|list|del [args...]
-
-  Manage the list of programs and files that are copied from the host
-  into the sandbox's persistent home directory before each launch.
-
-  Unlike bind mounts, copied files are snapshots — they are not
-  updated automatically if the source changes. This is useful for
-  tools and scripts that should be available in the sandbox without
-  exposing the full host filesystem.
-
-Subcommands:
-  add <path> -g | -l    Add a program or file to the copy list.
-                        The path must be absolute and under your home
-                        directory. It is copied to the same relative
-                        location inside the sandbox's home.
-                        Requires -g or -l.
-
-  list                   Show all configured copy paths from both
-                         global and local configs.
-
-  del <path> -g | -l     Remove a path from the copy list.
-                         Requires -g or -l.
-
-Flags:
-  -g, --global           Target the global config file
-  -l, --local            Target the local config file
-
-Examples:
-  bws ccopy add /home/user/bin/myprog -g    Add globally
-  bws ccopy add /home/user/scripts/util.sh -l  Add locally
-  bws ccopy list                             Show all
-  bws ccopy del /home/user/bin/myprog -g    Remove globally
-`)
-}
-
-// PrintBindUsage prints the detailed cbind subcommand help text.
-func PrintBindUsage() {
-	fmt.Print(`Usage: bws cbind add|list|del [args...]
-
-  Manage bind mounts between the host filesystem and the sandbox.
-
-  A bind mount makes a host directory or file accessible at a specific
-  location inside the sandbox. Unlike copying, the sandbox sees the
-  actual host file — changes are visible on both sides.
-
-    Read-write bind ('rw')   — The sandbox can read and write files.
-                               Any changes inside the sandbox affect
-                               the host file. Use for config files,
-                               project directories, and data you want
-                               to edit from inside the sandbox.
-
-    Read-only bind ('ro')    — The sandbox can read but cannot modify
-                               the host file. Use for system libraries,
-                               toolchains, and reference data.
-
-  If sandbox-path is omitted, the host path is used as the sandbox
-  path, so the file appears at the same location inside the sandbox.
-
-Subcommands:
-  add <host-path> [sandbox-path] -g | -l [--ro]
-                        Add a bind mount. Defaults to read-write.
-                        Use --ro to make it read-only.
-                        If sandbox-path is omitted, it defaults to
-                        the host path.
-                        Requires -g or -l.
-
-  list                   Show all bind mounts from both global and
-                         local configs, grouped by read-write and
-                         read-only.
-
-  del <host-path> -g | -l
-                         Remove a bind mount by its host path.
-                         Searches both read-write and read-only lists.
-                         Requires -g or -l.
-
-Flags:
-  -g, --global           Target the global config file
-  -l, --local            Target the local config file
-  --ro                   Make the bind mount read-only (cbind add only)
-
-Examples:
-  bws cbind add /home/user/projects /projects -g    RW global bind
-  bws cbind add /usr/share/dict --ro -l              RO local bind
-  bws cbind list                                      Show all
-  bws cbind del /home/user/projects -g               Remove global
-`)
 }

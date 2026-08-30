@@ -9,7 +9,9 @@ import (
 )
 
 func HandleBindAdd(hostPath, sandboxPath string, ro, global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	targetPath := configFilePath(global)
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 		config.CreateDefault(targetPath)
@@ -49,8 +51,14 @@ func HandleBindAdd(hostPath, sandboxPath string, ro, global, local bool) {
 	fmt.Printf(" to %s configuration (%s).\n", label, targetPath)
 }
 
+func HandleMountAdd(hostPath, sandboxPath string, ro, global, local bool) {
+	HandleBindAdd(hostPath, sandboxPath, ro, global, local)
+}
+
 func HandleBindDel(hostPath string, global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	targetPath := configFilePath(global)
 
 	found := false
@@ -71,6 +79,14 @@ func HandleBindDel(hostPath string, global, local bool) {
 		label = "local"
 	}
 	fmt.Printf("Removed bind mount '%s' from %s configuration (%s).\n", hostPath, label, targetPath)
+}
+
+func HandleMountDel(hostPath string, global, local bool) {
+	HandleBindDel(hostPath, global, local)
+}
+
+func HandleMountList() {
+	HandleBindList()
 }
 
 func HandleBindList() {

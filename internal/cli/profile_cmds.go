@@ -14,6 +14,9 @@ import (
 	"bws/internal/config"
 	"bws/internal/profile"
 	"bws/internal/util"
+
+	"github.com/fatih/color"
+	"golang.org/x/term"
 )
 
 // HandleProfileList lists all registered profiles and their source.
@@ -24,15 +27,21 @@ func HandleProfileList() error {
 		return err
 	}
 
-	var names []string
-	for name := range registry {
-		names = append(names, name)
+	var uniqueProfiles []*profile.Profile
+	seen := make(map[string]bool)
+	for _, p := range registry {
+		if !seen[p.Name] {
+			seen[p.Name] = true
+			uniqueProfiles = append(uniqueProfiles, p)
+		}
 	}
-	sort.Strings(names)
+	sort.Slice(uniqueProfiles, func(i, j int) bool {
+		return uniqueProfiles[i].Name < uniqueProfiles[j].Name
+	})
 
-	fmt.Println("Available Sandbox Profiles:")
-	for _, name := range names {
-		p := registry[name]
+	dim := color.New(color.FgHiBlack).SprintFunc()
+	fmt.Println("Available sandbox profiles:")
+	for _, p := range uniqueProfiles {
 		src := p.Source
 		if src == "" {
 			src = "embedded"
@@ -43,9 +52,21 @@ func HandleProfileList() error {
 		}
 		reqStr := ""
 		if len(p.Requires) > 0 {
-			reqStr = fmt.Sprintf(" [requires: %s]", strings.Join(p.Requires, ", "))
+			var coloredReqs []string
+			for _, r := range p.Requires {
+				coloredReqs = append(coloredReqs, ColorProfile(r))
+			}
+			reqStr = fmt.Sprintf(" [requires: %s]", strings.Join(coloredReqs, ", "))
 		}
-		fmt.Printf("  • %-12s [%-8s] %s%s\n", name, src, desc, reqStr)
+		aliasStr := ""
+		if len(p.Aliases) > 0 {
+			var coloredAliases []string
+			for _, a := range p.Aliases {
+				coloredAliases = append(coloredAliases, ColorProfile(a))
+			}
+			aliasStr = fmt.Sprintf(" (aliases: %s)", strings.Join(coloredAliases, ", "))
+		}
+		fmt.Printf("  • %-12s [%-8s] %s%s%s\n", ColorProfile(p.Name), dim(src), desc, reqStr, aliasStr)
 	}
 	return nil
 }
@@ -66,16 +87,24 @@ func HandleProfileShow(name string) error {
 
 	p := registry[name]
 
-	fmt.Printf("Profile: %s\n", p.Name)
+	fmt.Printf("Profile: %s\n", ColorProfile(p.Name))
 	fmt.Printf("Source:  %s\n", p.Source)
 	if p.Description != "" {
 		fmt.Printf("Description: %s\n", p.Description)
 	}
 	if len(p.Requires) > 0 {
-		fmt.Printf("Requires:    %s\n", strings.Join(p.Requires, ", "))
+		var coloredReqs []string
+		for _, r := range p.Requires {
+			coloredReqs = append(coloredReqs, ColorProfile(r))
+		}
+		fmt.Printf("Requires:    %s\n", strings.Join(coloredReqs, ", "))
 	}
 	if len(resolved.Profiles) > 1 {
-		fmt.Printf("Resolved Chain: %s\n", strings.Join(resolved.Profiles, " -> "))
+		var coloredChain []string
+		for _, cp := range resolved.Profiles {
+			coloredChain = append(coloredChain, ColorProfile(cp))
+		}
+		fmt.Printf("Resolved Chain: %s\n", strings.Join(coloredChain, " -> "))
 	}
 
 	if len(resolved.Path) > 0 {
@@ -195,7 +224,7 @@ func HandleProfileTest(name string, verbose bool) error {
 		}
 	}
 
-	fmt.Printf("Testing profile %q in sandbox:\n", name)
+	fmt.Printf("Testing profile %s in sandbox:\n", ColorProfile(name))
 	results, err := profile.RunProfileTests(baseCfg, cwd, resolved, verbose)
 	if err != nil {
 		return err
@@ -244,23 +273,44 @@ func HandleProfileSearch(query string) error {
 	fmt.Printf("Searching for %q:\n\n", query)
 
 	// 1. Local / Embedded Profiles
-	var matchedProfiles []string
+	var matchedProfiles []*profile.Profile
+	seen := make(map[string]bool)
 	for name, p := range registry {
-		if strings.Contains(strings.ToLower(name), cleanQ) || strings.Contains(strings.ToLower(p.Description), cleanQ) {
-			matchedProfiles = append(matchedProfiles, name)
+		matched := strings.Contains(strings.ToLower(name), cleanQ) || strings.Contains(strings.ToLower(p.Description), cleanQ)
+		if !matched {
+			for _, a := range p.Aliases {
+				if strings.Contains(strings.ToLower(a), cleanQ) {
+					matched = true
+					break
+				}
+			}
+		}
+		if matched && !seen[p.Name] {
+			seen[p.Name] = true
+			matchedProfiles = append(matchedProfiles, p)
 		}
 	}
-	sort.Strings(matchedProfiles)
+	sort.Slice(matchedProfiles, func(i, j int) bool {
+		return matchedProfiles[i].Name < matchedProfiles[j].Name
+	})
 
+	dim := color.New(color.FgHiBlack).SprintFunc()
 	if len(matchedProfiles) > 0 {
 		fmt.Println("Local & Embedded Profiles:")
-		for _, name := range matchedProfiles {
-			p := registry[name]
+		for _, p := range matchedProfiles {
 			src := p.Source
 			if src == "" {
 				src = "embedded"
 			}
-			fmt.Printf("  ★ %-12s [%-8s] %s\n", name, src, p.Description)
+			aliasStr := ""
+			if len(p.Aliases) > 0 {
+				var coloredAliases []string
+				for _, a := range p.Aliases {
+					coloredAliases = append(coloredAliases, ColorProfile(a))
+				}
+				aliasStr = fmt.Sprintf(" (aliases: %s)", strings.Join(coloredAliases, ", "))
+			}
+			fmt.Printf("  ★ %-12s [%-8s] %s%s\n", ColorProfile(p.Name), dim(src), p.Description, aliasStr)
 		}
 		fmt.Println()
 	}
@@ -282,8 +332,8 @@ func HandleProfileSearch(query string) error {
 		}
 		if err := json.Unmarshal(body, &hb); err == nil && hb.Name != "" {
 			fmt.Println("Available on Homebrew:")
-			fmt.Printf("  • %-12s [Formula]  %s\n", hb.Name, hb.Desc)
-			fmt.Printf("    Run 'bws profile new %s' to generate a sandbox profile.\n\n", hb.Name)
+			fmt.Printf("  • %-12s [Formula]  %s\n", ColorProfile(hb.Name), hb.Desc)
+			fmt.Printf("    Run 'bws profile generate %s' to generate a sandbox profile.\n\n", ColorProfile(hb.Name))
 		}
 	}
 
@@ -297,43 +347,47 @@ func HandleProfileFetch(name string, global, local bool) error {
 		return fmt.Errorf("profile name cannot be empty")
 	}
 
-	cwd, _ := os.Getwd()
 	var targetDir string
 	if local {
+		cwd, _ := os.Getwd()
 		targetDir = profile.LocalProfilesDir(cwd)
 	} else {
 		targetDir = profile.GlobalProfilesDir()
 	}
+	os.MkdirAll(targetDir, 0755)
 
-	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bws/main/profiles/%s.json", cleanName)
+	targetFile := filepath.Join(targetDir, cleanName+".json")
+
+	// Try remote GitHub fetch
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(rawURL)
+	url := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bws/main/profiles/%s.json", cleanName)
 
+	resp, err := client.Get(url)
 	if err == nil && resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		var p profile.Profile
-		if err := json.Unmarshal(body, &p); err == nil && p.Name != "" {
-			targetPath := filepath.Join(targetDir, cleanName+".json")
-			if err := profile.SaveProfile(&p, targetPath); err != nil {
-				return err
+		data, err := io.ReadAll(resp.Body)
+		if err == nil {
+			var p profile.Profile
+			if err := json.Unmarshal(data, &p); err == nil {
+				if err := os.WriteFile(targetFile, data, 0644); err == nil {
+					fmt.Printf("Fetched profile %s from GitHub -> %s\n", ColorProfile(cleanName), targetFile)
+					return nil
+				}
 			}
-			fmt.Printf("✓ Fetched profile %q from GitHub repository: %s\n", cleanName, targetPath)
-			return nil
 		}
 	}
 
-	// Fallback to generating from Homebrew/Firejail
-	fmt.Printf("Profile %q not found in remote repository; synthesizing from Homebrew...\n", cleanName)
+	// Fall back to synthesis
+	fmt.Printf("Profile %s not found in remote catalog; attempting synthesis...\n", ColorProfile(cleanName))
 	return HandleProfileNew(cleanName, global, local)
 }
 
 // HandleProfileUpdate updates all locally installed global profiles from the remote repository.
 func HandleProfileUpdate() error {
-	globalDir := profile.GlobalProfilesDir()
-	entries, err := os.ReadDir(globalDir)
+	dir := profile.GlobalProfilesDir()
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("reading global profiles directory: %w", err)
+		return fmt.Errorf("reading profiles directory: %w", err)
 	}
 
 	updated := 0
@@ -349,6 +403,58 @@ func HandleProfileUpdate() error {
 
 	fmt.Printf("Profile update complete (%d global profiles updated).\n", updated)
 	return nil
+}
+
+// HandleProfileCurrent displays the installed profiles applied to the current workspace in exact order.
+func HandleProfileCurrent() error {
+	return HandleStatusShort()
+}
+
+func getTerminalWidth() int {
+	fd := int(os.Stdout.Fd())
+	if term.IsTerminal(fd) {
+		if w, _, err := term.GetSize(fd); err == nil && w > 40 {
+			return w
+		}
+	}
+	return 80
+}
+
+func wrapText(text string, indent, maxWidth int) string {
+	if maxWidth <= indent+20 {
+		maxWidth = 80
+	}
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return ""
+	}
+
+	var lines []string
+	var curLine strings.Builder
+	curWidth := 0
+
+	for _, w := range words {
+		wLen := len(w)
+		if curWidth == 0 {
+			curLine.WriteString(w)
+			curWidth = wLen
+		} else if curWidth+1+wLen <= maxWidth-indent {
+			curLine.WriteByte(' ')
+			curLine.WriteString(w)
+			curWidth += 1 + wLen
+		} else {
+			lines = append(lines, curLine.String())
+			curLine.Reset()
+			curLine.WriteString(w)
+			curWidth = wLen
+		}
+	}
+	if curLine.Len() > 0 {
+		lines = append(lines, curLine.String())
+	}
+
+	indentStr := strings.Repeat(" ", indent)
+	return strings.Join(lines, "\n"+indentStr)
 }
 
 func boolPtr(b bool) *bool {

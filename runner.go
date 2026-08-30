@@ -13,6 +13,7 @@ import (
 	"bws/internal/cli"
 	"bws/internal/config"
 	"bws/internal/profile"
+	"bws/internal/proxy"
 	"bws/internal/sandbox"
 	"bws/internal/util"
 )
@@ -106,6 +107,9 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 		seenMask[m] = true
 	}
 
+	var allResolved []string
+	seenResolved := make(map[string]bool)
+
 	for _, pName := range cfg.Profiles {
 		resolved, err := profile.ResolveProfile(pName, registry, ctx)
 		if err != nil {
@@ -113,6 +117,12 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 				fmt.Fprintf(os.Stderr, "[verbose] Warning: resolving profile %q: %v\n", pName, err)
 			}
 			continue
+		}
+		for _, rName := range resolved.Profiles {
+			if !seenResolved[rName] {
+				seenResolved[rName] = true
+				allResolved = append(allResolved, rName)
+			}
 		}
 		for _, pe := range resolved.PassEnv {
 			if !seenPassEnv[pe] {
@@ -161,6 +171,12 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 			t := true
 			cfg.Features.NoNet = &t
 		}
+	}
+	if len(allResolved) > 0 {
+		if cfg.Env == nil {
+			cfg.Env = make(map[string]string)
+		}
+		cfg.Env["BWS_ACTIVE_PROFILES"] = strings.Join(allResolved, ",")
 	}
 	return nil
 }
@@ -254,6 +270,27 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		fmt.Fprintf(os.Stderr, "[verbose] Current directory: %s\n", currentDir)
 	}
 
+	if !dryRun && config.FeatureEnabled(sl.cfg, func(f *config.FeaturesConfig) *bool { return f.EnableProxy }) {
+		proxyServer, err := proxy.Start()
+		if err != nil {
+			return fmt.Errorf("starting internal proxy: %w", err)
+		}
+		defer proxyServer.Close()
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose] Started ephemeral proxy: %s\n", proxyServer.URL())
+		}
+		if sl.cfg.Env == nil {
+			sl.cfg.Env = make(map[string]string)
+		}
+		proxyURL := proxyServer.URL()
+		sl.cfg.Env["HTTP_PROXY"] = proxyURL
+		sl.cfg.Env["HTTPS_PROXY"] = proxyURL
+		sl.cfg.Env["http_proxy"] = proxyURL
+		sl.cfg.Env["https_proxy"] = proxyURL
+		sl.cfg.Env["NO_PROXY"] = "localhost,127.0.0.1"
+		sl.cfg.Env["no_proxy"] = "localhost,127.0.0.1"
+	}
+
 	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, dryRun, verbose)
 
 	if verbose {
@@ -282,19 +319,33 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	return nil
 }
 
-func runDefault(args []string, force, verbose, noNet bool) error {
+func applyFlags(cfg *config.Config, noNet, proxy, noProxy bool) {
+	if cfg == nil {
+		return
+	}
+	if cfg.Features == nil {
+		cfg.Features = &config.FeaturesConfig{}
+	}
+	if noNet {
+		t := true
+		cfg.Features.NoNet = &t
+	}
+	if proxy {
+		t := true
+		cfg.Features.EnableProxy = &t
+	} else if noProxy {
+		f := false
+		cfg.Features.EnableProxy = &f
+	}
+}
+
+func runDefault(args []string, force, verbose, noNet, proxy, noProxy bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	if noNet {
-		if sl.cfg.Features == nil {
-			sl.cfg.Features = &config.FeaturesConfig{}
-		}
-		t := true
-		sl.cfg.Features.NoNet = &t
-	}
+	applyFlags(sl.cfg, noNet, proxy, noProxy)
 
 	isDefaultSession := len(args) == 0
 	cli.VerifyTools(isDefaultSession, false)
@@ -318,6 +369,13 @@ func runDefault(args []string, force, verbose, noNet bool) error {
 	}
 
 	return buildAndRun(sl, currentDir, false, execArgs, verbose)
+}
+
+func runStatus(showAll, verbose bool) error {
+	if showAll {
+		return runConf(verbose)
+	}
+	return cli.HandleStatusShort()
 }
 
 func runConf(verbose bool) error {
@@ -395,72 +453,13 @@ func runSandboxCommand(name string, execArgs []string, force, verbose bool) erro
 	return nil
 }
 
-func runUVTest(force, verbose bool) error {
+func runExec(args []string, force, verbose, noNet, proxy, noProxy bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	cli.VerifyTools(false, false)
-	cli.VerifyBwrapUserns()
-
-	currentDir, err := safetyChecks(sl, force, verbose)
-	if err != nil {
-		return err
-	}
-
-	var sandboxDir string
-	var cleanup func()
-	if sl.cfg.SandboxPath != "" {
-		sandboxDir = util.ExpandHome(sl.cfg.SandboxPath)
-		sandbox.Prepare(sl.cfg, sandboxDir)
-	} else {
-		var err error
-		sandboxDir, cleanup, err = sandbox.StageHome(sl.cfg, currentDir)
-		if err != nil {
-			return err
-		}
-		defer cleanup()
-	}
-
-	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, false, verbose)
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "[verbose] bwrap command:\n  bwrap %s\n", strings.Join(append(bwrapArgs, "uv", "--version"), " "))
-	}
-
-	uvOut, uvErr := exec.Command("bwrap", append(bwrapArgs, "uv", "--version")...).Output()
-	uvxOut, uvxErr := exec.Command("bwrap", append(bwrapArgs, "uvx", "--version")...).Output()
-
-	if uvErr != nil || uvxErr != nil {
-		if uvErr != nil {
-			fmt.Fprintf(os.Stderr, "uv output: %s\n", string(uvOut))
-		}
-		if uvxErr != nil {
-			fmt.Fprintf(os.Stderr, "uvx output: %s\n", string(uvxOut))
-		}
-		return fmt.Errorf("test failed: uv or uvx did not load correctly")
-	}
-
-	fmt.Printf("uv version inside sandbox: %s", string(uvOut))
-	fmt.Printf("uvx version inside sandbox: %s", string(uvxOut))
-	fmt.Println("Everything is fine.")
-	return nil
-}
-
-func runExec(args []string, force, verbose, noNet bool) error {
-	sl, err := loadConfigs(verbose)
-	if err != nil {
-		return err
-	}
-
-	if noNet {
-		if sl.cfg.Features == nil {
-			sl.cfg.Features = &config.FeaturesConfig{}
-		}
-		t := true
-		sl.cfg.Features.NoNet = &t
-	}
+	applyFlags(sl.cfg, noNet, proxy, noProxy)
 
 	cli.VerifyTools(false, false)
 	cli.VerifyBwrapUserns()

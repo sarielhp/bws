@@ -10,8 +10,13 @@ import (
 
 // HandlePathAdd adds a directory to the PATH array in the config
 func HandlePathAdd(dir string, global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	targetPath := configFilePath(global)
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		config.CreateDefault(targetPath)
+	}
 
 	if !strings.HasPrefix(dir, "/") && !strings.HasPrefix(dir, "~/") {
 		fmt.Fprintf(os.Stderr, "Error: Directory path must be absolute or start with ~/.\n")
@@ -48,7 +53,9 @@ func HandlePathAdd(dir string, global, local bool) {
 
 // HandlePathDel removes a directory from the PATH array in the config
 func HandlePathDel(dir string, global, local bool) {
-	ValidateGL(global, local)
+	if !global && !local {
+		local = true
+	}
 	targetPath := configFilePath(global)
 
 	cfg, err := config.LoadFile(targetPath)

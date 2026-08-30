@@ -1,0 +1,74 @@
+{
+  "name": "agy",
+  "aliases": [
+    "antigravity",
+    "antigravity-cli"
+  ],
+  "description": "Google Antigravity CLI and agentic coding framework",
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin",
+    "@@HOME@@/.gemini/bin"
+  ],
+  "pass_env": [
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "ANTIGRAVITY_*",
+    "JETSKI_*",
+    "AGY_*",
+    "CLOUDSDK_*"
+  ],
+  "binds_rw": [
+    [
+      "~/.gemini",
+      "@@HOME@@/.gemini"
+    ],
+    [
+      "~/.config/gcloud",
+      "@@HOME@@/.config/gcloud"
+    ],
+    [
+      "~/.config/antigravity",
+      "@@HOME@@/.config/antigravity"
+    ],
+    [
+      "~/.cache/antigravity",
+      "@@HOME@@/.cache/antigravity"
+    ],
+    [
+      "~/.local/share/antigravity",
+      "@@HOME@@/.local/share/antigravity"
+    ],
+    [
+      "~/.local/state/antigravity",
+      "@@HOME@@/.local/state/antigravity"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Antigravity CLI help",
+      "cmd": [
+        "agy",
+        "help"
+      ],
+      "type": "custom",
+      "optional": true
+    },
+    {
+      "name": "Antigravity agents listing",
+      "cmd": [
+        "agy",
+        "agents"
+      ],
+      "type": "custom",
+      "optional": true
+    }
+  ],
+  "env": {
+    "GODEBUG": "netdns=cgo"
+  },
+  "features": {
+    "enable_proxy": true
+  }
+}

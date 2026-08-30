@@ -30,6 +30,7 @@ type DetectSpec struct {
 // Profile represents a declarative sandbox tool capability profile.
 type Profile struct {
 	Name        string            `json:"name"`
+	Aliases     []string          `json:"aliases,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Requires    []string          `json:"requires,omitempty"`
 	Path        []string          `json:"path,omitempty"`
@@ -86,7 +87,11 @@ func LoadRegistry(projectDir string) (map[string]*Profile, error) {
 					var p Profile
 					if err := json.Unmarshal(data, &p); err == nil && p.Name != "" {
 						p.Source = "embedded"
-						registry[p.Name] = &p
+						pCopy := p
+						registry[p.Name] = &pCopy
+						for _, alias := range p.Aliases {
+							registry[alias] = &pCopy
+						}
 					}
 				}
 			}
@@ -125,7 +130,11 @@ func loadDirProfiles(dir, source string, registry map[string]*Profile) {
 			var p Profile
 			if err := json.Unmarshal(data, &p); err == nil && p.Name != "" {
 				p.Source = source
-				registry[p.Name] = &p
+				pCopy := p
+				registry[p.Name] = &pCopy
+				for _, alias := range p.Aliases {
+					registry[alias] = &pCopy
+				}
 			}
 		}
 	}

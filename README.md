@@ -75,13 +75,13 @@ In your project directory, run:
 
 ```bash
 # Auto-detect language stack (Go, Python/UV, Rust, Node, LaTeX) and create .bws/config.jsonc
-bws init-dev
+bws init
 
 # Dry-run preview without writing files
-bws init-dev -n
+bws init -n
 
 # Or explicitly select a preset stack
-bws init-dev --preset python
+bws init --preset python
 ```
 
 **Why is workspace initialization needed?**  
@@ -110,9 +110,9 @@ bws
 
 ```bash
 # Execute a single command inside a sandbox environment
-bws exec -- go test ./...
-bws exec -N -- go test ./...       # Run tests air-gapped without network
-bws exec -- uv run main.py
+bws run go test ./...
+bws run -N pytest               # Run tests air-gapped without network
+bws run uv run main.py
 ```
 
 ### 4. Search and inspect capability profiles
