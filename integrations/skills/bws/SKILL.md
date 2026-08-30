@@ -40,9 +40,9 @@ bws gw -b <branch-name> --stash -- agy-run-wild --effort high -p "/goal <clear a
 ### 3. Monitor & Report
 * Check the background task log (`.system_generated/tasks/task-XXXX.log`).
 * When the agent completes, `bws gw` will auto-commit the changes, fetch the branch back to the host, and display the diff summary with the triage prompt:
-  - `[m] Merge`: Fast-forward/merge into current branch.
-  - `[s] Squash`: Squash all agent commits into one.
-  - `[k] Keep`: Preserve the branch for manual inspection.
+  - `[m] Merge`: Fast-forward or merge branch into current branch.
+  - `[s] Squash-merge`: Merge as a single commit into current branch.
+  - `[k] Keep`: Preserve the branch for manual inspection without merging.
   - `[d] Discard`: Delete the branch.
   - `[v] View`: View full diff.
 * Present the results to the user and send their chosen triage action to the task using `manage_task(send_input)`.

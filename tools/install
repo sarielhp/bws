@@ -23,9 +23,9 @@ if [ -d "${HOME}/.gemini/config" ]; then
     echo "Installed Antigravity skill to ~/.gemini/config/skills/bws"
 fi
 
-# Install OpenCode command if ~/.config/opencode exists
+# Install OpenCode commands if ~/.config/opencode exists
 if [ -d "${HOME}/.config/opencode" ]; then
     mkdir -p "${HOME}/.config/opencode/command"
-    cp "${ROOT}/integrations/opencode/command/bws.md" "${HOME}/.config/opencode/command/bws.md"
-    echo "Installed OpenCode slash command to ~/.config/opencode/command/bws.md"
+    cp -r "${ROOT}/integrations/opencode/command/"* "${HOME}/.config/opencode/command/"
+    echo "Installed OpenCode slash commands to ~/.config/opencode/command/"
 fi
