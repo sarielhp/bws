@@ -21,7 +21,6 @@ func traceCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 		Group:            "Execution & testing",
 		Description:      "Trace a command dynamically to learn required mounts and sandbox features",
 		UsageLine:        "bws trace [options] [--] <command> [args...]",
-		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,
 		Options: []clihelp.Option{
 			clihelp.Bool(&tf.dryRun, "-n, --dry-run", false, "Preview discovered mounts and features without saving"),
@@ -35,6 +34,10 @@ func traceCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 			{Line: "bws trace -p mytool -g -- mytool build", Description: "Trace tool and save to global profiles directory"},
 		},
 		Run: func(ctx *clihelp.Context) error {
+			if len(ctx.Args) == 0 {
+				ctx.App.Render(clihelp.Options{Writer: ctx.Stdout}, "trace")
+				return nil
+			}
 			return cli.HandleTrace(ctx.Args, tf.dryRun, tf.write, tf.profileName, f.global, f.local, f.force, f.verbose)
 		},
 	}

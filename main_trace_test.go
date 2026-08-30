@@ -70,3 +70,27 @@ func TestTraceProfileGeneration(t *testing.T) {
 		t.Fatalf("expected profile file to be created at %s, but not found", expectedProfilePath)
 	}
 }
+
+func TestTraceNoArgsShowsUsageWithExamples(t *testing.T) {
+	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
+		t.Skip("binary not built, skipping")
+	}
+
+	for _, cmdName := range []string{"trace", "record", "learn"} {
+		cmd := exec.Command(bwPath, cmdName)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("bws %s (no args) failed with error: %v\n%s", cmdName, err, string(output))
+		}
+		outStr := string(output)
+		if !strings.Contains(outStr, "Usage:") || !strings.Contains(outStr, "bws trace") {
+			t.Errorf("expected usage message in bws %s (no args), got:\n%s", cmdName, outStr)
+		}
+		if !strings.Contains(outStr, "Trace a command dynamically") {
+			t.Errorf("expected command description in bws %s (no args), got:\n%s", cmdName, outStr)
+		}
+		if !strings.Contains(outStr, "Examples:") || !strings.Contains(outStr, "python train.py") {
+			t.Errorf("expected examples in bws %s (no args), got:\n%s", cmdName, outStr)
+		}
+	}
+}
