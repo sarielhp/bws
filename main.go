@@ -6,7 +6,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.9"
+var Version = "0.3.10"
 
 func buildApp() *clihelp.App {
 	f := &appFlags{}
@@ -26,6 +26,7 @@ func buildApp() *clihelp.App {
 			clihelp.Bool(&f.force, "-f, --force", false, "Bypass the file count safety check / force overwrite"),
 			clihelp.Bool(&f.global, "-g, --global", false, "Target the global config file (~/.config/bws/config.jsonc)"),
 			clihelp.Bool(&f.local, "-l, --local", false, "Target the local config file (.bws/config.jsonc in current directory)"),
+			clihelp.Bool(&f.noSSH, "--no-ssh", false, "Disable SSH agent forwarding and Git SSH commands"),
 			clihelp.Bool(&f.noNet, "-N, --no-net, --offline", false, "Completely block network access (air-gapped network namespace)"),
 			clihelp.Bool(&f.proxy, "--proxy", false, "Tunnel outbound sandbox network traffic through an in-process host proxy"),
 			clihelp.Bool(&f.noProxy, "--no-proxy", false, "Disable the in-process host proxy"),
@@ -48,7 +49,7 @@ func buildApp() *clihelp.App {
 			docsCmd(f),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return runDefault(ctx.Args, f.force, f.verbose, f.noNet, f.proxy, f.noProxy)
+			return runDefault(ctx.Args, f.force, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy)
 		},
 	}
 }
