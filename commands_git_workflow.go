@@ -26,7 +26,6 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 			clihelp.String(&gwFlags.branch, "-b, --branch NAME", "", "Target branch name for the agent session"),
 			clihelp.Bool(&gwFlags.stash, "--stash", false, "Automatically stash uncommitted changes before starting"),
 			clihelp.Bool(&gwFlags.allowDirty, "--allow-dirty", false, "Allow starting even if working tree has uncommitted changes"),
-			clihelp.Bool(&gwFlags.verbose, "-v, --verbose", false, "Enable verbose diagnostic logging"),
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws gw", Description: "Start an interactive shell in a disposable agent clone"},
@@ -38,13 +37,12 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 			{Heading: "Security & Isolation", Text: "The session runs in a dedicated ephemeral clone (/tmp/bws/agent_XXXX) with SSH credentials disabled (--no-ssh). The agent cannot modify the host working tree or push to remote repositories. Upon exit, changes are fetched back to the host and presented with an interactive Merge/Squash/Keep/Discard menu."},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			verbose := gwFlags.verbose || f.verbose
 			return gitworkflow.Run(gitworkflow.Options{
 				Branch:     gwFlags.branch,
 				AllowDirty: gwFlags.allowDirty,
 				Stash:      gwFlags.stash,
 				Command:    ctx.Args,
-				Verbose:    verbose,
+				Verbose:    f.verbose,
 			})
 		},
 	}
