@@ -169,18 +169,20 @@ func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbu
 	return buildAndRun(sl, currentDir, false, execArgs, verbose)
 }
 
-func runStatus(showAll, verbose bool) error {
+func runStatus(showAll, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool) error {
 	if showAll {
-		return runConf(verbose)
+		return runConf(verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
 	}
 	return cli.HandleStatusShort()
 }
 
-func runConf(verbose bool) error {
+func runConf(verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
+
+	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
 
 	currentDir, err := os.Getwd()
 	if err != nil {

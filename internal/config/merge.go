@@ -33,7 +33,7 @@ func Merge(global, local *Config) *Config {
 	}
 
 	result.System = mergeSystem(global.System, local.System)
-	result.Features = mergeFeatures(global.Features, local.Features)
+	result.Features = MergeFeatures(global.Features, local.Features)
 	result.Env = mergeEnv(global.Env, local.Env)
 
 	result.PassEnv = mergeStringSlices(global.PassEnv, local.PassEnv)
@@ -119,7 +119,7 @@ func mergeSystem(global, local *SystemConfig) *SystemConfig {
 	return &r
 }
 
-func mergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
+func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local == nil {
 		return global
 	}

@@ -29,22 +29,23 @@ type DetectSpec struct {
 
 // Profile represents a declarative sandbox tool capability profile.
 type Profile struct {
-	Name        string            `json:"name"`
-	Aliases     []string          `json:"aliases,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Requires    []string          `json:"requires,omitempty"`
-	Path        []string          `json:"path,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
-	PassEnv     []string          `json:"pass_env,omitempty"`
-	Mask        []string          `json:"mask,omitempty"`
-	BindsRW     [][]string        `json:"binds_rw,omitempty"`
-	BindsRO     [][]string        `json:"binds_ro,omitempty"`
-	UnshareNet  bool              `json:"unshare_net,omitempty"`
-	NoNet       bool              `json:"no_net,omitempty"`
-	Detect      *DetectSpec       `json:"detect,omitempty"`
-	Tests       []TestSpec        `json:"tests,omitempty"`
-	Rules       []ProfileRule     `json:"rules,omitempty"`
-	Source      string            `json:"source,omitempty"` // "embedded", "global", "local"
+	Name        string                 `json:"name"`
+	Aliases     []string               `json:"aliases,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Requires    []string               `json:"requires,omitempty"`
+	Path        []string               `json:"path,omitempty"`
+	Env         map[string]string      `json:"env,omitempty"`
+	PassEnv     []string               `json:"pass_env,omitempty"`
+	Mask        []string               `json:"mask,omitempty"`
+	BindsRW     [][]string             `json:"binds_rw,omitempty"`
+	BindsRO     [][]string             `json:"binds_ro,omitempty"`
+	UnshareNet  bool                   `json:"unshare_net,omitempty"`
+	NoNet       bool                   `json:"no_net,omitempty"`
+	Features    *config.FeaturesConfig `json:"features,omitempty"`
+	Detect      *DetectSpec            `json:"detect,omitempty"`
+	Tests       []TestSpec             `json:"tests,omitempty"`
+	Rules       []ProfileRule          `json:"rules,omitempty"`
+	Source      string                 `json:"source,omitempty"` // "embedded", "global", "local"
 }
 
 // ResolvedProfile contains flattened and merged configuration after dependency resolution.
@@ -59,6 +60,7 @@ type ResolvedProfile struct {
 	BindsRW     [][]string
 	BindsRO     [][]string
 	UnshareNet  bool
+	Features    *config.FeaturesConfig
 	Tests       []TestSpec
 }
 
@@ -197,6 +199,9 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 		}
 		if p.UnshareNet || p.NoNet {
 			res.UnshareNet = true
+		}
+		if p.Features != nil {
+			res.Features = config.MergeFeatures(res.Features, p.Features)
 		}
 
 		for _, pt := range p.Path {

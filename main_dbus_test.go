@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -8,6 +9,15 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	cmd := exec.Command("go", "build", "-o", "bws", ".")
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build bws binary for testing: %v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
 
 func TestCLIDBusFlagsAndPlan(t *testing.T) {
 	if _, err := os.Stat(bwPath); os.IsNotExist(err) {

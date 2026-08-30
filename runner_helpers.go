@@ -161,6 +161,9 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 				cfg.Env[k] = v
 			}
 		}
+		if resolved.Features != nil {
+			cfg.Features = config.MergeFeatures(cfg.Features, resolved.Features)
+		}
 		if resolved.UnshareNet {
 			if cfg.Features == nil {
 				cfg.Features = &config.FeaturesConfig{}
@@ -238,18 +241,18 @@ func applyFlags(cfg *config.Config, noSSH, noNet, proxy, noProxy, dbus, noDBus b
 		t := true
 		cfg.Features.NoNet = &t
 	}
-	if proxy {
-		t := true
-		cfg.Features.EnableProxy = &t
-	} else if noProxy {
+	if noProxy {
 		f := false
 		cfg.Features.EnableProxy = &f
-	}
-	if dbus {
+	} else if proxy {
 		t := true
-		cfg.Features.EnableDBus = &t
-	} else if noDBus {
+		cfg.Features.EnableProxy = &t
+	}
+	if noDBus {
 		f := false
 		cfg.Features.EnableDBus = &f
+	} else if dbus {
+		t := true
+		cfg.Features.EnableDBus = &t
 	}
 }

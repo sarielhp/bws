@@ -74,7 +74,7 @@ func statusCmd(f *appFlags) clihelp.Command {
 		},
 		Run: func(ctx *clihelp.Context) error {
 			showAll := len(ctx.Args) > 0 && (ctx.Args[0] == "all" || ctx.Args[0] == "-a" || ctx.Args[0] == "--all")
-			return runStatus(showAll, f.verbose)
+			return runStatus(showAll, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus)
 		},
 	}
 }
@@ -87,7 +87,7 @@ func planCmd(f *appFlags) clihelp.Command {
 		UsageLine:   "bws plan",
 		Args:        clihelp.NoArgs,
 		Run: func(ctx *clihelp.Context) error {
-			return runConf(f.verbose)
+			return runConf(f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus)
 		},
 	}
 }
