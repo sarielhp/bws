@@ -319,12 +319,16 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	return nil
 }
 
-func applyFlags(cfg *config.Config, noNet, proxy, noProxy bool) {
+func applyFlags(cfg *config.Config, noSSH, noNet, proxy, noProxy bool) {
 	if cfg == nil {
 		return
 	}
 	if cfg.Features == nil {
 		cfg.Features = &config.FeaturesConfig{}
+	}
+	if noSSH {
+		f := false
+		cfg.Features.EnableSSH = &f
 	}
 	if noNet {
 		t := true
@@ -339,13 +343,13 @@ func applyFlags(cfg *config.Config, noNet, proxy, noProxy bool) {
 	}
 }
 
-func runDefault(args []string, force, verbose, noNet, proxy, noProxy bool) error {
+func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	applyFlags(sl.cfg, noNet, proxy, noProxy)
+	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy)
 
 	isDefaultSession := len(args) == 0
 	cli.VerifyTools(isDefaultSession, false)
@@ -453,13 +457,13 @@ func runSandboxCommand(name string, execArgs []string, force, verbose bool) erro
 	return nil
 }
 
-func runExec(args []string, force, verbose, noNet, proxy, noProxy bool) error {
+func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	applyFlags(sl.cfg, noNet, proxy, noProxy)
+	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy)
 
 	cli.VerifyTools(false, false)
 	cli.VerifyBwrapUserns()

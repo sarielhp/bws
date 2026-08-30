@@ -314,7 +314,7 @@ func runCmd(f *appFlags) clihelp.Command {
 		UsageLine:   "bws run <command> [args...]",
 		Args:        clihelp.MinimumNArgs(1),
 		Run: func(ctx *clihelp.Context) error {
-			return runExec(ctx.Args, f.force, f.verbose, f.noNet, f.proxy, f.noProxy)
+			return runExec(ctx.Args, f.force, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy)
 		},
 	}
 }
