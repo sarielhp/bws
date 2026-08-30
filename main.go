@@ -46,6 +46,7 @@ func buildApp() *clihelp.App {
 			gitWorkflowCmd(f),
 			runCmd(f),
 			testCmd(f),
+			traceCmd(f, glValidator),
 			profileCmd(f, glValidator),
 			configCmd(f, glValidator),
 			docsCmd(f),

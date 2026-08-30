@@ -77,6 +77,27 @@ bws test node
 
 ---
 
+### `bws trace [options] [--] <cmd> [args...]`
+Trace a command dynamically using `strace` to discover required bind mounts, read-write vs read-only access, and sandbox features (aliases: `record`, `learn`).
+
+| Option | Description |
+| :--- | :--- |
+| `-n`, `--dry-run` | Preview discovered mounts and features without saving |
+| `-w`, `--write` | Write discovered mounts and features directly to configuration file |
+| `-p`, `--profile <name>` | Save discovered configuration as a reusable capability profile in `profiles/<name>.json` |
+| `-g`, `--global` | Target global config or profiles directory |
+| `-l`, `--local` | Target local workspace config or profiles directory |
+| `-f`, `--force` | Overwrite existing profile or config without prompt |
+
+```bash
+bws trace -- python train.py             # Trace Python script and preview required mounts
+bws trace -w -- node index.js            # Trace Node.js and write mounts to .bws/config.jsonc
+bws trace -p myapp -- ./bin/myapp        # Trace binary and generate profiles/myapp.json
+bws trace -p mytool -g -- mytool build   # Trace tool and save to global profiles directory
+```
+
+---
+
 ## Current environment
 
 ### `bws init [options] [dir]`
