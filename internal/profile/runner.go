@@ -9,6 +9,7 @@ import (
 
 	"bws/internal/bwrap"
 	"bws/internal/config"
+	"bws/internal/dbus"
 	"bws/internal/sandbox"
 	"bws/internal/util"
 )
@@ -66,7 +67,22 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 		defer cleanup()
 	}
 
+	var dbusProxy *dbus.Proxy
+	if config.FeatureEnabledDefault(testCfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
+		dbusProxy, _ = dbus.Start(testCfg, verbose)
+		if dbusProxy != nil {
+			defer dbusProxy.Close()
+		}
+	}
+
 	bwrapArgs := bwrap.BuildArgs(testCfg, sandboxDir, currentDir, false, verbose)
+	if dbusProxy != nil && !dbusProxy.IsRaw() && dbusProxy.SocketPath() != "" {
+		bwrapArgs = append(bwrapArgs,
+			"--bind", dbusProxy.SocketPath(), dbusProxy.DestPath(),
+			"--setenv", "DBUS_SESSION_BUS_ADDRESS", fmt.Sprintf("unix:path=%s", dbusProxy.DestPath()),
+			"--setenv", "XDG_RUNTIME_DIR", dbusProxy.DestDir(),
+		)
+	}
 
 	var results []TestResult
 	for _, t := range resolved.Tests {

@@ -96,14 +96,20 @@ func TestMergeFeaturesDeepMerge(t *testing.T) {
 			EnableSSH:         boolPtr(true),
 			EnableX11:         boolPtr(true),
 			EnableDBus:        boolPtr(true),
+			DBusTalk:          []string{"org.freedesktop.secrets"},
+			AllowRawDBus:      boolPtr(false),
+			EnableProxy:       boolPtr(false),
 			AutoRepoDeployKey: boolPtr(true),
 			SSHKeys:           []string{},
 		},
 	}
 	local := &Config{
 		Features: &FeaturesConfig{
-			EnableSSH: boolPtr(false),
-			SSHKeys:   []string{"/home/user/.ssh/id_ed25519"},
+			EnableSSH:    boolPtr(false),
+			DBusTalk:     []string{"org.freedesktop.secrets", "org.freedesktop.portal.Secret"},
+			AllowRawDBus: boolPtr(true),
+			EnableProxy:  boolPtr(true),
+			SSHKeys:      []string{"/home/user/.ssh/id_ed25519"},
 		},
 	}
 	result := Merge(global, local)
@@ -118,6 +124,15 @@ func TestMergeFeaturesDeepMerge(t *testing.T) {
 	}
 	if *result.Features.EnableDBus != true {
 		t.Errorf("expected EnableDBus preserved as true, got %t", *result.Features.EnableDBus)
+	}
+	if len(result.Features.DBusTalk) != 2 || result.Features.DBusTalk[1] != "org.freedesktop.portal.Secret" {
+		t.Errorf("expected DBusTalk overridden with 2 items, got %v", result.Features.DBusTalk)
+	}
+	if *result.Features.AllowRawDBus != true {
+		t.Errorf("expected AllowRawDBus overridden as true, got %t", *result.Features.AllowRawDBus)
+	}
+	if *result.Features.EnableProxy != true {
+		t.Errorf("expected EnableProxy overridden as true, got %t", *result.Features.EnableProxy)
 	}
 	if *result.Features.AutoRepoDeployKey != true {
 		t.Errorf("expected AutoRepoDeployKey preserved as true, got %t", *result.Features.AutoRepoDeployKey)

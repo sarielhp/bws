@@ -142,11 +142,20 @@ func mergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.EnableDBus != nil {
 		r.EnableDBus = local.EnableDBus
 	}
+	if local.DBusTalk != nil {
+		r.DBusTalk = local.DBusTalk
+	}
+	if local.AllowRawDBus != nil {
+		r.AllowRawDBus = local.AllowRawDBus
+	}
 	if local.EnableWSL != nil {
 		r.EnableWSL = local.EnableWSL
 	}
 	if local.EnableEtcAutoBind != nil {
 		r.EnableEtcAutoBind = local.EnableEtcAutoBind
+	}
+	if local.EnableProxy != nil {
+		r.EnableProxy = local.EnableProxy
 	}
 	if local.NoNet != nil {
 		r.NoNet = local.NoNet

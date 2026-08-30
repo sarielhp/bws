@@ -23,6 +23,8 @@ type FeaturesConfig struct {
 	AutoRepoDeployKey *bool    `json:"auto_repo_deploy_key"`
 	EnableX11         *bool    `json:"enable_x11"`
 	EnableDBus        *bool    `json:"enable_dbus"`
+	DBusTalk          []string `json:"dbus_talk,omitempty"`
+	AllowRawDBus      *bool    `json:"allow_raw_dbus,omitempty"`
 	EnableWSL         *bool    `json:"enable_wsl"`
 	EnableEtcAutoBind *bool    `json:"enable_etc_auto_bind"`
 	EnableProxy       *bool    `json:"enable_proxy,omitempty"`
@@ -182,10 +184,6 @@ func generateDefaultConfig() string {
 	if user == "" {
 		user = "user"
 	}
-	logname := os.Getenv("LOGNAME")
-	if logname == "" {
-		logname = user
-	}
 	return fmt.Sprintf(`// Bubblewrap Sandbox Launcher Configuration File
 {
   "system": {
@@ -248,7 +246,7 @@ func generateDefaultConfig() string {
     ["~/.ssh/known_hosts", "%[1]s/.ssh/known_hosts"]
   ]
 }
-`, h, user, logname)
+`, h, user)
 }
 
 const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File (Blank Template Example)

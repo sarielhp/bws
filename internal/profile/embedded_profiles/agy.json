@@ -17,9 +17,7 @@
     "ANTIGRAVITY_*",
     "JETSKI_*",
     "AGY_*",
-    "CLOUDSDK_*",
-    "DBUS_SESSION_BUS_ADDRESS",
-    "XDG_RUNTIME_DIR"
+    "CLOUDSDK_*"
   ],
   "binds_rw": [
     [
@@ -75,6 +73,7 @@
     "GODEBUG": "netdns=cgo"
   },
   "features": {
-    "enable_proxy": true
+    "enable_proxy": true,
+    "enable_dbus": true
   }
 }

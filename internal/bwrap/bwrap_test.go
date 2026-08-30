@@ -95,14 +95,19 @@ func TestAddDBusArgs(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1234")
 
 	var args []string
-	addDBusArgs(&args)
+	cfg := &config.Config{
+		Features: &config.FeaturesConfig{
+			EnableDBus: boolPtr(true),
+		},
+	}
+	addDBusArgs(&args, cfg, true)
 
 	foundBind := false
 	foundDBusEnv := false
 	foundXDGEnv := false
 
 	for i := 0; i < len(args)-2; i++ {
-		if args[i] == "--bind" && args[i+1] == fakeBus && args[i+2] == fakeBus {
+		if args[i] == "--bind" && args[i+1] == "<filtered-dbus-proxy>" && args[i+2] == "/run/user/1234/bus" {
 			foundBind = true
 		}
 	}
@@ -116,7 +121,7 @@ func TestAddDBusArgs(t *testing.T) {
 	}
 
 	if !foundBind {
-		t.Errorf("expected --bind %s %s in addDBusArgs", fakeBus, fakeBus)
+		t.Errorf("expected --bind <filtered-dbus-proxy> /run/user/1234/bus in addDBusArgs, got %v", args)
 	}
 	if !foundDBusEnv {
 		t.Error("expected DBUS_SESSION_BUS_ADDRESS setenv in addDBusArgs")
@@ -142,6 +147,32 @@ func TestDBusDisabled(t *testing.T) {
 	for i := 0; i < len(args)-1; i++ {
 		if args[i] == "--setenv" && args[i+1] == "DBUS_SESSION_BUS_ADDRESS" {
 			t.Error("DBUS_SESSION_BUS_ADDRESS should not be set when enable_dbus is false")
+		}
+	}
+}
+
+func TestDBusDisabledByDefault(t *testing.T) {
+	fakeBus := filepath.Join(t.TempDir(), "bus")
+	_ = os.WriteFile(fakeBus, []byte("fake"), 0600)
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
+
+	cfg := &config.Config{}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--setenv" && args[i+1] == "DBUS_SESSION_BUS_ADDRESS" {
+			t.Error("DBUS_SESSION_BUS_ADDRESS should not be set by default")
+		}
+	}
+}
+
+func TestNoUnconditionalSystemDBus(t *testing.T) {
+	cfg := &config.Config{}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "/run/dbus" {
+			t.Errorf("unconditional /run/dbus mount must not be present, found at arg index %d", i)
 		}
 	}
 }

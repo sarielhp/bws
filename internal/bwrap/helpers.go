@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"bws/internal/config"
+	"bws/internal/dbus"
 	"bws/internal/ssh"
 	"bws/internal/util"
 )
@@ -96,41 +97,31 @@ func addX11Args(args *[]string) {
 	*args = append(*args, "--setenv", "NO_AT_SPI", "1")
 }
 
-func addDBusArgs(args *[]string) {
-	dbusAddr := os.Getenv("DBUS_SESSION_BUS_ADDRESS")
-	var sockPath string
-
-	if dbusAddr != "" {
-		if strings.HasPrefix(dbusAddr, "unix:path=") {
-			sockPath = strings.TrimPrefix(dbusAddr, "unix:path=")
-			if idx := strings.Index(sockPath, ","); idx != -1 {
-				sockPath = sockPath[:idx]
-			}
-		}
-	} else {
-		candidate := fmt.Sprintf("/run/user/%d/bus", os.Getuid())
-		if fi, err := os.Stat(candidate); err == nil && (fi.Mode()&os.ModeSocket != 0 || !fi.IsDir()) {
-			sockPath = candidate
-			dbusAddr = fmt.Sprintf("unix:path=%s", sockPath)
-		}
+func addDBusArgs(args *[]string, cfg *config.Config, dryRun bool) {
+	if !config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
+		return
 	}
 
-	if sockPath != "" {
-		if fi, err := os.Stat(sockPath); err == nil && (fi.Mode()&os.ModeSocket != 0 || !fi.IsDir()) {
-			*args = append(*args, "--bind", sockPath, sockPath)
-			*args = append(*args, "--setenv", "DBUS_SESSION_BUS_ADDRESS", dbusAddr)
-		}
-	} else if dbusAddr != "" {
-		*args = append(*args, "--setenv", "DBUS_SESSION_BUS_ADDRESS", dbusAddr)
+	hostSock := dbus.HostSessionBusSocketPath()
+	if hostSock == "" {
+		return
 	}
 
-	xdgRuntime := os.Getenv("XDG_RUNTIME_DIR")
-	if xdgRuntime != "" {
-		*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", xdgRuntime)
-	} else {
-		candidateDir := fmt.Sprintf("/run/user/%d", os.Getuid())
-		if fi, err := os.Stat(candidateDir); err == nil && fi.IsDir() {
-			*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", candidateDir)
+	destPath, destDir := dbus.SandboxDestinationPaths()
+
+	if dryRun {
+		*args = append(*args, "--bind", "<filtered-dbus-proxy>", destPath)
+		*args = append(*args, "--setenv", "DBUS_SESSION_BUS_ADDRESS", fmt.Sprintf("unix:path=%s", destPath))
+		*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", destDir)
+		return
+	}
+
+	// In non-dryRun, if AllowRawDBus is explicitly enabled and xdg-dbus-proxy is missing, raw socket is bound
+	if config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.AllowRawDBus }, false) && !util.CommandExists("xdg-dbus-proxy") {
+		if fi, err := os.Stat(hostSock); err == nil && (fi.Mode()&os.ModeSocket != 0 || !fi.IsDir()) {
+			*args = append(*args, "--bind", hostSock, destPath)
+			*args = append(*args, "--setenv", "DBUS_SESSION_BUS_ADDRESS", fmt.Sprintf("unix:path=%s", destPath))
+			*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", destDir)
 		}
 	}
 }

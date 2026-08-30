@@ -225,8 +225,8 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		addX11Args(&args)
 	}
 
-	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }) {
-		addDBusArgs(&args)
+	if config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
+		addDBusArgs(&args, cfg, dryRun)
 	}
 
 	if config.GetBool(cfg, func(c *config.Config) *bool {
@@ -281,7 +281,6 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		}
 	}
 	args = append(args, "--ro-bind-try", "/run/systemd/resolve", "/run/systemd/resolve")
-	args = append(args, "--ro-bind-try", "/run/dbus", "/run/dbus")
 	args = append(args, "--ro-bind-try", "/opt/google", "/opt/google")
 	args = append(args, "--ro-bind-try", "/etc/ssl", "/etc/ssl")
 	args = append(args, "--ro-bind-try", "/etc/ca-certificates", "/etc/ca-certificates")

@@ -27,9 +27,14 @@ func ensureGlobalConfig(t *testing.T) {
 	t.Helper()
 	globalPath := config.GlobalPath()
 	if _, err := os.Stat(globalPath); os.IsNotExist(err) {
-		config.CreateDefault(globalPath)
+		if err := config.CreateDefault(globalPath); err != nil {
+			tmpHome := t.TempDir()
+			t.Setenv("HOME", tmpHome)
+			globalPath = config.GlobalPath()
+			_ = config.CreateDefault(globalPath)
+		}
 		examplePath := filepath.Join(filepath.Dir(globalPath), "example-config.jsonc")
-		config.CreateExampleConfig(examplePath)
+		_ = config.CreateExampleConfig(examplePath)
 	}
 }
 
