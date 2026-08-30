@@ -34,6 +34,7 @@ func HandleProfileAdd(names []string, global, local bool) {
 	}
 
 	var added []string
+	var refreshed []string
 	for _, name := range names {
 		if reg != nil {
 			if _, ok := reg[name]; !ok {
@@ -41,7 +42,7 @@ func HandleProfileAdd(names []string, global, local bool) {
 			}
 		}
 		if existing[name] {
-			fmt.Printf("Profile %s is already enabled in %s configuration.\n", ColorProfile(name), targetPath)
+			refreshed = append(refreshed, name)
 			continue
 		}
 		cfg.Profiles = append(cfg.Profiles, name)
@@ -49,13 +50,11 @@ func HandleProfileAdd(names []string, global, local bool) {
 		added = append(added, name)
 	}
 
-	if len(added) == 0 {
-		return
-	}
-
-	if err := config.SetArrayValue(targetPath, "profiles", cfg.Profiles); err != nil {
-		fmt.Fprintf(os.Stderr, "Error saving config: %v\n", err)
-		os.Exit(1)
+	if len(added) > 0 {
+		if err := config.SetArrayValue(targetPath, "profiles", cfg.Profiles); err != nil {
+			fmt.Fprintf(os.Stderr, "Error saving config: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	label := "global"
@@ -64,6 +63,9 @@ func HandleProfileAdd(names []string, global, local bool) {
 	}
 	for _, name := range added {
 		fmt.Printf("Added profile %s to %s sandbox configuration (%s).\n", ColorProfile(name), label, targetPath)
+	}
+	for _, name := range refreshed {
+		fmt.Printf("Profile %s is active in %s sandbox configuration (%s).\n", ColorProfile(name), label, targetPath)
 	}
 }
 
