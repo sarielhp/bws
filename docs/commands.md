@@ -45,6 +45,27 @@ bws run -N pytest               # Run tests completely offline
 
 ---
 
+### `bws git-workflow [options] [-- command [args...]]`
+Run an isolated, disposable agent session in a temporary Git clone (aliases: `gw`, `worktree`).
+
+| Option | Description |
+| :--- | :--- |
+| `-b`, `--branch <name>` | Custom target branch name for the agent session |
+| `--stash` | Automatically stash uncommitted changes before starting |
+| `--allow-dirty` | Allow starting even if the working tree has uncommitted changes |
+| `-v`, `--verbose` | Enable verbose diagnostic logging |
+
+```bash
+bws gw                                      # Interactive shell in a disposable clone
+bws gw agy                                  # Run Antigravity autonomously
+bws gw -b fix-auth -- agy "Fix OAuth bug"   # Run agent on a named branch
+bws gw --stash                              # Auto-stash dirty tree before starting
+```
+
+Upon sandbox exit, changes are fetched back to the host and presented with an interactive Merge/Squash/Keep/Discard menu.
+
+---
+
 ### `bws test <target>`
 Run automated smoke tests for a profile inside an isolated sandbox.
 
