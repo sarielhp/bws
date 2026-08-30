@@ -95,6 +95,7 @@ func TestMergeFeaturesDeepMerge(t *testing.T) {
 		Features: &FeaturesConfig{
 			EnableSSH:         boolPtr(true),
 			EnableX11:         boolPtr(true),
+			EnableDBus:        boolPtr(true),
 			AutoRepoDeployKey: boolPtr(true),
 			SSHKeys:           []string{},
 		},
@@ -114,6 +115,9 @@ func TestMergeFeaturesDeepMerge(t *testing.T) {
 	}
 	if *result.Features.EnableX11 != true {
 		t.Errorf("expected EnableX11 preserved as true, got %t", *result.Features.EnableX11)
+	}
+	if *result.Features.EnableDBus != true {
+		t.Errorf("expected EnableDBus preserved as true, got %t", *result.Features.EnableDBus)
 	}
 	if *result.Features.AutoRepoDeployKey != true {
 		t.Errorf("expected AutoRepoDeployKey preserved as true, got %t", *result.Features.AutoRepoDeployKey)

@@ -225,6 +225,10 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		addX11Args(&args)
 	}
 
+	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }) {
+		addDBusArgs(&args)
+	}
+
 	if config.GetBool(cfg, func(c *config.Config) *bool {
 		if c.Features == nil {
 			return nil

@@ -85,6 +85,67 @@ func TestSSHKnownHostsReadOnly(t *testing.T) {
 	}
 }
 
+func TestAddDBusArgs(t *testing.T) {
+	fakeBus := filepath.Join(t.TempDir(), "bus")
+	if err := os.WriteFile(fakeBus, []byte("fake"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
+	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1234")
+
+	var args []string
+	addDBusArgs(&args)
+
+	foundBind := false
+	foundDBusEnv := false
+	foundXDGEnv := false
+
+	for i := 0; i < len(args)-2; i++ {
+		if args[i] == "--bind" && args[i+1] == fakeBus && args[i+2] == fakeBus {
+			foundBind = true
+		}
+	}
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--setenv" && args[i+1] == "DBUS_SESSION_BUS_ADDRESS" {
+			foundDBusEnv = true
+		}
+		if args[i] == "--setenv" && args[i+1] == "XDG_RUNTIME_DIR" {
+			foundXDGEnv = true
+		}
+	}
+
+	if !foundBind {
+		t.Errorf("expected --bind %s %s in addDBusArgs", fakeBus, fakeBus)
+	}
+	if !foundDBusEnv {
+		t.Error("expected DBUS_SESSION_BUS_ADDRESS setenv in addDBusArgs")
+	}
+	if !foundXDGEnv {
+		t.Error("expected XDG_RUNTIME_DIR setenv in addDBusArgs")
+	}
+}
+
+func TestDBusDisabled(t *testing.T) {
+	fakeBus := filepath.Join(t.TempDir(), "bus")
+	_ = os.WriteFile(fakeBus, []byte("fake"), 0600)
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
+
+	f := false
+	cfg := &config.Config{
+		Features: &config.FeaturesConfig{
+			EnableDBus: &f,
+		},
+	}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--setenv" && args[i+1] == "DBUS_SESSION_BUS_ADDRESS" {
+			t.Error("DBUS_SESSION_BUS_ADDRESS should not be set when enable_dbus is false")
+		}
+	}
+}
+
 func boolPtr(b bool) *bool {
 	return &b
 }

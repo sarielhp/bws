@@ -22,6 +22,7 @@ type FeaturesConfig struct {
 	SSHKeys           []string `json:"ssh_keys"`
 	AutoRepoDeployKey *bool    `json:"auto_repo_deploy_key"`
 	EnableX11         *bool    `json:"enable_x11"`
+	EnableDBus        *bool    `json:"enable_dbus"`
 	EnableWSL         *bool    `json:"enable_wsl"`
 	EnableEtcAutoBind *bool    `json:"enable_etc_auto_bind"`
 	EnableProxy       *bool    `json:"enable_proxy,omitempty"`

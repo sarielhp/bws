@@ -96,6 +96,45 @@ func addX11Args(args *[]string) {
 	*args = append(*args, "--setenv", "NO_AT_SPI", "1")
 }
 
+func addDBusArgs(args *[]string) {
+	dbusAddr := os.Getenv("DBUS_SESSION_BUS_ADDRESS")
+	var sockPath string
+
+	if dbusAddr != "" {
+		if strings.HasPrefix(dbusAddr, "unix:path=") {
+			sockPath = strings.TrimPrefix(dbusAddr, "unix:path=")
+			if idx := strings.Index(sockPath, ","); idx != -1 {
+				sockPath = sockPath[:idx]
+			}
+		}
+	} else {
+		candidate := fmt.Sprintf("/run/user/%d/bus", os.Getuid())
+		if fi, err := os.Stat(candidate); err == nil && (fi.Mode()&os.ModeSocket != 0 || !fi.IsDir()) {
+			sockPath = candidate
+			dbusAddr = fmt.Sprintf("unix:path=%s", sockPath)
+		}
+	}
+
+	if sockPath != "" {
+		if fi, err := os.Stat(sockPath); err == nil && (fi.Mode()&os.ModeSocket != 0 || !fi.IsDir()) {
+			*args = append(*args, "--bind", sockPath, sockPath)
+			*args = append(*args, "--setenv", "DBUS_SESSION_BUS_ADDRESS", dbusAddr)
+		}
+	} else if dbusAddr != "" {
+		*args = append(*args, "--setenv", "DBUS_SESSION_BUS_ADDRESS", dbusAddr)
+	}
+
+	xdgRuntime := os.Getenv("XDG_RUNTIME_DIR")
+	if xdgRuntime != "" {
+		*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", xdgRuntime)
+	} else {
+		candidateDir := fmt.Sprintf("/run/user/%d", os.Getuid())
+		if fi, err := os.Stat(candidateDir); err == nil && fi.IsDir() {
+			*args = append(*args, "--setenv", "XDG_RUNTIME_DIR", candidateDir)
+		}
+	}
+}
+
 func addWSLArgs(args *[]string) {
 	wslInterop := os.Getenv("WSL_INTEROP")
 	isWSL := (wslInterop != "") || dirExists("/run/WSL") || fileExists("/proc/sys/fs/binfmt_misc/WSLInterop")

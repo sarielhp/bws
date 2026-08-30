@@ -14,6 +14,7 @@ var KnownKeyAliases = map[string]string{
 	"enable_proxy":         "features.enable_proxy",
 	"enable_ssh":           "features.enable_ssh",
 	"enable_x11":           "features.enable_x11",
+	"enable_dbus":          "features.enable_dbus",
 	"enable_wsl":           "features.enable_wsl",
 	"enable_etc_auto_bind": "features.enable_etc_auto_bind",
 	"auto_repo_deploy_key": "features.auto_repo_deploy_key",

@@ -139,6 +139,9 @@ func mergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.EnableX11 != nil {
 		r.EnableX11 = local.EnableX11
 	}
+	if local.EnableDBus != nil {
+		r.EnableDBus = local.EnableDBus
+	}
 	if local.EnableWSL != nil {
 		r.EnableWSL = local.EnableWSL
 	}
