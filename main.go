@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/sarielhp/clihelp"
 )
@@ -46,7 +47,7 @@ func buildApp() *clihelp.App {
 			gitWorkflowCmd(f),
 			runCmd(f),
 			testCmd(f),
-			traceCmd(f, glValidator),
+			learnCmd(f, glValidator),
 			profileCmd(f, glValidator),
 			configCmd(f, glValidator),
 			docsCmd(f),
@@ -57,20 +58,92 @@ func buildApp() *clihelp.App {
 	}
 }
 
-func main() {
-	app := buildApp()
+func normalizeArgs(rawArgs []string) []string {
+	if len(rawArgs) == 0 {
+		return rawArgs
+	}
 
-	rawArgs := os.Args[1:]
-	normalizedArgs := make([]string, 0, len(rawArgs))
-	if len(rawArgs) > 0 {
-		switch rawArgs[0] {
+	normalized := make([]string, 0, len(rawArgs)+1)
+	for i := 0; i < len(rawArgs); i++ {
+		arg := rawArgs[i]
+		switch arg {
 		case "help", "-help", "--h", "-?", "-H":
-			normalizedArgs = append(normalizedArgs, "--help")
-			normalizedArgs = append(normalizedArgs, rawArgs[1:]...)
-		default:
-			normalizedArgs = rawArgs
+			if i == 0 {
+				normalized = append(normalized, "--help")
+				continue
+			}
+		}
+		normalized = append(normalized, arg)
+	}
+
+	return normalizeCommandPassThrough(normalized)
+}
+
+func normalizeCommandPassThrough(args []string) []string {
+	learnIdx := -1
+	for i, arg := range args {
+		if arg == "learn" {
+			learnIdx = i
+			break
 		}
 	}
+	if learnIdx == -1 {
+		return args
+	}
+
+	var result []string
+	result = append(result, args[:learnIdx+1]...)
+
+	subArgs := args[learnIdx+1:]
+	alreadyHasDashDash := false
+	for _, a := range subArgs {
+		if a == "--" {
+			alreadyHasDashDash = true
+			break
+		}
+	}
+	if alreadyHasDashDash {
+		result = append(result, subArgs...)
+		return result
+	}
+
+	insertedDashDash := false
+	for i := 0; i < len(subArgs); i++ {
+		token := subArgs[i]
+		if insertedDashDash {
+			result = append(result, token)
+			continue
+		}
+
+		if token == "-p" || token == "--profile" {
+			result = append(result, token)
+			if i+1 < len(subArgs) {
+				i++
+				result = append(result, subArgs[i])
+			}
+			continue
+		}
+
+		if strings.HasPrefix(token, "-p=") || strings.HasPrefix(token, "--profile=") {
+			result = append(result, token)
+			continue
+		}
+
+		if strings.HasPrefix(token, "-") {
+			result = append(result, token)
+			continue
+		}
+
+		result = append(result, "--", token)
+		insertedDashDash = true
+	}
+
+	return result
+}
+
+func main() {
+	app := buildApp()
+	normalizedArgs := normalizeArgs(os.Args[1:])
 
 	if err := app.Execute(normalizedArgs); err != nil {
 		app.PrintError(err)

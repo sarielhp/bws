@@ -8,60 +8,87 @@ import (
 	"strings"
 
 	"bws/internal/config"
+	"bws/internal/learn"
 	"bws/internal/profile"
-	"bws/internal/trace"
 
 	"github.com/fatih/color"
 )
 
-// HandleTrace runs a target command under strace, analyzes captured syscalls,
-// and optionally writes discovered mounts/features to config or a profile.
-func HandleTrace(targetCmd []string, dryRun, writeConfig bool, profileName string, global, local, force, verbose bool) error {
+// HandleLearn runs a target command under strace, analyzes captured syscalls,
+// diffs against the active sandbox config, and applies or previews the delta.
+func HandleLearn(targetCmd []string, dryRun bool, profileName string, global, force, verbose bool) error {
 	if len(targetCmd) == 0 {
-		return fmt.Errorf("no target command specified (e.g. bws trace -- myapp --help)")
+		return fmt.Errorf("no target command specified (e.g. bws learn -- myapp --help)")
 	}
 
 	cwd, _ := os.Getwd()
 	homeDir, _ := os.UserHomeDir()
 
-	fmt.Printf("Tracing command: %s\n", strings.Join(targetCmd, " "))
+	fmt.Printf("Learning command: %s\n", strings.Join(targetCmd, " "))
 	fmt.Println(strings.Repeat("=", 60))
 
-	res, err := trace.RunTrace(trace.TraceOptions{
+	res, err := learn.RunTrace(learn.TraceOptions{
 		Command: targetCmd,
 		WorkDir: cwd,
 		HomeDir: homeDir,
 		Verbose: verbose,
 	})
 	if err != nil {
-		return fmt.Errorf("running trace: %w", err)
+		return fmt.Errorf("running learn trace: %w", err)
 	}
 
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("Trace analysis complete (process exited with code %d):\n\n", res.ExitCode)
 
-	printTraceSummary(res)
+	// Load target configuration for diffing
+	targetPath := configFilePath(global)
+	var targetConfig *config.Config
+	if _, err := os.Stat(targetPath); err == nil {
+		targetConfig, _ = config.LoadFile(targetPath)
+	}
+
+	delta := learn.ComputeDelta(res, targetConfig, homeDir)
+
+	printLearnSummary(res, delta)
 
 	// Case 1: Standalone profile generation (-p / --profile)
 	if profileName != "" {
-		return handleProfileGeneration(res, profileName, global, local, force, dryRun)
+		return handleProfileGeneration(res, profileName, global, force, dryRun)
 	}
 
-	// Case 2: Direct configuration writing (-w / --write)
-	if writeConfig {
-		return handleConfigWrite(res, global, local, dryRun)
+	// Case 2: Dry run / Preview mode (-n / --dry-run)
+	if dryRun {
+		if delta.IsEmpty() {
+			fmt.Println("✓ Sandbox configuration already covers all required access. No changes needed.")
+			return nil
+		}
+		fmt.Printf("Discovered sandbox configuration additions for %s:\n\n", targetPath)
+		printDeltaSnippet(delta)
+		return nil
 	}
 
-	// Case 3: Dry run / Preview mode (default if neither -w nor -p)
-	printTracePreview(res)
-	return nil
+	// Case 3: Default live merge
+	if delta.IsEmpty() {
+		fmt.Println("✓ Sandbox configuration already covers all required access. No changes needed.")
+		return nil
+	}
+
+	return handleLiveMerge(targetPath, delta, global)
 }
 
-func printTraceSummary(res *trace.TraceResult) {
+func printLearnSummary(res *learn.TraceResult, delta *learn.Delta) {
 	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
+	red := color.New(color.FgRed, color.Bold).SprintFunc()
 	dim := color.New(color.FgHiBlack).SprintFunc()
+
+	if len(delta.SecurityAlerts) > 0 {
+		for _, alert := range delta.SecurityAlerts {
+			fmt.Println(red(alert))
+		}
+		fmt.Println()
+	}
 
 	fmt.Println(cyan("Detected Features:"))
 	fmt.Printf("  • Network (TCP/UDP):   %s\n", boolStatus(res.Features.Net, green, dim))
@@ -70,6 +97,11 @@ func printTraceSummary(res *trace.TraceResult) {
 	fmt.Printf("  • X11 Display Server:  %s\n", boolStatus(res.Features.X11, green, dim))
 	fmt.Printf("  • WSL2 Interop:        %s\n", boolStatus(res.Features.WSL, green, dim))
 	fmt.Println()
+
+	if res.DiscoveredPath != "" {
+		fmt.Println(cyan("Binary PATH Discovery:"))
+		fmt.Printf("  • Binary directory:    %s\n\n", yellow(res.DiscoveredPath))
+	}
 
 	fmt.Println(cyan("Discovered Bind Mounts:"))
 	if len(res.BindsRW) > 0 {
@@ -99,7 +131,7 @@ func boolStatus(b bool, active, inactive func(...interface{}) string) string {
 	return inactive("no")
 }
 
-func handleProfileGeneration(res *trace.TraceResult, profileName string, global, local, force, dryRun bool) error {
+func handleProfileGeneration(res *learn.TraceResult, profileName string, global, force, dryRun bool) error {
 	cleanName := strings.ToLower(strings.TrimSpace(profileName))
 	p := res.ToProfile(cleanName)
 
@@ -114,7 +146,7 @@ func handleProfileGeneration(res *trace.TraceResult, profileName string, global,
 	}
 
 	var targetDir string
-	if local {
+	if !global {
 		cwd, _ := os.Getwd()
 		targetDir = profile.LocalProfilesDir(cwd)
 	} else {
@@ -137,53 +169,10 @@ func handleProfileGeneration(res *trace.TraceResult, profileName string, global,
 	return nil
 }
 
-func handleConfigWrite(res *trace.TraceResult, global, local, dryRun bool) error {
-	targetPath := configFilePath(global)
-
-	if dryRun {
-		fmt.Printf("Configuration changes that would be applied to %s:\n", targetPath)
-		printTraceConfigSnippet(res)
-		return nil
-	}
-
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		if err := config.CreateDefault(targetPath); err != nil {
-			return fmt.Errorf("creating default config: %w", err)
-		}
-	}
-
-	addedRW := 0
-	for _, b := range res.BindsRW {
-		entry := fmt.Sprintf("%q", b)
-		if err := config.AddBindArrayElement(targetPath, "binds_rw", entry); err == nil {
-			addedRW++
-		}
-	}
-
-	addedRO := 0
-	for _, b := range res.BindsRO {
-		entry := fmt.Sprintf("%q", b)
-		if err := config.AddBindArrayElement(targetPath, "binds_ro", entry); err == nil {
-			addedRO++
-		}
-	}
-
-	var enabledFeatures []string
-	if res.Features.SSH {
-		_ = config.SetConfigKV(targetPath, "enable_ssh", "true")
-		enabledFeatures = append(enabledFeatures, "enable_ssh")
-	}
-	if res.Features.DBus {
-		_ = config.SetConfigKV(targetPath, "enable_dbus", "true")
-		enabledFeatures = append(enabledFeatures, "enable_dbus")
-	}
-	if res.Features.X11 {
-		_ = config.SetConfigKV(targetPath, "enable_x11", "true")
-		enabledFeatures = append(enabledFeatures, "enable_x11")
-	}
-	if res.Features.WSL {
-		_ = config.SetConfigKV(targetPath, "enable_wsl", "true")
-		enabledFeatures = append(enabledFeatures, "enable_wsl")
+func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
+	mergeRes, err := learn.ApplyDelta(targetPath, delta)
+	if err != nil {
+		return fmt.Errorf("merging learned delta into %s: %w", targetPath, err)
 	}
 
 	label := "local"
@@ -192,41 +181,46 @@ func handleConfigWrite(res *trace.TraceResult, global, local, dryRun bool) error
 	}
 
 	fmt.Printf("✓ Updated %s configuration (%s):\n", label, targetPath)
-	fmt.Printf("  • Added %d read-write bind mounts\n", addedRW)
-	fmt.Printf("  • Added %d read-only bind mounts\n", addedRO)
-	if len(enabledFeatures) > 0 {
-		fmt.Printf("  • Enabled features: %s\n", strings.Join(enabledFeatures, ", "))
+	if mergeRes.AddedRW > 0 {
+		fmt.Printf("  • Added %d read-write bind mounts\n", mergeRes.AddedRW)
+	}
+	if mergeRes.AddedRO > 0 {
+		fmt.Printf("  • Added %d read-only bind mounts\n", mergeRes.AddedRO)
+	}
+	if mergeRes.UpgradedRO > 0 {
+		fmt.Printf("  • Upgraded %d mounts (read-only -> read-write)\n", mergeRes.UpgradedRO)
+	}
+	if mergeRes.AddedPath > 0 {
+		fmt.Printf("  • Added %d binary PATH entries\n", mergeRes.AddedPath)
+	}
+	if len(mergeRes.EnabledFeatures) > 0 {
+		fmt.Printf("  • Enabled features: %s\n", strings.Join(mergeRes.EnabledFeatures, ", "))
 	}
 	return nil
 }
 
-func printTracePreview(res *trace.TraceResult) {
-	fmt.Println("Suggested configuration snippet:")
-	printTraceConfigSnippet(res)
-	fmt.Println("\nTip:")
-	fmt.Println("  • Use -w to write directly to your .bws/config.jsonc")
-	fmt.Println("  • Use -p <name> to save as a reusable capability profile in profiles/<name>.json")
-}
-
-func printTraceConfigSnippet(res *trace.TraceResult) {
+func printDeltaSnippet(delta *learn.Delta) {
 	cfgSnippet := make(map[string]interface{})
-	if len(res.BindsRW) > 0 {
-		cfgSnippet["binds_rw"] = res.BindsRW
+	if len(delta.Path) > 0 {
+		cfgSnippet["path"] = delta.Path
 	}
-	if len(res.BindsRO) > 0 {
-		cfgSnippet["binds_ro"] = res.BindsRO
+	if len(delta.BindsRW) > 0 {
+		cfgSnippet["binds_rw"] = delta.BindsRW
+	}
+	if len(delta.BindsRO) > 0 {
+		cfgSnippet["binds_ro"] = delta.BindsRO
 	}
 	features := make(map[string]bool)
-	if res.Features.SSH {
+	if delta.Features.SSH {
 		features["enable_ssh"] = true
 	}
-	if res.Features.DBus {
+	if delta.Features.DBus {
 		features["enable_dbus"] = true
 	}
-	if res.Features.X11 {
+	if delta.Features.X11 {
 		features["enable_x11"] = true
 	}
-	if res.Features.WSL {
+	if delta.Features.WSL {
 		features["enable_wsl"] = true
 	}
 	if len(features) > 0 {

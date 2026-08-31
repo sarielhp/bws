@@ -1,4 +1,4 @@
-package trace
+package learn
 
 import (
 	"bws/internal/config"
@@ -40,12 +40,14 @@ type ParsedSyscall struct {
 
 // TraceResult contains the aggregated output of dynamic runtime tracing.
 type TraceResult struct {
-	Command     []string              `json:"command"`
-	ExitCode    int                   `json:"exit_code"`
-	Features    DetectedFeatures      `json:"features"`
-	BindsRW     []string              `json:"binds_rw"`
-	BindsRO     []string              `json:"binds_ro"`
-	AllAccesses map[string]AccessMode `json:"-"`
+	Command        []string              `json:"command"`
+	ExitCode       int                   `json:"exit_code"`
+	Features       DetectedFeatures      `json:"features"`
+	BindsRW        []string              `json:"binds_rw"`
+	BindsRO        []string              `json:"binds_ro"`
+	DiscoveredPath string                `json:"discovered_path,omitempty"`
+	SecurityAlerts []string              `json:"security_alerts,omitempty"`
+	AllAccesses    map[string]AccessMode `json:"-"`
 }
 
 // TraceOptions configures the execution and parsing of a trace session.
@@ -56,6 +58,31 @@ type TraceOptions struct {
 	PathEnv  string
 	PathDirs []string
 	Verbose  bool
+}
+
+// Delta contains newly discovered additions/modifications compared to existing config.
+type Delta struct {
+	Path           []string         `json:"path,omitempty"`
+	BindsRW        []string         `json:"binds_rw,omitempty"`
+	BindsRO        []string         `json:"binds_ro,omitempty"`
+	UpgradedRO     []string         `json:"upgraded_ro,omitempty"`
+	Features       DetectedFeatures `json:"features,omitempty"`
+	SecurityAlerts []string         `json:"security_alerts,omitempty"`
+}
+
+// IsEmpty returns true if there are no new changes to apply or preview.
+func (d *Delta) IsEmpty() bool {
+	if d == nil {
+		return true
+	}
+	return len(d.Path) == 0 &&
+		len(d.BindsRW) == 0 &&
+		len(d.BindsRO) == 0 &&
+		len(d.UpgradedRO) == 0 &&
+		!d.Features.SSH &&
+		!d.Features.DBus &&
+		!d.Features.X11 &&
+		!d.Features.WSL
 }
 
 // ToProfile converts a TraceResult into a declarative capability Profile.

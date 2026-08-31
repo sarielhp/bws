@@ -1,4 +1,4 @@
-package trace
+package learn
 
 import (
 	"os"
@@ -62,7 +62,6 @@ func TestAccessModeFiltering(t *testing.T) {
 	homeDir := "/home/user"
 	workDir := "/home/user/myproject"
 
-	// Read on /etc should be hidden; write on /etc should NOT be hidden
 	if !ShouldFilterAccess("/etc/myapp/config.conf", AccessRead, workDir, homeDir) {
 		t.Errorf("expected read on /etc to be filtered")
 	}
@@ -70,7 +69,6 @@ func TestAccessModeFiltering(t *testing.T) {
 		t.Errorf("expected write on /etc NOT to be filtered")
 	}
 
-	// Read/probe on PATH executable should be hidden; write should NOT be hidden
 	if !ShouldFilterAccess("/home/user/.local/bin/black", AccessRead, workDir, homeDir) {
 		t.Errorf("expected read probe in PATH to be filtered")
 	}
@@ -84,15 +82,15 @@ func TestCollapseAndClassify(t *testing.T) {
 
 	accesses := map[string]AccessMode{
 		"/home/user/.config/myapp/settings.json":  AccessRead,
-		"/home/user/.config/myapp/plugins/foo.so": AccessWrite, // turns ~/.config/myapp into RW
-		"/home/user/.cache/myapp/temp.dat":        AccessWrite, // ~/.cache/myapp is RW
-		"/home/user/.gitconfig":                   AccessRead,  // single dotfile RO
-		"/home/user/.ssh/config":                  AccessRead,  // RO
-		"/home/user/.ssh/known_hosts":             AccessRead,  // RO
-		"/home/user/.gemini/session.json":         AccessWrite, // ~/.gemini is RW
-		"/opt/custom/lib/liba.so":                 AccessRead,  // /opt/custom is RO
-		"/etc/fonts/fonts.conf":                   AccessRead,  // Read-only /etc should be ignored
-		"/etc/custom/app.conf":                    AccessWrite, // Write to /etc should be captured
+		"/home/user/.config/myapp/plugins/foo.so": AccessWrite,
+		"/home/user/.cache/myapp/temp.dat":        AccessWrite,
+		"/home/user/.gitconfig":                   AccessRead,
+		"/home/user/.ssh/config":                  AccessRead,
+		"/home/user/.ssh/known_hosts":             AccessRead,
+		"/home/user/.gemini/session.json":         AccessWrite,
+		"/opt/custom/lib/liba.so":                 AccessRead,
+		"/etc/fonts/fonts.conf":                   AccessRead,
+		"/etc/custom/app.conf":                    AccessWrite,
 	}
 
 	bindsRW, bindsRO := CollapseAndClassify(accesses, homeDir)
@@ -156,12 +154,8 @@ func TestAnalyzeTraceLines(t *testing.T) {
 		`1001 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3`,
 		`1001 openat(AT_FDCWD, "/etc/hosts", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY) = 3`,
-		`1001 openat(AT_FDCWD, "/etc/fonts/fonts.conf", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/usr/lib/libc.so.6", O_RDONLY|O_CLOEXEC) = 3`,
-		`1001 stat("/home/user/.local/bin/mytool", 0x7ffd) = -1 ENOENT`,
-		`1001 access("/home/user/bin/mytool", X_OK) = -1 ENOENT`,
 		`1001 newfstatat(AT_FDCWD, "/home/user/.cargo/bin", {st_mode=S_IFDIR|0755}, 0) = 0`,
-		`1001 openat(AT_FDCWD, "/home/user/.cargo/bin/rustc", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/home/user/.gitconfig", O_RDONLY) = 3`,
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/config.toml", O_RDONLY) = 4`,
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/state.db", O_RDWR|O_CREAT, 0644) = 5`,

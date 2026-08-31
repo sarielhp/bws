@@ -77,23 +77,22 @@ bws test node
 
 ---
 
-### `bws trace [options] [--] <cmd> [args...]`
-Trace a command dynamically using `strace` to discover required bind mounts, read-write vs read-only access, and sandbox features (aliases: `record`, `learn`).
+### `bws learn [options] [--] <cmd> [args...]`
+Learn required bind mounts, binary PATH additions, and sandbox features dynamically from a command with smart hierarchy-aware diffing and live config merging.
 
 | Option | Description |
 | :--- | :--- |
-| `-n`, `--dry-run` | Preview discovered mounts and features without saving |
-| `-w`, `--write` | Write discovered mounts and features directly to configuration file |
+| `-n`, `--dry-run` | Preview newly discovered additions/deltas compared to existing config without modifying disk |
 | `-p`, `--profile <name>` | Save discovered configuration as a reusable capability profile in `profiles/<name>.json` |
-| `-g`, `--global` | Target global config or profiles directory |
-| `-l`, `--local` | Target local workspace config or profiles directory |
-| `-f`, `--force` | Overwrite existing profile or config without prompt |
+| `-g`, `--global` | Target global config (`~/.config/bws/config.jsonc`) instead of local workspace (`.bws/config.jsonc`) |
+| `-f`, `--force` | Overwrite existing profile without confirmation |
+| `-v`, `--verbose` | Print verbose debug information |
 
 ```bash
-bws trace -- python train.py             # Trace Python script and preview required mounts
-bws trace -w -- node index.js            # Trace Node.js and write mounts to .bws/config.jsonc
-bws trace -p myapp -- ./bin/myapp        # Trace binary and generate profiles/myapp.json
-bws trace -p mytool -g -- mytool build   # Trace tool and save to global profiles directory
+bws learn python train.py              # Learn Python dependencies and merge into .bws/config.jsonc
+bws learn -n -- pytest -k test_foo     # Preview discovered delta without modifying config
+bws learn -p myapp ./bin/myapp         # Trace binary and generate profiles/myapp.json
+bws learn -g cargo build               # Learn and merge additions into global configuration
 ```
 
 ---

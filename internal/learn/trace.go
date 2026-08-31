@@ -1,4 +1,4 @@
-package trace
+package learn
 
 import (
 	"bufio"
@@ -14,11 +14,11 @@ import (
 // RunTrace executes the target command under strace and analyzes captured syscalls.
 func RunTrace(opts TraceOptions) (*TraceResult, error) {
 	if len(opts.Command) == 0 {
-		return nil, fmt.Errorf("no command specified for tracing")
+		return nil, fmt.Errorf("no command specified for learning")
 	}
 
 	if !util.CommandExists("strace") {
-		return nil, fmt.Errorf("strace is required for bws trace but was not found in PATH")
+		return nil, fmt.Errorf("strace is required for bws learn but was not found in PATH")
 	}
 
 	if opts.HomeDir == "" {
@@ -28,7 +28,13 @@ func RunTrace(opts TraceOptions) (*TraceResult, error) {
 		opts.WorkDir, _ = os.Getwd()
 	}
 
-	tmpFile, err := os.CreateTemp("", "bws-trace-*.log")
+	// 1. Binary PATH discovery
+	var discoveredPath string
+	if binDir, err := ResolveBinaryDir(opts.Command[0], opts.WorkDir, opts.HomeDir); err == nil && binDir != "" {
+		discoveredPath = binDir
+	}
+
+	tmpFile, err := os.CreateTemp("", "bws-learn-*.log")
 	if err != nil {
 		return nil, fmt.Errorf("creating temporary trace log file: %w", err)
 	}
@@ -73,6 +79,7 @@ func RunTrace(opts TraceOptions) (*TraceResult, error) {
 	}
 	res.ExitCode = exitCode
 	res.Command = opts.Command
+	res.DiscoveredPath = discoveredPath
 
 	return res, nil
 }
@@ -131,13 +138,15 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 		}
 	}
 
-	bindsRW, bindsRO := CollapseAndClassify(accesses, opts.HomeDir)
+	rawRW, bindsRO := CollapseAndClassify(accesses, opts.HomeDir)
+	safeRW, alerts := FilterSensitiveWrites(rawRW, opts.HomeDir)
 
 	return &TraceResult{
-		Command:     opts.Command,
-		Features:    features,
-		BindsRW:     bindsRW,
-		BindsRO:     bindsRO,
-		AllAccesses: accesses,
+		Command:        opts.Command,
+		Features:       features,
+		BindsRW:        safeRW,
+		BindsRO:        bindsRO,
+		SecurityAlerts: alerts,
+		AllAccesses:    accesses,
 	}
 }
