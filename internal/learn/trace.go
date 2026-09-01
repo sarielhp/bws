@@ -25,7 +25,9 @@ func RunTrace(opts TraceOptions) (*TraceResult, error) {
 		opts.HomeDir = util.HomeDir()
 	}
 	if opts.WorkDir == "" {
-		opts.WorkDir, _ = os.Getwd()
+		if pwd, err := os.Getwd(); err == nil {
+			opts.WorkDir = pwd
+		}
 	}
 
 	// 1. Binary PATH discovery
@@ -104,7 +106,9 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 		opts.HomeDir = util.HomeDir()
 	}
 	if opts.WorkDir == "" {
-		opts.WorkDir, _ = os.Getwd()
+		if pwd, err := os.Getwd(); err == nil {
+			opts.WorkDir = pwd
+		}
 	}
 
 	pathDirs := GetPathDirectories(opts.HomeDir, opts.PathEnv, opts.PathDirs...)

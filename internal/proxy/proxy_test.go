@@ -11,7 +11,10 @@ import (
 func TestProxyConnectAndHTTP(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("proxied-response"))
+		_, err := w.Write([]byte("proxied-response"))
+		if err != nil {
+			// ignore error in test mock
+		}
 	}))
 	defer ts.Close()
 

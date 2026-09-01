@@ -102,7 +102,9 @@ func Start(cfg *config.Config, verbose bool) (*Proxy, error) {
 
 	cmd := exec.Command("xdg-dbus-proxy", proxyArgs...)
 	if err := cmd.Start(); err != nil {
-		_ = os.RemoveAll(tmpDir)
+		if err := os.RemoveAll(tmpDir); err != nil {
+			// explicitly ignored
+		}
 		return nil, fmt.Errorf("starting xdg-dbus-proxy: %w", err)
 	}
 
@@ -121,10 +123,16 @@ func Start(cfg *config.Config, verbose bool) (*Proxy, error) {
 
 	if !ready {
 		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			if err := cmd.Process.Kill(); err != nil {
+				// explicitly ignored
+			}
+			if err := cmd.Wait(); err != nil {
+				// explicitly ignored
+			}
 		}
-		_ = os.RemoveAll(tmpDir)
+		if err := os.RemoveAll(tmpDir); err != nil {
+			// explicitly ignored
+		}
 		return nil, fmt.Errorf("xdg-dbus-proxy failed to initialize socket at %s", proxySock)
 	}
 
@@ -186,8 +194,12 @@ func (p *Proxy) Close() error {
 
 	var lastErr error
 	if p.cmd != nil && p.cmd.Process != nil {
-		_ = p.cmd.Process.Kill()
-		_ = p.cmd.Wait()
+		if err := p.cmd.Process.Kill(); err != nil {
+			// explicitly ignored
+		}
+		if err := p.cmd.Wait(); err != nil {
+			// explicitly ignored
+		}
 	}
 
 	if p.tempDir != "" {

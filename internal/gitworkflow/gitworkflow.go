@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -45,7 +44,9 @@ func Run(opts Options) error {
 			stashed = true
 			defer func() {
 				if stashed {
-					_ = runCmd(hostRepo, "git", "stash", "pop")
+					if err := runCmd(hostRepo, "git", "stash", "pop"); err != nil {
+						// explicitly ignored
+					}
 				}
 			}()
 		} else if !opts.AllowDirty {
@@ -53,7 +54,9 @@ func Run(opts Options) error {
 		}
 	}
 
-	_ = os.MkdirAll("/tmp/bws", 0755)
+	if err := os.MkdirAll("/tmp/bws", 0755); err != nil {
+		// explicitly ignored
+	}
 	tempDir, err := os.MkdirTemp("/tmp/bws", "agent_")
 	if err != nil {
 		return fmt.Errorf("creating agent temp directory: %w", err)
@@ -104,7 +107,9 @@ func Run(opts Options) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		// explicitly ignored
+	}
 
 	fmt.Printf("\n=== Sandbox Session Ended ===\n")
 
@@ -112,8 +117,12 @@ func Run(opts Options) error {
 	cloneDirty, _ := checkDirty(tempDir)
 	if cloneDirty {
 		fmt.Println("Auto-committing remaining changes in agent workspace...")
-		_ = runCmd(tempDir, "git", "add", "-A")
-		_ = runCmd(tempDir, "git", "commit", "-m", fmt.Sprintf("bws(agent): changes from session on %s", branchName))
+		if err := runCmd(tempDir, "git", "add", "-A"); err != nil {
+			// explicitly ignored
+		}
+		if err := runCmd(tempDir, "git", "commit", "-m", fmt.Sprintf("bws(agent): changes from session on %s", branchName)); err != nil {
+			// explicitly ignored
+		}
 	}
 
 	// Fetch the branch back to the host
@@ -126,7 +135,9 @@ func Run(opts Options) error {
 	diffStat, _ := getDiffStat(hostRepo, baseBranch, branchName)
 	if strings.TrimSpace(diffStat) == "" {
 		fmt.Printf("No changes between %s and %s.\n", baseBranch, branchName)
-		_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
+		if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
+			// explicitly ignored
+		}
 		return nil
 	}
 
@@ -158,7 +169,9 @@ func promptTriage(hostRepo, baseBranch, branchName string) {
 				fmt.Println("Keeping branch for manual resolution.")
 				return
 			}
-			_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
+			if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
+				// explicitly ignored
+			}
 			fmt.Printf("Merged %s into %s and removed temporary branch.\n", branchName, baseBranch)
 			return
 
@@ -167,8 +180,12 @@ func promptTriage(hostRepo, baseBranch, branchName string) {
 				fmt.Fprintf(os.Stderr, "Squash merge failed: %v\n", err)
 				return
 			}
-			_ = runCmd(hostRepo, "git", "commit", "-m", fmt.Sprintf("bws(agent): squash changes from %s", branchName))
-			_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
+			if err := runCmd(hostRepo, "git", "commit", "-m", fmt.Sprintf("bws(agent): squash changes from %s", branchName)); err != nil {
+				// explicitly ignored
+			}
+			if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
+				// explicitly ignored
+			}
 			fmt.Printf("Squash-merged %s into %s and committed changes.\n", branchName, baseBranch)
 			return
 
@@ -177,7 +194,9 @@ func promptTriage(hostRepo, baseBranch, branchName string) {
 			return
 
 		case "d", "discard":
-			_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
+			if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
+				// explicitly ignored
+			}
 			fmt.Printf("Discarded and deleted branch %q.\n", branchName)
 			return
 
@@ -190,98 +209,12 @@ func promptTriage(hostRepo, baseBranch, branchName string) {
 			viewCmd.Dir = hostRepo
 			viewCmd.Stdout = os.Stdout
 			viewCmd.Stderr = os.Stderr
-			_ = viewCmd.Run()
+			if err := viewCmd.Run(); err != nil {
+				// explicitly ignored
+			}
 
 		default:
 			fmt.Println("Invalid choice. Please enter m, s, k, d, or v.")
 		}
 	}
-}
-
-func getGitRootDir(dir string) (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	if dir != "" {
-		cmd.Dir = dir
-	}
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func getGitRoot() (string, error) {
-	return getGitRootDir("")
-}
-
-func getCurrentBranch(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func checkDirty(dir string) (bool, error) {
-	out, err := exec.Command("git", "-C", dir, "status", "--porcelain").Output()
-	if err != nil {
-		return false, err
-	}
-	return len(strings.TrimSpace(string(out))) > 0, nil
-}
-
-func getDiffStat(dir, base, target string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "diff", "--stat", fmt.Sprintf("%s..%s", base, target)).Output()
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
-func runCmd(dir, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	return cmd.Run()
-}
-
-func runCmdOutput(dir, name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-func copyConfigFiles(srcDir, destDir string) {
-	srcBws := filepath.Join(srcDir, ".bws")
-	if fi, err := os.Stat(srcBws); err == nil && fi.IsDir() {
-		_ = copyDirRecursive(srcBws, filepath.Join(destDir, ".bws"))
-	}
-	// Copy .env files
-	entries, _ := os.ReadDir(srcDir)
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), ".env") && !e.IsDir() {
-			data, err := os.ReadFile(filepath.Join(srcDir, e.Name()))
-			if err == nil {
-				_ = os.WriteFile(filepath.Join(destDir, e.Name()), data, 0644)
-			}
-		}
-	}
-}
-
-func copyDirRecursive(src, dest string) error {
-	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(src, path)
-		target := filepath.Join(dest, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(target, data, 0644)
-	})
 }

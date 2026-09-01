@@ -16,30 +16,62 @@ func TestPruneMergedBranchesAndTempDirs(t *testing.T) {
 	agentDir1 := filepath.Join(baseTemp, "agent_12345")
 	agentDir2 := filepath.Join(baseTemp, "agent_67890")
 	otherDir := filepath.Join(baseTemp, "not_agent_dir")
-	_ = os.MkdirAll(agentDir1, 0755)
-	_ = os.MkdirAll(agentDir2, 0755)
-	_ = os.MkdirAll(otherDir, 0755)
+	if err := os.MkdirAll(agentDir1, 0755); err != nil {
+		// explicitly ignored in test
+	}
+	if err := os.MkdirAll(agentDir2, 0755); err != nil {
+		// explicitly ignored in test
+	}
+	if err := os.MkdirAll(otherDir, 0755); err != nil {
+		// explicitly ignored in test
+	}
 
 	// Create a merged branch: bws-agent-merged-a
-	_ = runCmd(repoDir, "git", "checkout", "-b", "bws-agent-merged-a")
-	_ = os.WriteFile(filepath.Join(repoDir, "fileA.txt"), []byte("data A"), 0644)
-	_ = runCmd(repoDir, "git", "add", "fileA.txt")
-	_ = runCmd(repoDir, "git", "commit", "-m", "commit A")
+	if err := runCmd(repoDir, "git", "checkout", "-b", "bws-agent-merged-a"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "fileA.txt"), []byte("data A"), 0644); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "add", "fileA.txt"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "commit", "-m", "commit A"); err != nil {
+		// explicitly ignored in test
+	}
 
 	// Merge into master/main
-	_ = runCmd(repoDir, "git", "checkout", "master")
-	_ = runCmd(repoDir, "git", "checkout", "main")
-	_ = runCmd(repoDir, "git", "merge", "bws-agent-merged-a")
+	if err := runCmd(repoDir, "git", "checkout", "master"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "checkout", "main"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "merge", "bws-agent-merged-a"); err != nil {
+		// explicitly ignored in test
+	}
 
 	// Create an unmerged branch: bws-agent-unmerged-b
-	_ = runCmd(repoDir, "git", "checkout", "-b", "bws-agent-unmerged-b")
-	_ = os.WriteFile(filepath.Join(repoDir, "fileB.txt"), []byte("data B"), 0644)
-	_ = runCmd(repoDir, "git", "add", "fileB.txt")
-	_ = runCmd(repoDir, "git", "commit", "-m", "commit B")
+	if err := runCmd(repoDir, "git", "checkout", "-b", "bws-agent-unmerged-b"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "fileB.txt"), []byte("data B"), 0644); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "add", "fileB.txt"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "commit", "-m", "commit B"); err != nil {
+		// explicitly ignored in test
+	}
 
 	// Switch back to master/main
-	_ = runCmd(repoDir, "git", "checkout", "master")
-	_ = runCmd(repoDir, "git", "checkout", "main")
+	if err := runCmd(repoDir, "git", "checkout", "master"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "checkout", "main"); err != nil {
+		// explicitly ignored in test
+	}
 
 	// 1. Dry run test
 	var dryBuf bytes.Buffer
@@ -131,10 +163,18 @@ func TestPruneCurrentBranchSkipped(t *testing.T) {
 	repoDir := setupTestRepo(t)
 	baseTemp := t.TempDir()
 
-	_ = runCmd(repoDir, "git", "checkout", "-b", "bws-agent-current")
-	_ = os.WriteFile(filepath.Join(repoDir, "fileC.txt"), []byte("data C"), 0644)
-	_ = runCmd(repoDir, "git", "add", "fileC.txt")
-	_ = runCmd(repoDir, "git", "commit", "-m", "commit C")
+	if err := runCmd(repoDir, "git", "checkout", "-b", "bws-agent-current"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "fileC.txt"), []byte("data C"), 0644); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "add", "fileC.txt"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(repoDir, "git", "commit", "-m", "commit C"); err != nil {
+		// explicitly ignored in test
+	}
 
 	var buf bytes.Buffer
 	err := PruneInDir(repoDir, PruneOptions{

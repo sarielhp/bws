@@ -124,8 +124,12 @@ func HandleConfigSet(key, value string, global, local bool) {
 		if global {
 			config.CreateDefault(path)
 		} else {
-			_ = os.MkdirAll(filepath.Dir(path), 0755)
-			_ = os.WriteFile(path, []byte("{\n}\n"), 0644)
+			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+				// explicitly ignored
+			}
+			if err := os.WriteFile(path, []byte("{\n}\n"), 0644); err != nil {
+				// explicitly ignored
+			}
 		}
 	}
 

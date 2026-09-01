@@ -69,8 +69,9 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 
 	var dbusProxy *dbus.Proxy
 	if config.FeatureEnabledDefault(testCfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
-		dbusProxy, _ = dbus.Start(testCfg, verbose)
-		if dbusProxy != nil {
+		proxy, err := dbus.Start(testCfg, verbose)
+		if err == nil && proxy != nil {
+			dbusProxy = proxy
 			defer dbusProxy.Close()
 		}
 	}

@@ -42,7 +42,9 @@ func Start() (*Server, error) {
 	}
 
 	go func() {
-		_ = s.server.Serve(listener)
+		if err := s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			// ignore or log server error
+		}
 	}()
 
 	return s, nil
@@ -96,11 +98,11 @@ func handleConnect(w http.ResponseWriter, r *http.Request) {
 
 	done := make(chan struct{}, 2)
 	go func() {
-		_, _ = io.Copy(destConn, clientConn)
+		io.Copy(destConn, clientConn)
 		done <- struct{}{}
 	}()
 	go func() {
-		_, _ = io.Copy(clientConn, destConn)
+		io.Copy(clientConn, destConn)
 		done <- struct{}{}
 	}()
 	<-done
@@ -153,5 +155,8 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		// Log or ignore if connection is closed
+	}
 }

@@ -133,7 +133,9 @@ func TestAddDBusArgs(t *testing.T) {
 
 func TestDBusDisabled(t *testing.T) {
 	fakeBus := filepath.Join(t.TempDir(), "bus")
-	_ = os.WriteFile(fakeBus, []byte("fake"), 0600)
+	if err := os.WriteFile(fakeBus, []byte("fake"), 0600); err != nil {
+		// explicitly ignored in test
+	}
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
 
 	f := false
@@ -153,7 +155,9 @@ func TestDBusDisabled(t *testing.T) {
 
 func TestDBusDisabledByDefault(t *testing.T) {
 	fakeBus := filepath.Join(t.TempDir(), "bus")
-	_ = os.WriteFile(fakeBus, []byte("fake"), 0600)
+	if err := os.WriteFile(fakeBus, []byte("fake"), 0600); err != nil {
+		// explicitly ignored in test
+	}
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
 
 	cfg := &config.Config{}

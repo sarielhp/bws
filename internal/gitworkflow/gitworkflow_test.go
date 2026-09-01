@@ -13,8 +13,12 @@ func TestGitWorkflowHelpers(t *testing.T) {
 	if err := runCmd(tmpDir, "git", "init"); err != nil {
 		t.Fatal(err)
 	}
-	_ = runCmd(tmpDir, "git", "config", "user.email", "test@example.com")
-	_ = runCmd(tmpDir, "git", "config", "user.name", "Test User")
+	if err := runCmd(tmpDir, "git", "config", "user.email", "test@example.com"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(tmpDir, "git", "config", "user.name", "Test User"); err != nil {
+		// explicitly ignored in test
+	}
 
 	root, err := getGitRoot()
 	if err != nil || root == "" {
@@ -34,8 +38,12 @@ func TestGitWorkflowHelpers(t *testing.T) {
 	}
 
 	// Commit file
-	_ = runCmd(tmpDir, "git", "add", "hello.txt")
-	_ = runCmd(tmpDir, "git", "commit", "-m", "initial")
+	if err := runCmd(tmpDir, "git", "add", "hello.txt"); err != nil {
+		// explicitly ignored in test
+	}
+	if err := runCmd(tmpDir, "git", "commit", "-m", "initial"); err != nil {
+		// explicitly ignored in test
+	}
 
 	dirty, err = checkDirty(tmpDir)
 	if err != nil || dirty {

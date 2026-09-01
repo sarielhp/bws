@@ -24,7 +24,9 @@ func ParseTraceLine(line string) *ParsedSyscall {
 		if pStr == "" {
 			pStr = match[2]
 		}
-		pid, _ = strconv.Atoi(pStr)
+		if parsedPID, err := strconv.Atoi(pStr); err == nil {
+			pid = parsedPID
+		}
 		trimmed = strings.TrimSpace(trimmed[len(match[0]):])
 	}
 
@@ -43,7 +45,10 @@ func ParseTraceLine(line string) *ParsedSyscall {
 	retStr := m[3]
 	retErr := m[4]
 
-	retVal, _ := strconv.Atoi(retStr)
+	retVal := -1
+	if parsedRet, err := strconv.Atoi(retStr); err == nil {
+		retVal = parsedRet
+	}
 	success := retVal >= 0 && !strings.Contains(retErr, "ENOENT")
 
 	parsed := &ParsedSyscall{

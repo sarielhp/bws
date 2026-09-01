@@ -44,7 +44,9 @@ func HandleLearn(targetCmd []string, dryRun bool, profileName string, global, fo
 	targetPath := configFilePath(global)
 	var targetConfig *config.Config
 	if _, err := os.Stat(targetPath); err == nil {
-		targetConfig, _ = config.LoadFile(targetPath)
+		if c, err := config.LoadFile(targetPath); err == nil {
+			targetConfig = c
+		}
 	}
 
 	delta := learn.ComputeDelta(res, targetConfig, homeDir)
