@@ -104,6 +104,22 @@ func TestOpenCodeInSandbox(t *testing.T) {
 	sandboxRun(t, ctx, "-f", "--", opencodePath, "debug", "info")
 }
 
+func TestClaudeInSandbox(t *testing.T) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	claudePath := filepath.Join(homeDir, ".local", "bin", "claude")
+	if _, err := os.Stat(claudePath); os.IsNotExist(err) {
+		t.Skipf("claude not found at %s, skipping", claudePath)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	sandboxRun(t, ctx, "-f", "--", claudePath, "--version")
+}
+
 func TestCppInSandbox(t *testing.T) {
 	cxx := ""
 	for _, bin := range []string{"g++", "clang++"} {

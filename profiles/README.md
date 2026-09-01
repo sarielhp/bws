@@ -232,9 +232,9 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 ## 3. AI agent & coding assistant profiles
 
 ### `ai`
-**Description**: AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher)
+**Description**: AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher, Claude Code)
 
-**Requires**: `opencode`, `oc`, `antigravity`, `no-sudo`
+**Requires**: `opencode`, `oc`, `agy`, `claude`, `no-sudo`
 
 ### `antigravity`
 **Description**: Google Antigravity CLI and coding agent framework
@@ -245,6 +245,27 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 
 **Verification tests**:
 - `Antigravity CLI version`: `agy --version`
+
+### `claude`
+**Description**: Anthropic Claude Code CLI assistant, runtime, and caches
+
+**Aliases**: `claude-code`, `anthropic`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`, `@@HOME@@/.local/share/claude/versions`
+
+**Pass-through variables**: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_MODEL`, `ANTHROPIC_*`, `CLAUDE_*`
+
+**Read-write binds**:
+- `~/.claude -> @@HOME@@/.claude`
+- `~/.claude.json -> @@HOME@@/.claude.json`
+- `~/.config/claude -> @@HOME@@/.config/claude`
+- `~/.local/share/claude -> @@HOME@@/.local/share/claude`
+- `~/.local/state/claude -> @@HOME@@/.local/state/claude`
+- `~/.cache/claude -> @@HOME@@/.cache/claude`
+
+**Verification tests**:
+- `Claude Code version`: `claude --version`
+- `Claude Code doctor check`: `claude doctor`
 
 ### `oc`
 **Description**: OpenCode profile switcher CLI and configuration

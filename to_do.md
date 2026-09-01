@@ -6,7 +6,7 @@
 
 Add first-class capability profiles to `profiles/` with appropriate bind mounts, cache persistence, environment pass-through, and automated smoke test definitions (`bws test <profile>`):
 
-* [ ] **Anthropic Claude Code (`claude`)**
+* [x] **Anthropic Claude Code (`claude`)**
   - Path: `~/.claude/`, `~/.claude.json`, `~/.config/claude/`
   - Cache: `~/.cache/claude/`
   - Smoke test: `claude --version`
