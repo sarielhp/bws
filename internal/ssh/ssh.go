@@ -27,19 +27,25 @@ func EnsureAgent(keys []string) string {
 		if err == nil || cmd.ProcessState.ExitCode() == 1 {
 			os.Setenv("SSH_AUTH_SOCK", agentSock)
 			if len(keys) > 0 {
-				exec.Command("ssh-add", "-D").Run()
+				if err := exec.Command("ssh-add", "-D").Run(); err != nil {
+					fmt.Fprintf(os.Stderr, "[bws] Warning: failed to clear SSH keys: %v\n", err)
+				}
 				for _, k := range keys {
 					expK := filepath.Join(util.HomeDir(), k)
 					if fi, err := os.Stat(expK); err == nil && !fi.IsDir() {
 						cmd := exec.Command("ssh-add", expK)
 						cmd.Env = append(os.Environ(), "SSH_AUTH_SOCK="+agentSock)
-						cmd.Run()
+						if err := cmd.Run(); err != nil {
+							fmt.Fprintf(os.Stderr, "[bws] Warning: failed to add SSH key %s: %v\n", expK, err)
+						}
 					}
 				}
 			} else {
 				cmd := exec.Command("ssh-add")
 				cmd.Env = append(os.Environ(), "SSH_AUTH_SOCK="+agentSock)
-				cmd.Run()
+				if err := cmd.Run(); err != nil {
+					fmt.Fprintf(os.Stderr, "[bws] Warning: failed to add default SSH keys: %v\n", err)
+				}
 			}
 			return agentSock
 		}
@@ -55,13 +61,17 @@ func EnsureAgent(keys []string) string {
 				if fi, err := os.Stat(expK); err == nil && !fi.IsDir() {
 					cmd := exec.Command("ssh-add", expK)
 					cmd.Env = append(os.Environ(), "SSH_AUTH_SOCK="+agentSock)
-					cmd.Run()
+					if err := cmd.Run(); err != nil {
+						fmt.Fprintf(os.Stderr, "[bws] Warning: failed to add SSH key %s: %v\n", expK, err)
+					}
 				}
 			}
 		} else {
 			cmd := exec.Command("ssh-add")
 			cmd.Env = append(os.Environ(), "SSH_AUTH_SOCK="+agentSock)
-			cmd.Run()
+			if err := cmd.Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "[bws] Warning: failed to add default SSH keys: %v\n", err)
+			}
 		}
 		return agentSock
 	}
@@ -110,7 +120,11 @@ func GetAutoDeployKey() string {
 		if cmd.Run() == nil {
 			fmt.Fprintf(os.Stderr, "[bws] Registering Deploy Key with GitHub repository via gh CLI...\n")
 			title := fmt.Sprintf("bw-auto-deploy-%s", repo)
-			exec.Command("gh", "repo", "deploy-key", "add", keyPath+".pub", "-R", fmt.Sprintf("%s/%s", owner, repo), "-w", "-t", title).Run()
+			if err := exec.Command("gh", "repo", "deploy-key", "add", keyPath+".pub", "-R", fmt.Sprintf("%s/%s", owner, repo), "-w", "-t", title).Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "[bws] Warning: failed to register Deploy Key: %v\n", err)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "[bws] Warning: failed to generate SSH key\n")
 		}
 	}
 

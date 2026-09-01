@@ -206,6 +206,20 @@ func setupShellConfig(cfg *config.Config, sandboxDir string) {
 			text += "\n" + comment + "\n" + editorBlock + "\n"
 		}
 
+		reOMP := regexp.MustCompile(`(?m)# oh-my-posh.*\nif command -v oh-my-posh.*\n?`)
+		commentOMP := "# oh-my-posh initialization"
+		ompBlock := ""
+		if rcName == ".zshrc" {
+			ompBlock = `if command -v oh-my-posh > /dev/null 2>&1; then eval "$(oh-my-posh init zsh)"; fi`
+		} else {
+			ompBlock = `if command -v oh-my-posh > /dev/null 2>&1; then eval "$(oh-my-posh init bash)"; fi`
+		}
+		if reOMP.MatchString(text) {
+			text = reOMP.ReplaceAllString(text, commentOMP+"\n"+ompBlock+"\n")
+		} else {
+			text += "\n" + commentOMP + "\n" + ompBlock + "\n"
+		}
+
 		if text != original {
 			os.WriteFile(rcPath, []byte(text), 0644)
 		}
