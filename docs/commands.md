@@ -10,7 +10,7 @@ Comprehensive reference for all commands and options in `bws`.
 * [Workspace initialization](#workspace-initialization)
 * [Environment status & plan](#environment-status--plan)
 * [Capability profile management](#capability-profile-management)
-* [Environment modifiers (mount, copy, path)](#environment-modifiers-mount-copy-path)
+* [Environment modifiers (mount, bin, copy, path)](#environment-modifiers-mount-bin-copy-path)
 * [Configuration management & remote sync](#configuration-management--remote-sync)
 
 ---
@@ -190,9 +190,18 @@ Synchronize all installed global profiles from GitHub repository (alias: `sync`)
 bws profile update
 ```
 
+### `bws profile save <name> [-g | -l] [-f] [-d <description>]`
+Snapshot the current workspace configuration (`.bws/config.jsonc`) as a reusable profile. Aliases: `snap`, `export`.
+```bash
+bws profile save my-env                       # Save as global profile in ~/.config/bws/profiles/
+bws profile save my-env -f                    # Overwrite existing profile
+bws profile save project-env -l               # Save as local profile in .bws/profiles/
+bws profile save ml-env -d "ML stack setup"   # Set custom description
+```
+
 ---
 
-## Environment modifiers (mount, copy, path)
+## Environment modifiers (mount, bin, copy, path)
 
 ### `bws mount add <host-path> [dest] [-g | -l] [--ro]`
 Add a persistent bind mount to configuration (defaults to local workspace `-l`).
@@ -212,6 +221,27 @@ bws mount rm /opt/tools
 List configured bind mounts (alias: `ls`).
 ```bash
 bws mount list
+```
+
+---
+
+### `bws bin add <host-path> [-g | -l]`
+Expose a single executable or script inside the sandbox as a read-only bind mount on `$PATH`. If the host executable is outside `~/bin`, it is automatically mapped to `~/bin/<basename>` inside the sandbox.
+```bash
+bws bin add ~/bin/agy-run-wild         # Expose script in local workspace
+bws bin add /opt/tools/myprog -g       # Expose tool globally on sandbox PATH
+```
+
+### `bws bin rm <name-or-path> [-g | -l]`
+Remove an exposed executable from configuration by binary name or host path (aliases: `del`, `delete`, `remove`).
+```bash
+bws bin rm agy-run-wild
+```
+
+### `bws bin list`
+List all configured executable binaries exposed in the sandbox (alias: `ls`).
+```bash
+bws bin list
 ```
 
 ---

@@ -142,6 +142,26 @@ func profileCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Comma
 					return nil
 				},
 			},
+			{
+				Name:             "save",
+				Aliases:          []string{"snap", "export"},
+				Description:      "Snapshot current workspace configuration as a reusable profile",
+				UsageLine:        "bws profile save <name> [-g | -l] [-f] [-d <description>]",
+				Args:             nameArg,
+				OptionsValidator: glValidator,
+				Options: []clihelp.Option{
+					clihelp.String(&f.desc, "-d, --desc <text>", "", "Custom description for the saved profile"),
+				},
+				Examples: []clihelp.Example{
+					{Line: "bws profile save my-env", Description: "Snapshot current workspace as a global profile"},
+					{Line: "bws profile save my-env -f", Description: "Force overwrite existing profile"},
+					{Line: "bws profile save project-env -l", Description: "Save as a local workspace profile"},
+				},
+				Run: func(ctx *clihelp.Context) error {
+					cli.HandleProfileSave(ctx.Args[0], f.desc, f.global, f.local, f.force)
+					return nil
+				},
+			},
 		},
 	}
 }

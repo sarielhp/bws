@@ -39,6 +39,7 @@ type Profile struct {
 	Mask        []string               `json:"mask,omitempty"`
 	BindsRW     [][]string             `json:"binds_rw,omitempty"`
 	BindsRO     [][]string             `json:"binds_ro,omitempty"`
+	Copy        []string               `json:"copy,omitempty"`
 	UnshareNet  bool                   `json:"unshare_net,omitempty"`
 	NoNet       bool                   `json:"no_net,omitempty"`
 	Features    *config.FeaturesConfig `json:"features,omitempty"`
@@ -59,6 +60,7 @@ type ResolvedProfile struct {
 	Mask        []string
 	BindsRW     [][]string
 	BindsRO     [][]string
+	Copy        []string
 	UnshareNet  bool
 	Features    *config.FeaturesConfig
 	Tests       []TestSpec
@@ -191,6 +193,7 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 	seenPath := make(map[string]bool)
 	seenPassEnv := make(map[string]bool)
 	seenMask := make(map[string]bool)
+	seenCopy := make(map[string]bool)
 
 	for _, pName := range order {
 		p := registry[pName]
@@ -222,6 +225,13 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 			if !seenMask[m] {
 				seenMask[m] = true
 				res.Mask = append(res.Mask, m)
+			}
+		}
+
+		for _, c := range p.Copy {
+			if !seenCopy[c] {
+				seenCopy[c] = true
+				res.Copy = append(res.Copy, c)
 			}
 		}
 

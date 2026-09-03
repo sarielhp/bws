@@ -56,16 +56,16 @@ func CollapsePath(normalized string) string {
 			return normalized
 		}
 
-		// Top-level non-dot directories under home: ~/go/..., ~/bin/..., ~/opt/...
-		if len(parts) >= 3 {
+		// Top-level runtime tool directories under home: ~/go/..., ~/bin/..., ~/opt/...
+		if (parts[1] == "go" || parts[1] == "bin" || parts[1] == "opt") && len(parts) >= 3 {
 			return strings.Join(parts[:2], "/")
 		}
 		return normalized
 	}
 
-	// Handle system paths outside home: /opt/app/..., /var/log/app/..., /etc/app/...
-	if len(parts) >= 4 && (parts[1] == "opt" || parts[1] == "etc" || (parts[1] == "var" && parts[2] == "log")) {
-		if parts[1] == "var" && parts[2] == "log" {
+	// Handle system paths outside home: /opt/app/..., /var/log/app/..., /var/cache/app/..., /var/lib/app/..., /etc/app/...
+	if len(parts) >= 4 && (parts[1] == "opt" || parts[1] == "etc" || (parts[1] == "var" && (parts[2] == "log" || parts[2] == "cache" || parts[2] == "lib"))) {
+		if parts[1] == "var" {
 			return strings.Join(parts[:4], "/")
 		}
 		return strings.Join(parts[:3], "/")

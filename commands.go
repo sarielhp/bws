@@ -23,6 +23,7 @@ type appFlags struct {
 	preset   string
 	profiles []string
 	docsDir  string
+	desc     string
 }
 
 func initCmd(f *appFlags) clihelp.Command {
