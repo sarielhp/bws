@@ -20,7 +20,9 @@ puts '=== Auditing Go file & function line counts ==='
 
 changed_files = []
 begin
-  out, status = Open3.capture2('git', 'diff', '--name-only', 'origin/main...HEAD')
+  branch, _ = Open3.capture2('git', 'rev-parse', '--abbrev-ref', 'HEAD')
+  ref = branch.strip == 'main' ? 'HEAD~1..HEAD' : 'origin/main...HEAD'
+  out, status = Open3.capture2('git', 'diff', '--name-only', ref)
   changed_files = out.lines.map(&:strip) if status.success?
 rescue StandardError
   # ignore
