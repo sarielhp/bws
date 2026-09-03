@@ -190,6 +190,15 @@ Synchronize all installed global profiles from GitHub repository (alias: `sync`)
 bws profile update
 ```
 
+### `bws profile save <name> [-g | -l] [-f] [-d <description>]`
+Snapshot the current workspace configuration (`.bws/config.jsonc`) as a reusable profile. Aliases: `snap`, `export`.
+```bash
+bws profile save my-env                       # Save as global profile in ~/.config/bws/profiles/
+bws profile save my-env -f                    # Overwrite existing profile
+bws profile save project-env -l               # Save as local profile in .bws/profiles/
+bws profile save ml-env -d "ML stack setup"   # Set custom description
+```
+
 ---
 
 ## Environment modifiers (mount, bin, copy, path)

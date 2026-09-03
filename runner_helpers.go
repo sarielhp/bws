@@ -103,6 +103,10 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 	for _, m := range cfg.Mask {
 		seenMask[m] = true
 	}
+	seenCopy := make(map[string]bool)
+	for _, c := range cfg.Copy {
+		seenCopy[c] = true
+	}
 
 	var allResolved []string
 	seenResolved := make(map[string]bool)
@@ -131,6 +135,12 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 			if !seenMask[m] {
 				seenMask[m] = true
 				cfg.Mask = append(cfg.Mask, m)
+			}
+		}
+		for _, c := range resolved.Copy {
+			if !seenCopy[c] {
+				seenCopy[c] = true
+				cfg.Copy = append(cfg.Copy, c)
 			}
 		}
 		for _, b := range resolved.BindsRW {
