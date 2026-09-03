@@ -7,7 +7,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.27"
+var Version = "0.3.28"
 
 func buildApp() *clihelp.App {
 	f := &appFlags{}
@@ -33,6 +33,7 @@ func buildApp() *clihelp.App {
 			clihelp.Bool(&f.noProxy, "--no-proxy", false, "Disable the in-process host proxy"),
 			clihelp.Bool(&f.dbus, "--dbus", false, "Enable filtered session D-Bus access via xdg-dbus-proxy"),
 			clihelp.Bool(&f.noDBus, "--no-dbus", false, "Disable session D-Bus access"),
+			clihelp.Bool(&f.noInit, "--no-init", false, "Skip auto-configuration of workspace when entering uninitialized directory"),
 			clihelp.Bool(&f.verbose, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
@@ -54,7 +55,7 @@ func buildApp() *clihelp.App {
 			docsCmd(f),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return runDefault(ctx.Args, f.force, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus)
+			return runDefault(ctx.Args, f.force, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus, f.noInit)
 		},
 	}
 }

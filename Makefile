@@ -1,4 +1,4 @@
-.PHONY: build test lint clean install
+.PHONY: build test lint clean install audit
 
 build:
 	go build -o bws .
@@ -9,6 +9,9 @@ test:
 
 lint:
 	staticcheck ./...
+
+audit:
+	./tools/audit_lines.rb
 
 install:
 	./tools/install

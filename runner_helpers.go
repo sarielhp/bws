@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"bws/internal/cli"
 	"bws/internal/config"
 	"bws/internal/profile"
 	"bws/internal/util"
@@ -73,6 +74,65 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 	}, nil
 }
 
+func mergeResolvedProfile(cfg *config.Config, resolved *profile.ResolvedProfile, seenPassEnv, seenMask, seenCopy, seenRW, seenRO, seenPath map[string]bool) {
+	for _, pe := range resolved.PassEnv {
+		if !seenPassEnv[pe] {
+			seenPassEnv[pe] = true
+			cfg.PassEnv = append(cfg.PassEnv, pe)
+		}
+	}
+	for _, m := range resolved.Mask {
+		if !seenMask[m] {
+			seenMask[m] = true
+			cfg.Mask = append(cfg.Mask, m)
+		}
+	}
+	for _, c := range resolved.Copy {
+		if !seenCopy[c] {
+			seenCopy[c] = true
+			cfg.Copy = append(cfg.Copy, c)
+		}
+	}
+	for _, b := range resolved.BindsRW {
+		key := b[0] + "->" + b[1]
+		if !seenRW[key] {
+			seenRW[key] = true
+			cfg.BindsRW = append(cfg.BindsRW, config.BindEntry{Host: b[0], Sandbox: b[1]})
+		}
+	}
+	for _, b := range resolved.BindsRO {
+		key := b[0] + "->" + b[1]
+		if !seenRO[key] {
+			seenRO[key] = true
+			cfg.BindsRO = append(cfg.BindsRO, config.BindEntry{Host: b[0], Sandbox: b[1]})
+		}
+	}
+	for _, pt := range resolved.Path {
+		if !seenPath[pt] {
+			seenPath[pt] = true
+			cfg.Path = append(cfg.Path, pt)
+		}
+	}
+	for k, v := range resolved.Env {
+		if cfg.Env == nil {
+			cfg.Env = make(map[string]string)
+		}
+		if _, exists := cfg.Env[k]; !exists {
+			cfg.Env[k] = v
+		}
+	}
+	if resolved.Features != nil {
+		cfg.Features = config.MergeFeatures(cfg.Features, resolved.Features)
+	}
+	if resolved.UnshareNet {
+		if cfg.Features == nil {
+			cfg.Features = &config.FeaturesConfig{}
+		}
+		t := true
+		cfg.Features.NoNet = &t
+	}
+}
+
 func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 	if len(cfg.Profiles) == 0 {
 		return nil
@@ -125,62 +185,7 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 				allResolved = append(allResolved, rName)
 			}
 		}
-		for _, pe := range resolved.PassEnv {
-			if !seenPassEnv[pe] {
-				seenPassEnv[pe] = true
-				cfg.PassEnv = append(cfg.PassEnv, pe)
-			}
-		}
-		for _, m := range resolved.Mask {
-			if !seenMask[m] {
-				seenMask[m] = true
-				cfg.Mask = append(cfg.Mask, m)
-			}
-		}
-		for _, c := range resolved.Copy {
-			if !seenCopy[c] {
-				seenCopy[c] = true
-				cfg.Copy = append(cfg.Copy, c)
-			}
-		}
-		for _, b := range resolved.BindsRW {
-			key := b[0] + "->" + b[1]
-			if !seenRW[key] {
-				seenRW[key] = true
-				cfg.BindsRW = append(cfg.BindsRW, config.BindEntry{Host: b[0], Sandbox: b[1]})
-			}
-		}
-		for _, b := range resolved.BindsRO {
-			key := b[0] + "->" + b[1]
-			if !seenRO[key] {
-				seenRO[key] = true
-				cfg.BindsRO = append(cfg.BindsRO, config.BindEntry{Host: b[0], Sandbox: b[1]})
-			}
-		}
-		for _, pt := range resolved.Path {
-			if !seenPath[pt] {
-				seenPath[pt] = true
-				cfg.Path = append(cfg.Path, pt)
-			}
-		}
-		for k, v := range resolved.Env {
-			if cfg.Env == nil {
-				cfg.Env = make(map[string]string)
-			}
-			if _, exists := cfg.Env[k]; !exists {
-				cfg.Env[k] = v
-			}
-		}
-		if resolved.Features != nil {
-			cfg.Features = config.MergeFeatures(cfg.Features, resolved.Features)
-		}
-		if resolved.UnshareNet {
-			if cfg.Features == nil {
-				cfg.Features = &config.FeaturesConfig{}
-			}
-			t := true
-			cfg.Features.NoNet = &t
-		}
+		mergeResolvedProfile(cfg, resolved, seenPassEnv, seenMask, seenCopy, seenRW, seenRO, seenPath)
 	}
 	if len(allResolved) > 0 {
 		if cfg.Env == nil {
@@ -265,4 +270,57 @@ func applyFlags(cfg *config.Config, noSSH, noNet, proxy, noProxy, dbus, noDBus b
 		t := true
 		cfg.Features.EnableDBus = &t
 	}
+}
+
+func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose bool) error {
+	if sl.localCfg != nil {
+		return nil
+	}
+	localConfigPath := filepath.Join(currentDir, ".bws", "config.jsonc")
+	if _, err := os.Stat(localConfigPath); err == nil {
+		return nil
+	}
+
+	if force || noInit {
+		return nil
+	}
+
+	mode := config.AutoInitMode(sl.cfg)
+	if mode == "never" {
+		return nil
+	}
+
+	if mode == "prompt" {
+		if !cli.IsInteractiveTTY(int(os.Stdin.Fd())) {
+			return nil
+		}
+		accepted, err := cli.PromptAutoInit(os.Stdin, os.Stderr)
+		if err != nil || !accepted {
+			return err
+		}
+	}
+
+	configPath, summary, err := cli.AutoConfigureWorkspace(currentDir, noSSH)
+	if err != nil {
+		return fmt.Errorf("auto-configuring workspace: %w", err)
+	}
+	if summary == "" {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "[bws] Auto-configured .bws/config.jsonc (%s detected)\n", summary)
+
+	localCfg, err := config.LoadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("loading auto-configured local config: %w", err)
+	}
+
+	sl.localCfg = localCfg
+	sl.localPath = configPath
+	sl.cfg = config.Merge(sl.globalCfg, localCfg)
+	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+	if err := applyProfiles(sl.cfg, currentDir, verbose); err != nil && verbose {
+		fmt.Fprintf(os.Stderr, "[verbose] Applying profiles warning: %v\n", err)
+	}
+	return nil
 }

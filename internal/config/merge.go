@@ -163,6 +163,9 @@ func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.UnshareNet != nil {
 		r.UnshareNet = local.UnshareNet
 	}
+	if local.AutoInit != "" {
+		r.AutoInit = local.AutoInit
+	}
 	return &r
 }
 

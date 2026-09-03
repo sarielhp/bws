@@ -17,6 +17,75 @@ import (
 	"bws/internal/util"
 )
 
+func setupProxyService(cfg *config.Config, dryRun, verbose bool) (*proxy.Server, error) {
+	if dryRun || !config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableProxy }, false) {
+		return nil, nil
+	}
+	proxyServer, err := proxy.Start()
+	if err != nil {
+		return nil, fmt.Errorf("starting internal proxy: %w", err)
+	}
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[verbose] Started ephemeral proxy: %s\n", proxyServer.URL())
+	}
+	if cfg.Env == nil {
+		cfg.Env = make(map[string]string)
+	}
+	proxyURL := proxyServer.URL()
+	cfg.Env["HTTP_PROXY"] = proxyURL
+	cfg.Env["HTTPS_PROXY"] = proxyURL
+	cfg.Env["http_proxy"] = proxyURL
+	cfg.Env["https_proxy"] = proxyURL
+	cfg.Env["NO_PROXY"] = "localhost,127.0.0.1"
+	cfg.Env["no_proxy"] = "localhost,127.0.0.1"
+	return proxyServer, nil
+}
+
+func setupDBusService(cfg *config.Config, dryRun, verbose bool) *dbus.Proxy {
+	if dryRun || !config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
+		return nil
+	}
+	dbusProxy, err := dbus.Start(cfg, verbose)
+	if err != nil && verbose {
+		fmt.Fprintf(os.Stderr, "[verbose] Starting D-Bus proxy failed: %v\n", err)
+	}
+	return dbusProxy
+}
+
+func setupSandboxHome(cfg *config.Config, currentDir string, dryRun, verbose bool, getDBus func() *dbus.Proxy) (string, func(), error) {
+	if cfg.SandboxPath != "" {
+		sandboxDir := util.ExpandHome(cfg.SandboxPath)
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose] Using configured sandbox directory: %s\n", sandboxDir)
+		}
+		if !dryRun {
+			sandbox.Prepare(cfg, sandboxDir)
+		}
+		return sandboxDir, nil, nil
+	}
+	if dryRun {
+		return "<ephemeral staged home>", nil, nil
+	}
+	sandboxDir, cleanup, err := sandbox.StageHome(cfg, currentDir)
+	if err != nil {
+		return "", nil, err
+	}
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[verbose] Staged ephemeral sandbox home: %s\n", sandboxDir)
+	}
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		<-sigChan
+		if p := getDBus(); p != nil {
+			_ = p.Close()
+		}
+		cleanup()
+		os.Exit(130)
+	}()
+	return sandboxDir, cleanup, nil
+}
+
 func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []string, verbose bool) error {
 	if !dryRun {
 		if err := util.EnsureBwrap(); err != nil {
@@ -24,79 +93,30 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		}
 	}
 
-	var sandboxDir string
-	var cleanup func()
 	var dbusProxy *dbus.Proxy
-
-	if sl.cfg.SandboxPath != "" {
-		sandboxDir = util.ExpandHome(sl.cfg.SandboxPath)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose] Using configured sandbox directory: %s\n", sandboxDir)
-		}
-		if !dryRun {
-			sandbox.Prepare(sl.cfg, sandboxDir)
-		}
-	} else if !dryRun {
-		var err error
-		sandboxDir, cleanup, err = sandbox.StageHome(sl.cfg, currentDir)
-		if err != nil {
-			return err
-		}
+	sandboxDir, cleanup, err := setupSandboxHome(sl.cfg, currentDir, dryRun, verbose, func() *dbus.Proxy { return dbusProxy })
+	if err != nil {
+		return err
+	}
+	if cleanup != nil {
 		defer cleanup()
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose] Staged ephemeral sandbox home: %s\n", sandboxDir)
-		}
-
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-		go func() {
-			<-sigChan
-			if dbusProxy != nil {
-				_ = dbusProxy.Close()
-			}
-			cleanup()
-			os.Exit(130)
-		}()
-	} else {
-		sandboxDir = "<ephemeral staged home>"
 	}
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] Current directory: %s\n", currentDir)
 	}
 
-	if !dryRun && config.FeatureEnabledDefault(sl.cfg, func(f *config.FeaturesConfig) *bool { return f.EnableProxy }, false) {
-		proxyServer, err := proxy.Start()
-		if err != nil {
-			return fmt.Errorf("starting internal proxy: %w", err)
-		}
+	proxyServer, err := setupProxyService(sl.cfg, dryRun, verbose)
+	if err != nil {
+		return err
+	}
+	if proxyServer != nil {
 		defer proxyServer.Close()
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose] Started ephemeral proxy: %s\n", proxyServer.URL())
-		}
-		if sl.cfg.Env == nil {
-			sl.cfg.Env = make(map[string]string)
-		}
-		proxyURL := proxyServer.URL()
-		sl.cfg.Env["HTTP_PROXY"] = proxyURL
-		sl.cfg.Env["HTTPS_PROXY"] = proxyURL
-		sl.cfg.Env["http_proxy"] = proxyURL
-		sl.cfg.Env["https_proxy"] = proxyURL
-		sl.cfg.Env["NO_PROXY"] = "localhost,127.0.0.1"
-		sl.cfg.Env["no_proxy"] = "localhost,127.0.0.1"
 	}
 
-	if !dryRun && config.FeatureEnabledDefault(sl.cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
-		var err error
-		dbusProxy, err = dbus.Start(sl.cfg, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose] Starting D-Bus proxy failed: %v\n", err)
-			}
-		}
-		if dbusProxy != nil {
-			defer dbusProxy.Close()
-		}
+	dbusProxy = setupDBusService(sl.cfg, dryRun, verbose)
+	if dbusProxy != nil {
+		defer dbusProxy.Close()
 	}
 
 	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, dryRun, verbose)
@@ -137,7 +157,7 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	return nil
 }
 
-func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool) error {
+func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, noInit bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
@@ -147,6 +167,10 @@ func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbu
 
 	currentDir, err := safetyChecks(sl, force, verbose)
 	if err != nil {
+		return err
+	}
+
+	if err := maybeAutoInit(sl, currentDir, force, noInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose); err != nil {
 		return err
 	}
 

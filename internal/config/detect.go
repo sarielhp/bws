@@ -17,6 +17,62 @@ type ProjectFeatures struct {
 	EnableSSH   bool
 }
 
+// AnyDetected returns true if any language stack or toolchain feature is detected.
+func (pf ProjectFeatures) AnyDetected() bool {
+	return pf.HasGo || pf.HasPython || pf.HasRust || pf.HasNode || pf.HasLatex || pf.HasOpenCode
+}
+
+// DetectedStacks returns human-readable names of all detected stacks.
+func (pf ProjectFeatures) DetectedStacks() []string {
+	var detected []string
+	if pf.HasGo {
+		detected = append(detected, "Go")
+	}
+	if pf.HasPython {
+		detected = append(detected, "Python/UV")
+	}
+	if pf.HasRust {
+		detected = append(detected, "Rust")
+	}
+	if pf.HasNode {
+		detected = append(detected, "Node")
+	}
+	if pf.HasLatex {
+		detected = append(detected, "LaTeX/TeX")
+	}
+	if pf.HasOpenCode {
+		detected = append(detected, "OpenCode")
+	}
+	return detected
+}
+
+func inspectFile(name, nameLower string, features *ProjectFeatures) {
+	if name == "go.mod" || name == "go.work" || strings.HasSuffix(nameLower, ".go") {
+		features.HasGo = true
+	}
+	if name == "pyproject.toml" || name == "requirements.txt" || name == "Pipfile" ||
+		name == "uv.lock" || name == "setup.py" || strings.HasSuffix(nameLower, ".py") {
+		features.HasPython = true
+	}
+	if name == "Cargo.toml" || name == "Cargo.lock" || strings.HasSuffix(nameLower, ".rs") {
+		features.HasRust = true
+	}
+	if name == "package.json" || name == "pnpm-lock.yaml" || name == "yarn.lock" ||
+		name == "package-lock.json" || name == "bun.lockb" ||
+		strings.HasSuffix(nameLower, ".js") || strings.HasSuffix(nameLower, ".ts") {
+		features.HasNode = true
+	}
+	if name == "latexmkrc" || name == ".latexmkrc" || name == "Tectonic.toml" ||
+		strings.HasSuffix(nameLower, ".tex") || strings.HasSuffix(nameLower, ".sty") ||
+		strings.HasSuffix(nameLower, ".cls") || strings.HasSuffix(nameLower, ".dtx") ||
+		strings.HasSuffix(nameLower, ".bib") || strings.HasSuffix(nameLower, ".ltx") {
+		features.HasLatex = true
+	}
+	if name == "opencode.json" {
+		features.HasOpenCode = true
+	}
+}
+
 // DetectFeatures inspects the specified directory and detects project characteristics.
 func DetectFeatures(dir string) (ProjectFeatures, error) {
 	features := ProjectFeatures{
@@ -71,43 +127,7 @@ func DetectFeatures(dir string) (ProjectFeatures, error) {
 
 		name := d.Name()
 		nameLower := strings.ToLower(name)
-
-		// Go detection
-		if name == "go.mod" || name == "go.work" || strings.HasSuffix(nameLower, ".go") {
-			features.HasGo = true
-		}
-
-		// Python detection
-		if name == "pyproject.toml" || name == "requirements.txt" || name == "Pipfile" ||
-			name == "uv.lock" || name == "setup.py" || strings.HasSuffix(nameLower, ".py") {
-			features.HasPython = true
-		}
-
-		// Rust detection
-		if name == "Cargo.toml" || name == "Cargo.lock" || strings.HasSuffix(nameLower, ".rs") {
-			features.HasRust = true
-		}
-
-		// Node detection
-		if name == "package.json" || name == "pnpm-lock.yaml" || name == "yarn.lock" ||
-			name == "package-lock.json" || name == "bun.lockb" ||
-			strings.HasSuffix(nameLower, ".js") || strings.HasSuffix(nameLower, ".ts") {
-			features.HasNode = true
-		}
-
-		// LaTeX / TeX detection
-		if name == "latexmkrc" || name == ".latexmkrc" || name == "Tectonic.toml" ||
-			strings.HasSuffix(nameLower, ".tex") || strings.HasSuffix(nameLower, ".sty") ||
-			strings.HasSuffix(nameLower, ".cls") || strings.HasSuffix(nameLower, ".dtx") ||
-			strings.HasSuffix(nameLower, ".bib") || strings.HasSuffix(nameLower, ".ltx") {
-			features.HasLatex = true
-		}
-
-		// OpenCode detection
-		if name == "opencode.json" {
-			features.HasOpenCode = true
-		}
-
+		inspectFile(name, nameLower, &features)
 		return nil
 	})
 

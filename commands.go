@@ -19,6 +19,7 @@ type appFlags struct {
 	noProxy  bool
 	dbus     bool
 	noDBus   bool
+	noInit   bool
 	opencode bool
 	preset   string
 	profiles []string

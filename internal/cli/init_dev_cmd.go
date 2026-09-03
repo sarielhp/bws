@@ -39,6 +39,43 @@ func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset
 		return fmt.Errorf("detecting workspace features: %w", err)
 	}
 
+	activeProfiles, extraRW, extraRO, extraPath, extraEnv := resolveInitProfiles(absDir, profiles)
+
+	opts := config.InitDevOptions{
+		Features:     features,
+		TargetDir:    absDir,
+		Force:        force,
+		DryRun:       dryRun,
+		NoSSH:        noSSH,
+		OpenCode:     opencode,
+		Preset:       preset,
+		Profiles:     activeProfiles,
+		ExtraBindsRW: extraRW,
+		ExtraBindsRO: extraRO,
+		ExtraPath:    extraPath,
+		ExtraEnv:     extraEnv,
+	}
+
+	jsonContent, err := config.GenerateDevConfigJSON(opts)
+	if err != nil {
+		return fmt.Errorf("generating dev configuration: %w", err)
+	}
+
+	if dryRun {
+		fmt.Print(jsonContent)
+		return nil
+	}
+
+	configPath := config.FindLocalPath(absDir)
+	if err := writeConfigFile(configPath, jsonContent, force); err != nil {
+		return err
+	}
+
+	printInitSummary(configPath, opts)
+	return nil
+}
+
+func resolveInitProfiles(absDir string, profiles []string) ([]string, [][]string, [][]string, []string, map[string]string) {
 	registry, _ := profile.LoadRegistry(absDir)
 	detectedProfiles := profile.DetectProfiles(absDir, registry)
 	activeProfileNames := make(map[string]bool)
@@ -71,70 +108,30 @@ func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset
 			}
 		}
 	}
+	return finalActiveProfiles, extraRW, extraRO, extraPath, extraEnv
+}
 
-	opts := config.InitDevOptions{
-		Features:     features,
-		TargetDir:    absDir,
-		Force:        force,
-		DryRun:       dryRun,
-		NoSSH:        noSSH,
-		OpenCode:     opencode,
-		Preset:       preset,
-		Profiles:     finalActiveProfiles,
-		ExtraBindsRW: extraRW,
-		ExtraBindsRO: extraRO,
-		ExtraPath:    extraPath,
-		ExtraEnv:     extraEnv,
-	}
-
-	jsonContent, err := config.GenerateDevConfigJSON(opts)
-	if err != nil {
-		return fmt.Errorf("generating dev configuration: %w", err)
-	}
-
-	if dryRun {
-		fmt.Print(jsonContent)
-		return nil
-	}
-
-	configPath := config.FindLocalPath(absDir)
+func writeConfigFile(configPath, jsonContent string, force bool) error {
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("creating directory %s: %w", filepath.Dir(configPath), err)
 	}
 
-	if _, err := os.Stat(configPath); err == nil {
-		if !force {
-			backupPath := configPath + ".bak"
-			if err := os.Rename(configPath, backupPath); err != nil {
-				return fmt.Errorf("backing up existing configuration: %w", err)
-			}
-			fmt.Printf("Backed up existing configuration to: %s\n", backupPath)
+	if _, err := os.Stat(configPath); err == nil && !force {
+		backupPath := configPath + ".bak"
+		if err := os.Rename(configPath, backupPath); err != nil {
+			return fmt.Errorf("backing up existing configuration: %w", err)
 		}
+		fmt.Printf("Backed up existing configuration to: %s\n", backupPath)
 	}
 
 	if err := os.WriteFile(configPath, []byte(jsonContent), 0644); err != nil {
 		return fmt.Errorf("writing configuration to %s: %w", configPath, err)
 	}
+	return nil
+}
 
-	var detected []string
-	if opts.Features.HasGo {
-		detected = append(detected, "Go")
-	}
-	if opts.Features.HasPython {
-		detected = append(detected, "Python/UV")
-	}
-	if opts.Features.HasRust {
-		detected = append(detected, "Rust")
-	}
-	if opts.Features.HasNode {
-		detected = append(detected, "Node")
-	}
-	if opts.Features.HasLatex {
-		detected = append(detected, "LaTeX/TeX")
-	}
-	if opts.Features.HasOpenCode {
-		detected = append(detected, "OpenCode")
-	}
+func printInitSummary(configPath string, opts config.InitDevOptions) {
+	detected := opts.Features.DetectedStacks()
 	if len(detected) == 0 {
 		detected = append(detected, "Generic Dev/Agent")
 	}
@@ -146,6 +143,4 @@ func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset
 	} else {
 		fmt.Printf("  SSH forwarding:    enabled (host agent)\n")
 	}
-
-	return nil
 }

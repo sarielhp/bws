@@ -30,6 +30,66 @@ type FeaturesConfig struct {
 	EnableProxy       *bool    `json:"enable_proxy,omitempty"`
 	NoNet             *bool    `json:"no_net,omitempty"`
 	UnshareNet        *bool    `json:"unshare_net,omitempty"`
+	AutoInit          string   `json:"auto_init,omitempty"`
+}
+
+func (f *FeaturesConfig) UnmarshalJSON(data []byte) error {
+	type Alias FeaturesConfig
+	aux := struct {
+		AutoInitRaw json.RawMessage `json:"auto_init,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(f),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if len(aux.AutoInitRaw) > 0 && string(aux.AutoInitRaw) != "null" {
+		var s string
+		if err := json.Unmarshal(aux.AutoInitRaw, &s); err == nil {
+			f.AutoInit = s
+			return nil
+		}
+		var b bool
+		if err := json.Unmarshal(aux.AutoInitRaw, &b); err == nil {
+			if b {
+				f.AutoInit = "always"
+			} else {
+				f.AutoInit = "never"
+			}
+			return nil
+		}
+		return fmt.Errorf("auto_init must be a string or boolean: %s", string(aux.AutoInitRaw))
+	}
+	return nil
+}
+
+// AutoInitMode returns the resolved auto_init mode ("always", "prompt", "never").
+// Defaults to "always" when unset or empty.
+func AutoInitMode(cfg *Config) string {
+	if cfg == nil || cfg.Features == nil {
+		return "always"
+	}
+	return AutoInitModeFromFeatures(cfg.Features)
+}
+
+// AutoInitModeFromFeatures returns the resolved auto_init mode from FeaturesConfig.
+// Defaults to "always" when unset or empty.
+func AutoInitModeFromFeatures(f *FeaturesConfig) string {
+	if f == nil || strings.TrimSpace(f.AutoInit) == "" {
+		return "always"
+	}
+	mode := strings.ToLower(strings.TrimSpace(f.AutoInit))
+	switch mode {
+	case "never", "off", "false":
+		return "never"
+	case "prompt", "ask":
+		return "prompt"
+	case "always", "on", "true":
+		return "always"
+	default:
+		return mode
+	}
 }
 
 type BindEntry struct {
