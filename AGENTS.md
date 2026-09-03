@@ -6,7 +6,7 @@ make                          # build + test + lint (via Makefile)
 go vet ./...                  # static analysis
 go test ./...                 # run all tests
 ./tools/test_long             # run all long tests (opt-in)
-./tools/audit_lines.sh        # check 300/500-line limits per file
+./tools/audit_lines.rb        # audit function (80 max) & file limits (800 warn / 1100 max)
 ./tools/bump_version.sh       # increment patch, commit, push
 ./tools/bump_version.sh 0.2.0 # set explicit version, commit, push
 ./tools/snapshot.sh           # commit all with message & push
@@ -26,7 +26,7 @@ bws/
 ├── tools/                   # Developer automation scripts
 │   ├── verify_build.sh      # vet + test + build
 │   ├── test_long            # run all long tests individually
-│   ├── audit_lines.sh       # enforce 300/500-line limits
+│   ├── audit_lines.rb       # enforce 80-line func & 800/1100-line file limits
 │   ├── bump_version.sh      # bump version, commit, push
 │   ├── outline_symbols.sh   # sorted index of exported symbols
 │   ├── show_symbol.sh       # show a symbol's declaration
@@ -61,9 +61,9 @@ bws/
 
 ## Before committing
 1. Run `go vet ./...` — no warnings.
-2. Run `./scripts/verify_build.sh` — all tests pass, binary compiles.
-3. Run `./scripts/audit_lines.sh` — no file exceeds the 500-line hard limit.
-4. Run `./scripts/bump_version.sh` — every code change bumps the version (and auto-commits/pushes to git).
+2. Run `./tools/verify_build.sh` — all tests pass, binary compiles.
+3. Run `./tools/audit_lines.rb` — no function exceeds 80 lines and files remain within 300–700 lines (warn > 800, max 1100).
+4. Run `./tools/bump_version.sh` — every code change bumps the version (and auto-commits/pushes to git).
 5. Commit messages follow conventional style: `area: description` or `Type(scope): description`.
    Examples: `feat(safety): block root directory`, `fix(bwrap): correct X11 socket order`, `chore: bump version to 0.1.1`.
 
@@ -74,17 +74,18 @@ bws/
 - **Run `go vet ./...` and `go test ./...`** before pushing.
 
 ## Hard constraints
-- **300-line soft limit**, **500-line hard limit** per `.go` file. Run `./scripts/audit_lines.sh` to verify.
+- **Function limit**: Hard limit of **80 lines** per function. Decompose long functions in place.
+- **File sizing**: Recommended **300–700 lines**, warning over **800 lines**, hard limit **1100 lines**. Never split a file through a function body.
 - **No `log.Fatalf` in handlers** — only in `main.go` for startup-only errors.
 - **No `ioutil`** (deprecated since Go 1.16) — use `os` and `io` directly.
 - **No external dependencies for trivial things**.
-- **Bump version** on every code change via `./scripts/bump_version.sh` (auto-commits and pushes).
+- **Bump version** on every code change via `./tools/bump_version.sh` (auto-commits and pushes).
 - **Config path is fixed** — `~/.config/bws/config.jsonc`. Local override: `.bws/config.jsonc` in the current directory.
 
 ## Build & distribution
 - **`Makefile` with targets**: `build`, `test`, `lint`, `clean`.
 - **`go build -o bws .`** produces a single static binary.
-- **Version** is in `main.go` as `var Version = "X.Y.Z"`. Updated via `scripts/bump_version.sh`.
+- **Version** is in `main.go` as `var Version = "X.Y.Z"`. Updated via `tools/bump_version.sh`.
 
 ## Code style
 - **`gofumpt`** for formatting (fallback to `go fmt`).
@@ -117,7 +118,7 @@ bws/
 | Script | Purpose |
 |---|---|
 | `verify_build.sh` | `go fmt` → `go vet` → `go test` → `go build` |
-| `audit_lines.sh` | flag `.go` files exceeding 300 lines, error on >500 |
+| `audit_lines.rb` | audit function lengths (80 max) and file lengths (800 warn / 1100 max) |
 | `bump_version.sh [v]` | increment patch (or set explicit version), commit, push |
 | `outline_symbols.sh` | sorted index of all Go types, functions, constants, vars |
 | `show_symbol.sh <sym>` | display declaration lines for a named symbol |
