@@ -16,6 +16,18 @@
       "*.ltx"
     ]
   },
+  "pass_env": [
+    "TEXINPUTS",
+    "BIBINPUTS",
+    "BSTINPUTS",
+    "TEXMFHOME",
+    "TEXMFCNF",
+    "LUAINPUTS",
+    "INDEXSTYLE",
+    "BIBER_OPTIONS",
+    "openout_any",
+    "openin_any"
+  ],
   "binds_rw": [
     [
       "~/.texlive2026/texmf-var",

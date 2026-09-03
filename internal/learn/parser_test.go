@@ -132,3 +132,40 @@ func TestParseTraceLine(t *testing.T) {
 func startsWith(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
+
+func TestTraceParser_UnfinishedAndResumed(t *testing.T) {
+	parser := NewTraceParser()
+
+	// Line 1: unfinished openat
+	p1 := parser.ParseLine(`1872044 openat(AT_FDCWD, "../fragment/def_Chebychev.tex", O_WRONLY|O_CREAT|O_TRUNC, 0666 <unfinished ...>`)
+	if p1 != nil {
+		t.Fatalf("expected p1 to be nil for unfinished line, got %+v", p1)
+	}
+
+	// Line 2: interleaved call on another PID
+	p2 := parser.ParseLine(`1872045 openat(AT_FDCWD, "/etc/hosts", O_RDONLY) = 3`)
+	if p2 == nil || p2.Name != "openat" || len(p2.Paths) == 0 || p2.Paths[0] != "/etc/hosts" {
+		t.Fatalf("unexpected p2: %+v", p2)
+	}
+
+	// Line 3: resumed openat on original PID
+	p3 := parser.ParseLine(`1872044 <... openat resumed>) = 7`)
+	if p3 == nil {
+		t.Fatalf("expected p3 to be non-nil for resumed line")
+	}
+	if p3.Name != "openat" {
+		t.Errorf("p3.Name = %q, want 'openat'", p3.Name)
+	}
+	if p3.Mode != AccessWrite {
+		t.Errorf("p3.Mode = %v, want AccessWrite", p3.Mode)
+	}
+	if len(p3.Paths) != 1 || p3.Paths[0] != "../fragment/def_Chebychev.tex" {
+		t.Errorf("p3.Paths = %v, want ['../fragment/def_Chebychev.tex']", p3.Paths)
+	}
+	if !p3.Success {
+		t.Errorf("expected p3.Success = true")
+	}
+	if p3.RetVal != 7 {
+		t.Errorf("p3.RetVal = %d, want 7", p3.RetVal)
+	}
+}

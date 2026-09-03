@@ -81,16 +81,20 @@ func TestCollapseAndClassify(t *testing.T) {
 	homeDir := "/home/user"
 
 	accesses := map[string]AccessMode{
-		"/home/user/.config/myapp/settings.json":  AccessRead,
-		"/home/user/.config/myapp/plugins/foo.so": AccessWrite,
-		"/home/user/.cache/myapp/temp.dat":        AccessWrite,
-		"/home/user/.gitconfig":                   AccessRead,
-		"/home/user/.ssh/config":                  AccessRead,
-		"/home/user/.ssh/known_hosts":             AccessRead,
-		"/home/user/.gemini/session.json":         AccessWrite,
-		"/opt/custom/lib/liba.so":                 AccessRead,
-		"/etc/fonts/fonts.conf":                   AccessRead,
-		"/etc/custom/app.conf":                    AccessWrite,
+		"/home/user/.config/myapp/settings.json":         AccessRead,
+		"/home/user/.config/myapp/plugins/foo.so":        AccessWrite,
+		"/home/user/.cache/myapp/temp.dat":               AccessWrite,
+		"/home/user/.gitconfig":                          AccessRead,
+		"/home/user/.ssh/config":                         AccessRead,
+		"/home/user/.ssh/known_hosts":                    AccessRead,
+		"/home/user/.gemini/session.json":                AccessWrite,
+		"/opt/custom/lib/liba.so":                        AccessRead,
+		"/etc/fonts/fonts.conf":                          AccessRead,
+		"/etc/custom/app.conf":                           AccessWrite,
+		"/var/cache/fontconfig/53d14c92-le64.cache-9":    AccessRead,
+		"/var/lib/texmf/web2c/xetex/xelatex.fmt":         AccessRead,
+		"/home/user/papers/teach/notes/prefix.tex":       AccessRead,
+		"/home/user/papers/teach/notes/fragment/def.tex": AccessWrite,
 	}
 
 	bindsRW, bindsRO := CollapseAndClassify(accesses, homeDir)
@@ -100,12 +104,16 @@ func TestCollapseAndClassify(t *testing.T) {
 		"~/.cache/myapp",
 		"~/.config/myapp",
 		"~/.gemini",
+		"~/papers/teach/notes/fragment/def.tex",
 	}
 
 	wantRO := []string{
 		"/opt/custom",
+		"/var/cache/fontconfig",
+		"/var/lib/texmf",
 		"~/.gitconfig",
 		"~/.ssh",
+		"~/papers/teach/notes/prefix.tex",
 	}
 
 	if strings.Join(bindsRW, ",") != strings.Join(wantRW, ",") {
@@ -161,6 +169,8 @@ func TestAnalyzeTraceLines(t *testing.T) {
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/state.db", O_RDWR|O_CREAT, 0644) = 5`,
 		`1001 connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.216.34")}, 16) = 0`,
 		`1001 connect(4, {sa_family=AF_UNIX, sun_path="/tmp/ssh-abcdef/agent.1234"}, 110) = 0`,
+		`1001 access("../../../book.tex", R_OK) = -1 ENOENT (No such file or directory)`,
+		`1001 openat(AT_FDCWD, "/home/user/nonexistent.dat", O_RDONLY) = -1 ENOENT (No such file or directory)`,
 	}
 
 	opts := TraceOptions{

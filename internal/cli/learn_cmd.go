@@ -22,6 +22,9 @@ func HandleLearn(targetCmd []string, dryRun bool, profileName string, global, fo
 	}
 
 	cwd, _ := os.Getwd()
+	if realCwd, err := filepath.EvalSymlinks(cwd); err == nil {
+		cwd = realCwd
+	}
 	homeDir, _ := os.UserHomeDir()
 
 	fmt.Printf("Learning command: %s\n", strings.Join(targetCmd, " "))

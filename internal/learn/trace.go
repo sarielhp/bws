@@ -27,6 +27,9 @@ func RunTrace(opts TraceOptions) (*TraceResult, error) {
 	if opts.WorkDir == "" {
 		opts.WorkDir, _ = os.Getwd()
 	}
+	if realWorkDir, err := filepath.EvalSymlinks(opts.WorkDir); err == nil {
+		opts.WorkDir = realWorkDir
+	}
 
 	// 1. Binary PATH discovery
 	var discoveredPath string
@@ -106,14 +109,18 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 	if opts.WorkDir == "" {
 		opts.WorkDir, _ = os.Getwd()
 	}
+	if realWorkDir, err := filepath.EvalSymlinks(opts.WorkDir); err == nil {
+		opts.WorkDir = realWorkDir
+	}
 
 	pathDirs := GetPathDirectories(opts.HomeDir, opts.PathEnv, opts.PathDirs...)
 
 	features := DetectedFeatures{}
 	accesses := make(map[string]AccessMode)
 
+	parser := NewTraceParser()
 	for _, line := range lines {
-		parsed := ParseTraceLine(line)
+		parsed := parser.ParseLine(line)
 		if parsed == nil {
 			continue
 		}
@@ -122,10 +129,17 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 			DetectSocketFeatures(parsed.SockAddr, &features)
 		}
 
+		if !parsed.Success {
+			continue
+		}
+
 		for _, path := range parsed.Paths {
 			absPath := path
 			if !filepath.IsAbs(path) && opts.WorkDir != "" {
 				absPath = filepath.Join(opts.WorkDir, path)
+			}
+			if realAbs, err := filepath.EvalSymlinks(absPath); err == nil {
+				absPath = realAbs
 			}
 
 			DetectPathFeatures(absPath, &features)

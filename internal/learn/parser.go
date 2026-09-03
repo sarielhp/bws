@@ -7,12 +7,32 @@ import (
 )
 
 var (
-	pidPrefixRegex   = regexp.MustCompile(`^\s*(?:\[pid\s+(\d+)\]|(\d+))\s+`)
-	syscallCallRegex = regexp.MustCompile(`^([a-zA-Z0-9_]+)\((.*)\)\s*=\s*(-?[0-9]+|0x[0-9a-fA-F]+|\?)(?:\s+(.*))?$`)
+	pidPrefixRegex      = regexp.MustCompile(`^\s*(?:\[pid\s+(\d+)\]|(\d+))\s+`)
+	syscallCallRegex    = regexp.MustCompile(`^([a-zA-Z0-9_]+)\((.*)\)\s*=\s*(-?[0-9]+|0x[0-9a-fA-F]+|\?)(?:\s+(.*))?$`)
+	unfinishedCallRegex = regexp.MustCompile(`^([a-zA-Z0-9_]+)\((.*)\s+<unfinished \.\.\.>$`)
+	resumedCallRegex    = regexp.MustCompile(`^<\.\.\.\s+([a-zA-Z0-9_]+)\s+resumed>(.*)\)\s*=\s*(-?[0-9]+|0x[0-9a-fA-F]+|\?)(?:\s+(.*))?$`)
 )
 
-// ParseTraceLine parses a single line from an strace output log.
-func ParseTraceLine(line string) *ParsedSyscall {
+// PendingSyscall holds partial state for an unfinished strace syscall.
+type PendingSyscall struct {
+	Name string
+	Args string
+}
+
+// TraceParser parses strace logs, handling multi-threaded/unfinished syscall reassembly.
+type TraceParser struct {
+	pending map[int]*PendingSyscall
+}
+
+// NewTraceParser creates a new stateful strace parser.
+func NewTraceParser() *TraceParser {
+	return &TraceParser{
+		pending: make(map[int]*PendingSyscall),
+	}
+}
+
+// ParseLine parses a single log line, reassembling unfinished calls when they resume.
+func (p *TraceParser) ParseLine(line string) *ParsedSyscall {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" || strings.HasPrefix(trimmed, "+++") || strings.HasPrefix(trimmed, "---") {
 		return nil
@@ -28,7 +48,41 @@ func ParseTraceLine(line string) *ParsedSyscall {
 		trimmed = strings.TrimSpace(trimmed[len(match[0]):])
 	}
 
-	// Handle resumed syscall lines e.g. `<... connect resumed> ) = 0`
+	// Check if this is an unfinished syscall
+	if m := unfinishedCallRegex.FindStringSubmatch(trimmed); m != nil {
+		p.pending[pid] = &PendingSyscall{
+			Name: m[1],
+			Args: m[2],
+		}
+		return nil
+	}
+
+	// Check if this is a resumed syscall
+	if m := resumedCallRegex.FindStringSubmatch(trimmed); m != nil {
+		callName := m[1]
+		extraArgs := m[2]
+		retStr := m[3]
+		retErr := m[4]
+
+		if pendingCall, ok := p.pending[pid]; ok && pendingCall.Name == callName {
+			delete(p.pending, pid)
+			completeArgs := pendingCall.Args + extraArgs
+			retVal, _ := strconv.Atoi(retStr)
+			success := retVal >= 0 && !strings.Contains(retErr, "ENOENT")
+
+			parsed := &ParsedSyscall{
+				PID:     pid,
+				Name:    callName,
+				RawArgs: completeArgs,
+				RetVal:  retVal,
+				Success: success,
+			}
+			populateParsedSyscall(parsed, callName, completeArgs)
+			return parsed
+		}
+		return nil
+	}
+
 	if strings.HasPrefix(trimmed, "<...") {
 		return nil
 	}
@@ -53,7 +107,11 @@ func ParseTraceLine(line string) *ParsedSyscall {
 		RetVal:  retVal,
 		Success: success,
 	}
+	populateParsedSyscall(parsed, callName, argsStr)
+	return parsed
+}
 
+func populateParsedSyscall(parsed *ParsedSyscall, callName, argsStr string) {
 	switch callName {
 	case "open", "openat", "openat2", "creat":
 		paths := extractQuotedStrings(argsStr)
@@ -103,8 +161,12 @@ func ParseTraceLine(line string) *ParsedSyscall {
 		parsed.SockAddr = extractSockAddr(argsStr)
 		parsed.Mode = AccessNone
 	}
+}
 
-	return parsed
+// ParseTraceLine parses a single line from an strace output log.
+func ParseTraceLine(line string) *ParsedSyscall {
+	p := NewTraceParser()
+	return p.ParseLine(line)
 }
 
 func determineOpenMode(callName, argsStr string) AccessMode {
