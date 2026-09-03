@@ -45,55 +45,79 @@ func HandleLearn(targetCmd []string, dryRun bool, profileName string, global, fo
 
 	// Load target configuration for diffing
 	targetPath := configFilePath(global)
-	var targetConfig *config.Config
-	if _, err := os.Stat(targetPath); err == nil {
-		if c, err := config.LoadFile(targetPath); err == nil {
-			targetConfig = c
-		}
-	}
-
+	targetConfig := loadTargetConfig(targetPath)
 	delta := learn.ComputeDelta(res, targetConfig, homeDir)
 
-	printLearnSummary(res, delta)
+	return handleDeltaDispatch(res, delta, targetPath, profileName, global, force, dryRun, verbose)
+}
 
+func loadTargetConfig(targetPath string) *config.Config {
+	if _, err := os.Stat(targetPath); err == nil {
+		if c, err := config.LoadFile(targetPath); err == nil {
+			return c
+		}
+	}
+	return nil
+}
+
+func handleDeltaDispatch(res *learn.TraceResult, delta *learn.Delta, targetPath, profileName string, global, force, dryRun, verbose bool) error {
 	// Case 1: Standalone profile generation (-p / --profile)
 	if profileName != "" {
+		if verbose {
+			printLearnSummary(res, delta)
+		} else {
+			printSecurityAlerts(delta.SecurityAlerts)
+		}
 		return handleProfileGeneration(res, profileName, global, force, dryRun)
 	}
 
-	// Case 2: Dry run / Preview mode (-n / --dry-run)
-	if dryRun {
-		if delta.IsEmpty() {
-			fmt.Println("✓ Sandbox configuration already covers all required access. No changes needed.")
-			return nil
+	// Case 2: When no changes are needed (idempotent / quiet)
+	if delta.IsEmpty() {
+		if verbose {
+			printLearnSummary(res, delta)
+		} else {
+			printSecurityAlerts(delta.SecurityAlerts)
 		}
+		fmt.Println("✓ Sandbox configuration already covers all required access. No changes needed.")
+		return nil
+	}
+
+	// Case 3 & 4: When delta is not empty
+	if verbose {
+		printLearnSummary(res, delta)
+	} else {
+		printSecurityAlerts(delta.SecurityAlerts)
+	}
+
+	// Dry run / Preview mode (-n / --dry-run)
+	if dryRun {
 		fmt.Printf("Discovered sandbox configuration additions for %s:\n\n", targetPath)
 		printDeltaSnippet(delta)
 		return nil
 	}
 
-	// Case 3: Default live merge
-	if delta.IsEmpty() {
-		fmt.Println("✓ Sandbox configuration already covers all required access. No changes needed.")
-		return nil
-	}
-
+	// Default live merge
 	return handleLiveMerge(targetPath, delta, global)
+}
+
+func printSecurityAlerts(alerts []string) {
+	if len(alerts) == 0 {
+		return
+	}
+	red := color.New(color.FgRed, color.Bold).SprintFunc()
+	for _, alert := range alerts {
+		fmt.Println(red(alert))
+	}
+	fmt.Println()
 }
 
 func printLearnSummary(res *learn.TraceResult, delta *learn.Delta) {
 	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
-	red := color.New(color.FgRed, color.Bold).SprintFunc()
 	dim := color.New(color.FgHiBlack).SprintFunc()
 
-	if len(delta.SecurityAlerts) > 0 {
-		for _, alert := range delta.SecurityAlerts {
-			fmt.Println(red(alert))
-		}
-		fmt.Println()
-	}
+	printSecurityAlerts(delta.SecurityAlerts)
 
 	fmt.Println(cyan("Detected Features:"))
 	fmt.Printf("  • Network (TCP/UDP):   %s\n", boolStatus(res.Features.Net, green, dim))
@@ -188,15 +212,27 @@ func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
 	fmt.Printf("✓ Updated %s configuration (%s):\n", label, targetPath)
 	if mergeRes.AddedRW > 0 {
 		fmt.Printf("  • Added %d read-write bind mounts\n", mergeRes.AddedRW)
+		for _, b := range delta.BindsRW {
+			fmt.Printf("    • %s\n", b)
+		}
 	}
 	if mergeRes.AddedRO > 0 {
 		fmt.Printf("  • Added %d read-only bind mounts\n", mergeRes.AddedRO)
+		for _, b := range delta.BindsRO {
+			fmt.Printf("    • %s\n", b)
+		}
 	}
 	if mergeRes.UpgradedRO > 0 {
 		fmt.Printf("  • Upgraded %d mounts (read-only -> read-write)\n", mergeRes.UpgradedRO)
+		for _, b := range delta.UpgradedRO {
+			fmt.Printf("    • %s\n", b)
+		}
 	}
 	if mergeRes.AddedPath > 0 {
 		fmt.Printf("  • Added %d binary PATH entries\n", mergeRes.AddedPath)
+		for _, p := range delta.Path {
+			fmt.Printf("    • %s\n", p)
+		}
 	}
 	if len(mergeRes.EnabledFeatures) > 0 {
 		fmt.Printf("  • Enabled features: %s\n", strings.Join(mergeRes.EnabledFeatures, ", "))

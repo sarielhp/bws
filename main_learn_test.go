@@ -56,8 +56,42 @@ func TestLearnDryRun(t *testing.T) {
 	if !strings.Contains(outStr, "Learning command:") || !strings.Contains(outStr, "Trace analysis complete") {
 		t.Errorf("expected trace output header in output:\n%s", outStr)
 	}
+	if !strings.Contains(outStr, "✓ Sandbox configuration already covers all required access. No changes needed.") {
+		t.Errorf("expected success message in output:\n%s", outStr)
+	}
+	if strings.Contains(outStr, "Detected Features:") {
+		t.Errorf("expected 'Detected Features:' to be omitted when delta is empty and verbose=false, got:\n%s", outStr)
+	}
+	if strings.Contains(outStr, "Discovered Bind Mounts:") {
+		t.Errorf("expected 'Discovered Bind Mounts:' to be omitted when delta is empty and verbose=false, got:\n%s", outStr)
+	}
+}
+
+func TestLearnDryRunVerbose(t *testing.T) {
+	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
+		t.Skip("binary not built, skipping")
+	}
+
+	tempDir := t.TempDir()
+	cmd := exec.Command(bwPath, "learn", "-v", "-n", "--", "echo", "hello learn")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("bws learn -v -n failed: %v\n%s", err, string(output))
+	}
+
+	outStr := string(output)
+	if !strings.Contains(outStr, "Learning command:") || !strings.Contains(outStr, "Trace analysis complete") {
+		t.Errorf("expected trace output header in output:\n%s", outStr)
+	}
 	if !strings.Contains(outStr, "Detected Features:") {
-		t.Errorf("expected 'Detected Features:' in output:\n%s", outStr)
+		t.Errorf("expected 'Detected Features:' in verbose output:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "Discovered Bind Mounts:") {
+		t.Errorf("expected 'Discovered Bind Mounts:' in verbose output:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "✓ Sandbox configuration already covers all required access. No changes needed.") {
+		t.Errorf("expected completion message in verbose output:\n%s", outStr)
 	}
 }
 
@@ -120,5 +154,43 @@ func TestLearnNoArgsShowsUsageWithExamples(t *testing.T) {
 	}
 	if !strings.Contains(outStr, "Examples:") || !strings.Contains(outStr, "bws learn") {
 		t.Errorf("expected examples in bws learn (no args), got:\n%s", outStr)
+	}
+}
+
+func TestLearnIdempotentSubsequentRuns(t *testing.T) {
+	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
+		t.Skip("binary not built, skipping")
+	}
+
+	tempDir := t.TempDir()
+
+	// Initial run
+	cmd1 := exec.Command(bwPath, "learn", "--", "echo", "idempotent test")
+	cmd1.Dir = tempDir
+	output1, err := cmd1.CombinedOutput()
+	if err != nil {
+		t.Fatalf("initial bws learn failed: %v\n%s", err, string(output1))
+	}
+	out1 := string(output1)
+	if !strings.Contains(out1, "✓ Sandbox configuration already covers all required access. No changes needed.") {
+		t.Errorf("expected initial run to report no changes needed, got:\n%s", out1)
+	}
+
+	// Subsequent run should be quiet and idempotent
+	cmd2 := exec.Command(bwPath, "learn", "--", "echo", "idempotent test")
+	cmd2.Dir = tempDir
+	output2, err := cmd2.CombinedOutput()
+	if err != nil {
+		t.Fatalf("subsequent bws learn failed: %v\n%s", err, string(output2))
+	}
+	out2 := string(output2)
+	if !strings.Contains(out2, "✓ Sandbox configuration already covers all required access. No changes needed.") {
+		t.Errorf("expected subsequent run to be quiet, got:\n%s", out2)
+	}
+	if strings.Contains(out2, "Detected Features:") {
+		t.Errorf("subsequent run should omit detected features, got:\n%s", out2)
+	}
+	if strings.Contains(out2, "Discovered Bind Mounts:") {
+		t.Errorf("subsequent run should omit bind mounts, got:\n%s", out2)
 	}
 }
