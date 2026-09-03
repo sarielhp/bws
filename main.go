@@ -42,6 +42,7 @@ func buildApp() *clihelp.App {
 			addCmd(f, glValidator),
 			rmCmd(f, glValidator),
 			mountCmd(f, glValidator),
+			binCmd(f, glValidator),
 			copyCmd(f, glValidator),
 			pathCmd(f, glValidator),
 			gitWorkflowCmd(f),
