@@ -81,7 +81,8 @@
 
   // Base read-only protection for host binaries
   "binds_ro": [
-    ["~/.local", "@@HOME@@/.local"]
+    ["~/.local/bin", "@@HOME@@/.local/bin"],
+    ["~/.local/lib", "@@HOME@@/.local/lib"]
   ]
 }
 ```

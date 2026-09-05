@@ -28,7 +28,7 @@ func TestGenerateDevConfigJSON(t *testing.T) {
 				`"~/.go"`,
 				`"~/.gemini"`,
 				`"~/bin"`,
-				`"~/.local"`,
+				`"~/.local/bin"`,
 			},
 			forbidSubstr: []string{
 				`"~/.cache/uv"`,
