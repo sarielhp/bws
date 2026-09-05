@@ -44,7 +44,7 @@
 | **`no-email`** | Thunderbird, Evolution, Mutt, Maildir | Shields desktop mailboxes and email credentials |
 | **`no-chat`** | Discord, Slack, Signal, Telegram, Element | Protects messaging databases and tokens |
 | **`no-secrets`** | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.password-store`, `~/.gnupg` | Shields cloud provider credentials and GPG keys |
-| **`no-history`**| `.bash_history`, `.zsh_history`, `.python_history`, `.psql_history` | Prevents scanning command histories for leaked tokens |
+| **`no-history`**| `.bash_history`, `.zsh_history`, XDG history paths, REPL logs | Prevents scanning command histories for leaked tokens (enabled by default) |
 | **`offline`** (`no-net`) | Network namespace (`CLONE_NEWNET`) | Blocks all outbound internet traffic and isolates loopback (host `127.0.0.1` services completely unreachable) |
 | **`secure-agent`**| All of the above combined + `ai` coding assistant stack | Zero-trust developer sandbox for autonomous coding agents |
 

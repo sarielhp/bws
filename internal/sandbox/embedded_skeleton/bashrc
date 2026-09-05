@@ -1,0 +1,15 @@
+# Bubblewrap Sandbox .bashrc
+# Source global definitions if available
+if [ -f /etc/bashrc ]; then
+  . /etc/bashrc
+fi
+
+# Standard aliases
+alias ls='ls --color=auto'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias grep='grep --color=auto'
+
+# Disable shell history persistence inside the sandbox
+export HISTFILE=/dev/null

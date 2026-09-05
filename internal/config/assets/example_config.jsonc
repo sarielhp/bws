@@ -1,0 +1,45 @@
+// Bubblewrap Sandbox Launcher Configuration File (Blank Template Example)
+//
+// Use this file as a template to customize your sandbox configuration.
+// Copy this to config.jsonc and modify as needed.
+
+{
+  "system": {
+    "share_net": true,
+    "clearenv": true,
+    "unshare_uts": true,
+    "hostname": "bubble"
+  },
+
+  "features": {
+    "enable_ssh": false,
+    "enable_x11": false,
+    "enable_wsl": true,
+    "enable_etc_auto_bind": false
+  },
+
+  "env": {
+    "HOME": "@@HOME@@",
+    "TERM": "xterm-256color",
+    "LANG": "C.UTF-8",
+    "EDITOR": "emacs -nw",
+    "VISUAL": "emacs -nw",
+    "OPENROUTER_API_KEY": ""
+  },
+
+  "path": [
+    "@@HOME@@/bin",
+    "@@HOME@@/.local/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin"
+  ],
+
+  "binds_rw": [
+    // ["/path/to/host/dir", "/path/to/sandbox/dir"]
+  ],
+
+  "binds_ro": [
+    // ["/path/to/host/file_or_dir", "/path/to/sandbox/file_or_dir"]
+  ]
+}

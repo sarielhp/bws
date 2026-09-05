@@ -49,6 +49,12 @@ func CanonicalPath(p, homeDir string) string {
 		}
 	}
 
+	if !filepath.IsAbs(clean) {
+		if abs, err := filepath.Abs(clean); err == nil {
+			clean = abs
+		}
+	}
+
 	return filepath.Clean(clean)
 }
 

@@ -115,6 +115,12 @@ func ShouldFilterAccess(path string, mode AccessMode, workDir, homeDir string, p
 		if clean == cleanWorkDir || strings.HasPrefix(clean, cleanWorkDir+"/") {
 			return true
 		}
+		// Filter ancestor directories of the workspace.
+		// Ancestor directories (e.g. "..", "../..") must not be bound as whole directory mounts,
+		// but regular files accessed within an ancestor directory (like ../prefix.tex) are allowed as pinholes.
+		if strings.HasPrefix(cleanWorkDir, clean+"/") {
+			return true
+		}
 	}
 
 	// Filter system directories and special runtime paths

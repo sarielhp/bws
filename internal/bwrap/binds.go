@@ -1,55 +1,60 @@
 package bwrap
 
 import (
-	"bws/internal/config"
-	"bws/internal/util"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+
+	"bws/internal/config"
+	"bws/internal/util"
 )
 
-func buildBinds(cfg *config.Config, sandboxDir, homeDir string, verbose bool) []string {
-	var args []string
-	type bindItem struct {
-		host string
-		dest string
-		ro   bool
-	}
-	var allBinds []bindItem
+type bindItem struct {
+	host string
+	dest string
+	ro   bool
+}
 
-	for _, b := range cfg.BindsRO {
+func resolveBindPath(p, homeDir, currentDir string) string {
+	p = strings.ReplaceAll(p, config.HomeToken, homeDir)
+	p = util.ExpandHome(p)
+	if !filepath.IsAbs(p) && currentDir != "" {
+		p = filepath.Clean(filepath.Join(currentDir, p))
+	}
+	return p
+}
+
+func collectBinds(entries []config.BindEntry, homeDir, currentDir, sandboxDir string, ro, verbose bool) []bindItem {
+	var items []bindItem
+	for _, b := range entries {
 		dest := b.Sandbox
 		if dest == "" {
 			dest = b.Host
 		}
-		dest = strings.ReplaceAll(dest, config.HomeToken, homeDir)
-		dest = util.ExpandHome(dest)
-		host := util.ExpandHome(b.Host)
-		if _, err := os.Stat(host); err == nil {
-			allBinds = append(allBinds, bindItem{host: host, dest: dest, ro: true})
-		} else if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose]   (skipping RO bind: %s does not exist)\n", host)
-		}
-	}
-
-	for _, b := range cfg.BindsRW {
-		dest := b.Sandbox
-		if dest == "" {
-			dest = b.Host
-		}
-		dest = strings.ReplaceAll(dest, config.HomeToken, homeDir)
-		dest = util.ExpandHome(dest)
-		host := util.ExpandHome(b.Host)
-		if sandboxDir != "" && host == sandboxDir && dest == homeDir {
+		dest = resolveBindPath(dest, homeDir, currentDir)
+		host := resolveBindPath(b.Host, homeDir, currentDir)
+		if !ro && sandboxDir != "" && host == sandboxDir && dest == homeDir {
 			continue
 		}
 		if _, err := os.Stat(host); err == nil {
-			allBinds = append(allBinds, bindItem{host: host, dest: dest, ro: false})
+			items = append(items, bindItem{host: host, dest: dest, ro: ro})
 		} else if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose]   (skipping RW bind: %s does not exist)\n", host)
+			tag := "RW"
+			if ro {
+				tag = "RO"
+			}
+			fmt.Fprintf(os.Stderr, "[verbose]   (skipping %s bind: %s does not exist)\n", tag, host)
 		}
 	}
+	return items
+}
+
+func buildBinds(cfg *config.Config, sandboxDir, homeDir, currentDir string, verbose bool) []string {
+	var allBinds []bindItem
+	allBinds = append(allBinds, collectBinds(cfg.BindsRO, homeDir, currentDir, sandboxDir, true, verbose)...)
+	allBinds = append(allBinds, collectBinds(cfg.BindsRW, homeDir, currentDir, sandboxDir, false, verbose)...)
 
 	// Sort so parent directories are bound before child subdirectories.
 	// When depth is equal, RO comes before RW so child RW sub-mounts can override parent RO mounts.
@@ -68,6 +73,7 @@ func buildBinds(cfg *config.Config, sandboxDir, homeDir string, verbose bool) []
 		return allBinds[i].dest < allBinds[j].dest
 	})
 
+	var args []string
 	for _, b := range allBinds {
 		flag := "--bind"
 		if b.ro {

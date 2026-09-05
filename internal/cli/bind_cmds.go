@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"bws/internal/config"
@@ -19,8 +20,20 @@ func HandleBindAdd(hostPath, sandboxPath string, ro, global, local bool) {
 
 	hostExpanded := utilExpandHome(hostPath)
 	if !strings.HasPrefix(hostExpanded, "/") {
-		fmt.Fprintf(os.Stderr, "Error: Host path must be absolute.\n")
-		os.Exit(1)
+		if global {
+			fmt.Fprintf(os.Stderr, "Error: Global bind mount host path must be absolute.\n")
+			os.Exit(1)
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Getting working directory: %v\n", err)
+			os.Exit(1)
+		}
+		absPath := filepath.Clean(filepath.Join(cwd, hostPath))
+		if _, err := os.Stat(absPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Host path '%s' does not exist (%v).\n", hostPath, err)
+			os.Exit(1)
+		}
 	}
 
 	key := "binds_rw"

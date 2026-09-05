@@ -184,3 +184,93 @@ func TestNoUnconditionalSystemDBus(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+func TestBuildArgsRelativePinholeMount(t *testing.T) {
+	tmpDir := t.TempDir()
+	notesDir := filepath.Join(tmpDir, "notes")
+	workDir := filepath.Join(notesDir, "06_verify")
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	prefixFile := filepath.Join(notesDir, "prefix.tex")
+	if err := os.WriteFile(prefixFile, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		BindsRO: []config.BindEntry{
+			{Host: "../prefix.tex"},
+		},
+	}
+
+	sandboxDir := t.TempDir()
+	args := BuildArgs(cfg, sandboxDir, workDir, true, false)
+
+	foundPinhole := false
+	for i := 0; i < len(args)-2; i++ {
+		if args[i] == "--ro-bind" && args[i+1] == prefixFile && args[i+2] == prefixFile {
+			foundPinhole = true
+			break
+		}
+	}
+	if !foundPinhole {
+		t.Errorf("expected relative pinhole mount %s -> %s in args: %v", prefixFile, prefixFile, args)
+	}
+}
+
+func TestDefaultHistoryMasking(t *testing.T) {
+	home := util.HomeDir()
+	bashHistory := filepath.Join(home, ".bash_history")
+
+	if fi, err := os.Stat(bashHistory); err == nil && !fi.IsDir() {
+		cfg := &config.Config{}
+		args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+		foundMask := false
+		for i := 0; i < len(args)-2; i++ {
+			if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == bashHistory {
+				foundMask = true
+				break
+			}
+		}
+		if !foundMask {
+			t.Errorf("expected %s to be masked with /dev/null by default", bashHistory)
+		}
+
+		f := false
+		cfgDisabled := &config.Config{
+			Features: &config.FeaturesConfig{
+				MaskHistory: &f,
+			},
+		}
+		argsDisabled := BuildArgs(cfgDisabled, t.TempDir(), t.TempDir(), true, false)
+		for i := 0; i < len(argsDisabled)-2; i++ {
+			if argsDisabled[i] == "--ro-bind-try" && argsDisabled[i+1] == "/dev/null" && argsDisabled[i+2] == bashHistory {
+				t.Errorf("%s should not be masked when mask_history is false", bashHistory)
+			}
+		}
+	}
+}
+
+func TestNoDuplicateHistoryMasks(t *testing.T) {
+	home := util.HomeDir()
+	bashHistory := filepath.Join(home, ".bash_history")
+
+	if fi, err := os.Stat(bashHistory); err == nil && !fi.IsDir() {
+		cfg := &config.Config{
+			Mask: []string{"~/.bash_history"},
+		}
+		args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+		count := 0
+		for i := 0; i < len(args)-2; i++ {
+			if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == bashHistory {
+				count++
+			}
+		}
+		if count > 1 {
+			t.Errorf("expected exactly 1 mask for %s, got %d", bashHistory, count)
+		}
+	}
+}

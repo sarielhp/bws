@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"os"
@@ -11,40 +12,30 @@ import (
 	"bws/internal/util"
 )
 
-const DefaultTmuxConf = `# Bubblewrap Sandbox tmux configuration
-set -g status-left-length 20
-set -g status-left "#[fg=white,bg=purple,bold] BUBBLE #[default] "
-set -g status-style bg=colour234,fg=colour137
+//go:embed embedded_skeleton/tmux.conf
+var DefaultTmuxConf string
 
-# WSL clipboard integration via clip.exe
-if-shell 'test -n "$WSL_INTEROP" -a -x "/mnt/c/Windows/System32/clip.exe"' {
-  bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "/mnt/c/Windows/System32/clip.exe"
-  bind-key -T copy-mode    MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "/mnt/c/Windows/System32/clip.exe"
+//go:embed embedded_skeleton/bashrc
+var DefaultBashrc string
+
+//go:embed embedded_skeleton/profile
+var DefaultProfile string
+
+// SkeletonMapping maps an embedded asset file to its real dotfile target name in the sandbox home.
+type SkeletonMapping struct {
+	AssetName  string
+	TargetName string
+	Content    *string
 }
-`
 
-const DefaultBashrc = `# Bubblewrap Sandbox .bashrc
-# Source global definitions if available
-if [ -f /etc/bashrc ]; then
-  . /etc/bashrc
-fi
-
-# Standard aliases
-alias ls='ls --color=auto'
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
-alias grep='grep --color=auto'
-
-`
-
-const DefaultProfile = `# Bubblewrap Sandbox .profile
-if [ -n "$BASH_VERSION" ]; then
-  if [ -f "$HOME/.bashrc" ]; then
-    . "$HOME/.bashrc"
-  fi
-fi
-`
+// SkeletonFileMappings returns the table mapping embedded asset names to their staged dotfile names.
+func SkeletonFileMappings() []SkeletonMapping {
+	return []SkeletonMapping{
+		{AssetName: "tmux.conf", TargetName: ".tmux.conf", Content: &DefaultTmuxConf},
+		{AssetName: "bashrc", TargetName: ".bashrc", Content: &DefaultBashrc},
+		{AssetName: "profile", TargetName: ".profile", Content: &DefaultProfile},
+	}
+}
 
 func GlobalSkeletonDir() string {
 	return filepath.Join(config.ConfigDir(), "skeleton")
@@ -60,19 +51,10 @@ func EnsureGlobalSkeleton() error {
 		return fmt.Errorf("creating skeleton directory: %w", err)
 	}
 
-	files := []struct {
-		name    string
-		content string
-	}{
-		{".tmux.conf", DefaultTmuxConf},
-		{".bashrc", DefaultBashrc},
-		{".profile", DefaultProfile},
-	}
-
-	for _, f := range files {
-		target := filepath.Join(dir, f.name)
+	for _, f := range SkeletonFileMappings() {
+		target := filepath.Join(dir, f.TargetName)
 		if _, err := os.Stat(target); os.IsNotExist(err) {
-			if err := os.WriteFile(target, []byte(f.content), 0644); err != nil {
+			if err := os.WriteFile(target, []byte(*f.Content), 0644); err != nil {
 				return fmt.Errorf("writing skeleton file %s: %w", target, err)
 			}
 		}
@@ -146,51 +128,76 @@ func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 	}
 
 	// 4. Pre-create mountpoint paths inside staged home
-	home := util.HomeDir()
+	precreateMountpoints(cfg, stageDir, currentDir, util.HomeDir())
+
+	return stageDir, cleanup, nil
+}
+
+func precreateMountpoints(cfg *config.Config, stageDir, currentDir, home string) {
+	if strings.HasPrefix(currentDir, home+"/") {
+		relCwd := strings.TrimPrefix(currentDir, home+"/")
+		_ = os.MkdirAll(filepath.Join(stageDir, relCwd), 0755)
+	}
+
+	resolvePath := func(p string) string {
+		p = strings.ReplaceAll(p, config.HomeToken, home)
+		p = util.ExpandHome(p)
+		if !filepath.IsAbs(p) && currentDir != "" {
+			p = filepath.Clean(filepath.Join(currentDir, p))
+		}
+		return p
+	}
+
 	allEntries := append(append([]config.BindEntry{}, cfg.BindsRW...), cfg.BindsRO...)
 	for _, b := range allEntries {
 		dest := b.Sandbox
 		if dest == "" {
 			dest = b.Host
 		}
-		dest = strings.ReplaceAll(dest, config.HomeToken, home)
-		dest = util.ExpandHome(dest)
+		dest = resolvePath(dest)
 		if strings.HasPrefix(dest, home+"/") {
 			rel := strings.TrimPrefix(dest, home+"/")
 			target := filepath.Join(stageDir, rel)
-			host := util.ExpandHome(b.Host)
+			host := resolvePath(b.Host)
 			if fi, err := os.Stat(host); err == nil {
 				if fi.IsDir() {
-					os.MkdirAll(target, 0755)
+					_ = os.MkdirAll(target, 0755)
 				} else {
-					os.MkdirAll(filepath.Dir(target), 0755)
+					_ = os.MkdirAll(filepath.Dir(target), 0755)
 					if _, err := os.Stat(target); os.IsNotExist(err) {
-						os.WriteFile(target, []byte{}, 0644)
-					}
-				}
-			}
-		}
-	}
-	for _, m := range cfg.Mask {
-		expanded := util.ExpandHome(m)
-		expanded = strings.ReplaceAll(expanded, config.HomeToken, home)
-		if strings.HasPrefix(expanded, home+"/") {
-			rel := strings.TrimPrefix(expanded, home+"/")
-			target := filepath.Join(stageDir, rel)
-			if fi, err := os.Stat(expanded); err == nil {
-				if fi.IsDir() {
-					os.MkdirAll(target, 0755)
-				} else {
-					os.MkdirAll(filepath.Dir(target), 0755)
-					if _, err := os.Stat(target); os.IsNotExist(err) {
-						os.WriteFile(target, []byte{}, 0644)
+						_ = os.WriteFile(target, []byte{}, 0644)
 					}
 				}
 			}
 		}
 	}
 
-	return stageDir, cleanup, nil
+	maskList := append([]string{}, cfg.Mask...)
+	if config.HistoryMaskEnabled(cfg) {
+		maskList = append(maskList, config.DefaultHistoryMasks...)
+	}
+	seenMask := make(map[string]bool)
+	for _, m := range maskList {
+		expanded := resolvePath(m)
+		if seenMask[expanded] {
+			continue
+		}
+		seenMask[expanded] = true
+		if strings.HasPrefix(expanded, home+"/") {
+			rel := strings.TrimPrefix(expanded, home+"/")
+			target := filepath.Join(stageDir, rel)
+			if fi, err := os.Stat(expanded); err == nil {
+				if fi.IsDir() {
+					_ = os.MkdirAll(target, 0755)
+				} else {
+					_ = os.MkdirAll(filepath.Dir(target), 0755)
+					if _, err := os.Stat(target); os.IsNotExist(err) {
+						_ = os.WriteFile(target, []byte{}, 0644)
+					}
+				}
+			}
+		}
+	}
 }
 
 func copyDirectoryContents(srcDir, destDir string) error {

@@ -166,6 +166,9 @@ func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.AutoInit != "" {
 		r.AutoInit = local.AutoInit
 	}
+	if local.MaskHistory != nil {
+		r.MaskHistory = local.MaskHistory
+	}
 	return &r
 }
 

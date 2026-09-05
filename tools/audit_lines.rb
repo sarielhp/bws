@@ -9,6 +9,7 @@ Dir.chdir(ROOT)
 FILE_SOFT_LIMIT = 800
 FILE_HARD_LIMIT = 1100
 FUNC_HARD_LIMIT = 80
+STRING_LITERAL_LINE_LIMIT = 15
 
 files = Dir.glob('**/*.go').reject { |f| f.start_with?('.git/', 'vendor/') }
 
@@ -37,6 +38,23 @@ files.each do |f|
     has_error = true
   elsif line_count > FILE_SOFT_LIMIT
     warnings << "WARNING: #{f} has #{line_count} lines (soft limit: #{FILE_SOFT_LIMIT})"
+  end
+
+  # Check for raw multiline string literals in non-test Go source files
+  unless f.end_with?('_test.go')
+    tokens = lines.join.split('`')
+    (1...tokens.size).step(2).each do |i|
+      lit_lines = tokens[i].lines.count
+      if lit_lines > STRING_LITERAL_LINE_LIMIT
+        msg = "#{f}: Raw multiline string literal exceeds #{STRING_LITERAL_LINE_LIMIT} lines (#{lit_lines} lines). Use //go:embed with an asset file instead."
+        if changed_files.include?(f)
+          puts "ERROR: #{msg}"
+          has_error = true
+        else
+          warnings << "WARNING: #{msg}"
+        end
+      end
+    end
   end
 
   in_func = false

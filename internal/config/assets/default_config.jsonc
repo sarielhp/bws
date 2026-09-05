@@ -1,0 +1,63 @@
+// Bubblewrap Sandbox Launcher Configuration File
+{
+  "system": {
+    "share_net": true,
+    "clearenv": true,
+    "unshare_uts": true,
+    "hostname": "bubble"
+  },
+  "sandbox_path": "",
+  "models_json_path": "",
+  "tmux_session_name": "bwrap-dev",
+  "max_file_count": 1000,
+  "profiles": [
+    "editor",
+    "no-history"
+  ],
+  // Features are enabled by default. Uncomment to disable:
+  // "features": {
+  //   "enable_ssh": false,
+  //   "enable_x11": false,
+  //   "enable_wsl": false
+  // },
+  "pass_env": [
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TERM",
+    "LANG",
+    "LC_ALL"
+  ],
+  "env": {
+    "HOME": "@@HOME@@",
+    "EDITOR": "emacs -nw",
+    "VISUAL": "$EDITOR"
+  },
+  "path": [
+    "@@HOME@@/bin",
+    "@@HOME@@/.local/bin",
+    "/usr/bin",
+    "/sbin",
+    "/bin"
+  ],
+  "binds_rw": [
+    ["~/.opencode", "@@HOME@@/.opencode"],
+    ["~/.terminfo", "@@HOME@@/.terminfo"],
+    ["~/.local/share/terminfo", "@@HOME@@/.local/share/terminfo"]
+  ],
+  "binds_ro": [
+    ["/bin", "/bin"],
+    ["/usr", "/usr"],
+    ["/lib", "/lib"],
+    ["/lib64", "/lib64"],
+    ["/lib32", "/lib32"],
+    ["/libx32", "/libx32"],
+    ["/sbin", "/sbin"],
+    ["/run/systemd/journal", "/run/systemd/journal"],
+    ["~/.local", "@@HOME@@/.local"],
+    ["~/.gitconfig", "@@HOME@@/.gitconfig"],
+    ["~/.config/git", "@@HOME@@/.config/git"],
+    ["~/.ssh/config", "@@HOME@@/.ssh/config"],
+    ["~/.ssh/known_hosts", "@@HOME@@/.ssh/known_hosts"]
+  ]
+}

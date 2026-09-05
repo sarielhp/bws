@@ -134,7 +134,7 @@ bws profile fetch <name>
 * **`no-browser`**: Blocks Mozilla, Chrome, Chromium, Brave, and Edge profile stores.
 * **`no-email`**: Blocks Thunderbird, Evolution, Mutt, and Maildir mailboxes.
 * **`no-secrets`**: Blocks `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.password-store`, `~/.gnupg`, `~/.vault-token`.
-* **`no-history`**: Blocks `.bash_history`, `.zsh_history`, `.python_history`, `.psql_history`.
+* **`no-history`**: Blocks `.bash_history`, `.zsh_history`, XDG shell histories (`~/.local/share/fish/fish_history`, `~/.local/state/bash/history`), REPLs, and database CLI logs (enabled by default).
 * **`.bws/` workspace auto-masking**: When running in a project workspace, the `.bws/` directory is **automatically masked by default**. In-sandbox processes cannot inspect or tamper with sandbox launcher rules.
 
 ---

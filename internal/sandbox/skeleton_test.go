@@ -76,3 +76,83 @@ func TestStageHomeLayering(t *testing.T) {
 		t.Errorf("expected GOPATH dynamic appendix, got:\n%s", bashrcStr)
 	}
 }
+
+func TestPrecreateMountpointsPinholeFile(t *testing.T) {
+	homeDir := t.TempDir()
+	notesDir := filepath.Join(homeDir, "notes")
+	workDir := filepath.Join(notesDir, "06_verify")
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	prefixFile := filepath.Join(notesDir, "prefix.tex")
+	if err := os.WriteFile(prefixFile, []byte("prefix content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	stageDir := filepath.Join(t.TempDir(), "stage")
+	if err := os.MkdirAll(stageDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		BindsRO: []config.BindEntry{
+			{Host: "../prefix.tex"},
+		},
+	}
+
+	precreateMountpoints(cfg, stageDir, workDir, homeDir)
+
+	// Verify that stageDir/notes/prefix.tex was created as a mountpoint file
+	stagedPrefix := filepath.Join(stageDir, "notes", "prefix.tex")
+	fi, err := os.Stat(stagedPrefix)
+	if err != nil {
+		t.Fatalf("expected staged mountpoint %s to exist: %v", stagedPrefix, err)
+	}
+	if fi.IsDir() {
+		t.Errorf("expected %s to be a regular file mountpoint, but it is a directory", stagedPrefix)
+	}
+}
+
+func TestDefaultTmuxSkeletonDirectives(t *testing.T) {
+	requiredDirectives := []string{
+		"set -g mouse on",
+		"set -g history-limit 50000",
+		"bind-key -n WheelUpPane",
+		"bind-key -n WheelDownPane",
+		"bind-key -n M-Left select-pane -L",
+		"bind-key -n M-Right select-pane -R",
+		"bind-key -n M-Up select-pane -U",
+		"bind-key -n M-Down select-pane -D",
+	}
+
+	for _, directive := range requiredDirectives {
+		if !strings.Contains(DefaultTmuxConf, directive) {
+			t.Errorf("DefaultTmuxConf missing required directive %q", directive)
+		}
+	}
+}
+
+func TestStageHomePopulatesTmuxConf(t *testing.T) {
+	cfg := &config.Config{}
+	workDir := t.TempDir()
+
+	stageDir, cleanup, err := StageHome(cfg, workDir)
+	if err != nil {
+		t.Fatalf("StageHome failed: %v", err)
+	}
+	defer cleanup()
+
+	tmuxData, err := os.ReadFile(filepath.Join(stageDir, ".tmux.conf"))
+	if err != nil {
+		t.Fatalf("staged .tmux.conf missing: %v", err)
+	}
+
+	content := string(tmuxData)
+	if !strings.Contains(content, "set -g mouse on") {
+		t.Errorf("staged .tmux.conf missing 'set -g mouse on'")
+	}
+	if !strings.Contains(content, "M-Left select-pane -L") {
+		t.Errorf("staged .tmux.conf missing M-Left pane navigation")
+	}
+}

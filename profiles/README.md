@@ -357,18 +357,23 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 - `thunderbird mailbox is masked`: `bash -c ! test -e ~/.thunderbird/profiles.ini`
 
 ### `no-history`
-**Description**: Mask shell and REPL command history files containing potential secrets
+**Description**: Mask shell and REPL command history files containing potential secrets (enabled by default)
 
 **Masked / blocked paths**:
 - ⊘ `~/.bash_history`
-- ⊘ `~/.zsh_history`
-- ⊘ `~/.python_history`
+- ⊘ `~/.zsh_history`, `~/.zhistory`, `~/.histfile`
+- ⊘ `~/.sh_history`, `~/.ash_history`, `~/.history`
+- ⊘ `~/.fish_history`, `~/.local/share/fish/fish_history`, `~/.config/fish/fish_history`
+- ⊘ `~/.local/state/bash/history`, `~/.local/share/zsh/history`
+- ⊘ `~/.config/nushell/history.txt`, `~/.local/share/nushell/history.txt`
+- ⊘ `~/.local/share/powershell/PSReadLine/ConsoleHost_history.txt`
+- ⊘ `~/.python_history`, `~/.local/state/python/history`
 - ⊘ `~/.node_repl_history`
-- ⊘ `~/.psql_history`
-- ⊘ `~/.mysql_history`
-- ⊘ `~/.sqlite_history`
-- ⊘ `~/.lesshst`
-- ⊘ `~/.viminfo`
+- ⊘ `~/.irb_history`, `~/.pry_history`
+- ⊘ `~/.psql_history`, `~/.mysql_history`, `~/.sqlite_history`, `~/.rediscli_history`, `~/.dbshell`
+- ⊘ `~/.julia_history`, `~/.Rhistory`, `~/.php_history`
+- ⊘ `~/.ghci_history`, `~/.erlang_history`, `~/.iex_history`, `~/.lua_history`
+- ⊘ `~/.lesshst`, `~/.local/state/lesshst`, `~/.nano_history`, `~/.viminfo`
 
 **Verification tests**:
 - `shell history is masked`: `bash -c ! test -s ~/.bash_history && ! test -s ~/.zsh_history`

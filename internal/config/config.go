@@ -1,6 +1,7 @@
 package config
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -31,6 +32,7 @@ type FeaturesConfig struct {
 	NoNet             *bool    `json:"no_net,omitempty"`
 	UnshareNet        *bool    `json:"unshare_net,omitempty"`
 	AutoInit          string   `json:"auto_init,omitempty"`
+	MaskHistory       *bool    `json:"mask_history,omitempty"`
 }
 
 func (f *FeaturesConfig) UnmarshalJSON(data []byte) error {
@@ -235,123 +237,16 @@ func CreateExampleConfig(path string) error {
 	return os.WriteFile(path, []byte(ExampleConfigContent), 0644)
 }
 
+//go:embed assets/default_config.jsonc
+var DefaultConfigTemplate string
+
+//go:embed assets/example_config.jsonc
+var ExampleConfigContent string
+
 func generateDefaultConfig() string {
 	h := os.Getenv("HOME")
 	if h == "" {
 		h = "/home/" + os.Getenv("USER")
 	}
-	user := os.Getenv("USER")
-	if user == "" {
-		user = "user"
-	}
-	return fmt.Sprintf(`// Bubblewrap Sandbox Launcher Configuration File
-{
-  "system": {
-    "share_net": true,
-    "clearenv": true,
-    "unshare_uts": true,
-    "hostname": "bubble"
-  },
-  "sandbox_path": "",
-  "models_json_path": "",
-  "tmux_session_name": "bwrap-dev",
-  "max_file_count": 1000,
-  "profiles": [
-    "editor"
-  ],
-  // Features are enabled by default. Uncomment to disable:
-  // "features": {
-  //   "enable_ssh": false,
-  //   "enable_x11": false,
-  //   "enable_wsl": false
-  // },
-  "pass_env": [
-    "USER",
-    "LOGNAME",
-    "SHELL",
-    "TERM",
-    "LANG",
-    "LC_ALL"
-  ],
-  "env": {
-    "HOME": %[1]q,
-    "EDITOR": "emacs -nw",
-    "VISUAL": "$EDITOR"
-  },
-  "path": [
-    "%[1]s/bin",
-    "%[1]s/.local/bin",
-    "/usr/bin",
-    "/sbin",
-    "/bin"
-  ],
-  "binds_rw": [
-    ["~/.opencode", "%[1]s/.opencode"],
-    ["~/.terminfo", "%[1]s/.terminfo"],
-    ["~/.local/share/terminfo", "%[1]s/.local/share/terminfo"]
-  ],
-  "binds_ro": [
-    ["/bin", "/bin"],
-    ["/usr", "/usr"],
-    ["/lib", "/lib"],
-    ["/lib64", "/lib64"],
-    ["/lib32", "/lib32"],
-    ["/libx32", "/libx32"],
-    ["/sbin", "/sbin"],
-    ["/run/systemd/journal", "/run/systemd/journal"],
-    ["~/.local", "%[1]s/.local"],
-    ["~/.gitconfig", "%[1]s/.gitconfig"],
-    ["~/.config/git", "%[1]s/.config/git"],
-    ["~/.ssh/config", "%[1]s/.ssh/config"],
-    ["~/.ssh/known_hosts", "%[1]s/.ssh/known_hosts"]
-  ]
+	return strings.ReplaceAll(DefaultConfigTemplate, HomeToken, h)
 }
-`, h, user)
-}
-
-const ExampleConfigContent = `// Bubblewrap Sandbox Launcher Configuration File (Blank Template Example)
-//
-// Use this file as a template to customize your sandbox configuration.
-// Copy this to config.jsonc and modify as needed.
-
-{
-  "system": {
-    "share_net": true,
-    "clearenv": true,
-    "unshare_uts": true,
-    "hostname": "bubble"
-  },
-
-  "features": {
-    "enable_ssh": false,
-    "enable_x11": false,
-    "enable_wsl": true,
-    "enable_etc_auto_bind": false
-  },
-
-  "env": {
-    "HOME": "@@HOME@@",
-    "TERM": "xterm-256color",
-    "LANG": "C.UTF-8",
-    "EDITOR": "emacs -nw",
-    "VISUAL": "emacs -nw",
-    "OPENROUTER_API_KEY": ""
-  },
-
-  "path": [
-    "@@HOME@@/bin",
-    "@@HOME@@/.local/bin",
-    "/usr/local/bin",
-    "/usr/bin",
-    "/bin"
-  ],
-
-  "binds_rw": [
-    // ["/path/to/host/dir", "/path/to/sandbox/dir"]
-  ],
-
-  "binds_ro": [
-    // ["/path/to/host/file_or_dir", "/path/to/sandbox/file_or_dir"]
-  ]
-}
-`

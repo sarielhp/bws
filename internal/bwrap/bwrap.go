@@ -70,7 +70,7 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		}
 	}
 
-	args = append(args, buildBinds(cfg, sandboxDir, homeDir, verbose)...)
+	args = append(args, buildBinds(cfg, sandboxDir, homeDir, currentDir, verbose)...)
 
 	for _, pattern := range cfg.PassEnv {
 		if strings.HasSuffix(pattern, "*") {
@@ -238,51 +238,7 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		args = append(args, "--ro-bind", hostsPath, "/etc/hosts")
 	}
 
-	for _, maskPath := range cfg.Mask {
-		expanded := util.ExpandHome(maskPath)
-		expanded = strings.ReplaceAll(expanded, config.HomeToken, homeDir)
-		if fi, err := os.Stat(expanded); err == nil {
-			if fi.IsDir() {
-				args = append(args, "--tmpfs", expanded)
-				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked directory)\n", expanded)
-				}
-			} else {
-				args = append(args, "--ro-bind-try", "/dev/null", expanded)
-				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked file)\n", expanded)
-				}
-			}
-		}
-	}
-
-	// Mask ~/.sandbox/deploy_keys to prevent reading private keys from disk
-	deployKeysDir := filepath.Join(homeDir, ".sandbox", "deploy_keys")
-	if fi, err := os.Stat(deployKeysDir); err == nil && fi.IsDir() {
-		args = append(args, "--tmpfs", deployKeysDir)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked private deploy keys dir)\n", deployKeysDir)
-		}
-	}
-
-	// Auto-mask workspace .bws configuration directory and .bws.jsonc
-	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
-	for _, dir := range []string{currentDir, wsRoot} {
-		bwsDir := filepath.Join(dir, ".bws")
-		if fi, err := os.Stat(bwsDir); err == nil && fi.IsDir() {
-			args = append(args, "--tmpfs", bwsDir)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked workspace .bws config dir)\n", bwsDir)
-			}
-		}
-		bwsFile := filepath.Join(dir, ".bws.jsonc")
-		if fi, err := os.Stat(bwsFile); err == nil && !fi.IsDir() {
-			args = append(args, "--ro-bind-try", "/dev/null", bwsFile)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked workspace .bws.jsonc config file)\n", bwsFile)
-			}
-		}
-	}
+	addMaskArgs(&args, cfg, homeDir, currentDir, verbose)
 
 	return args
 }
