@@ -1,11 +1,17 @@
 {
   "name": "ai",
-  "description": "AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher, Claude Code)",
+  "description": "AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher, Claude Code, Aider, Copilot, Continue, LLM, Shell-GPT, Ollama)",
   "requires": [
     "opencode",
     "oc",
     "agy",
     "claude",
+    "aider",
+    "copilot",
+    "continue",
+    "llm",
+    "sgpt",
+    "ollama",
     "no-sudo"
   ]
 }

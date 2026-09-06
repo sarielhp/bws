@@ -56,6 +56,8 @@
     ["/run/systemd/journal", "/run/systemd/journal"],
     ["~/.local/bin", "@@HOME@@/.local/bin"],
     ["~/.local/lib", "@@HOME@@/.local/lib"],
+    ["~/.local/share/uv", "@@HOME@@/.local/share/uv"],
+    ["~/.local/share/pipx", "@@HOME@@/.local/share/pipx"],
     ["~/.gitconfig", "@@HOME@@/.gitconfig"],
     ["~/.config/git", "@@HOME@@/.config/git"],
     ["~/.ssh/config", "@@HOME@@/.ssh/config"],

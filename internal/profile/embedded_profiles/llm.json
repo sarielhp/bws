@@ -1,0 +1,44 @@
+{
+  "name": "llm",
+  "aliases": [
+    "simonw-llm"
+  ],
+  "description": "Simon Willison's LLM CLI tool for Large Language Models",
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "LLM_USER_PATH",
+    "LLM_*"
+  ],
+  "binds_rw": [
+    [
+      "~/.config/io.datasette.llm",
+      "@@HOME@@/.config/io.datasette.llm"
+    ]
+  ],
+  "binds_ro": [
+    [
+      "~/.local/share/uv",
+      "@@HOME@@/.local/share/uv"
+    ],
+    [
+      "~/.local/share/pipx",
+      "@@HOME@@/.local/share/pipx"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "LLM CLI version",
+      "cmd": [
+        "llm",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

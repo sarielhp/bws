@@ -1,0 +1,44 @@
+{
+  "name": "sgpt",
+  "aliases": [
+    "shell-gpt"
+  ],
+  "description": "Shell-GPT command-line personal AI assistant",
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "SHELL_GPT_*"
+  ],
+  "binds_rw": [
+    [
+      "~/.config/shell_gpt",
+      "@@HOME@@/.config/shell_gpt"
+    ]
+  ],
+  "binds_ro": [
+    [
+      "~/.local/share/uv",
+      "@@HOME@@/.local/share/uv"
+    ],
+    [
+      "~/.local/share/pipx",
+      "@@HOME@@/.local/share/pipx"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Shell-GPT smoke test",
+      "cmd": [
+        "bash",
+        "-c",
+        "which sgpt"
+      ],
+      "type": "smoke",
+      "optional": true
+    }
+  ]
+}

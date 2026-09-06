@@ -232,9 +232,26 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 ## 3. AI agent & coding assistant profiles
 
 ### `ai`
-**Description**: AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher, Claude Code)
+**Description**: AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher, Claude Code, Aider, Copilot, Continue, LLM, Shell-GPT, Ollama)
 
-**Requires**: `opencode`, `oc`, `agy`, `claude`, `no-sudo`
+**Requires**: `opencode`, `oc`, `agy`, `claude`, `aider`, `copilot`, `continue`, `llm`, `sgpt`, `ollama`, `no-sudo`
+
+### `aider`
+**Description**: Aider AI pair programming CLI in your terminal
+
+**Aliases**: `aider-chat`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`, `OLLAMA_API_BASE`, `AIDER_*`
+
+**Read-write binds**:
+- `~/.aider.conf.yml -> @@HOME@@/.aider.conf.yml`
+- `~/.aider -> @@HOME@@/.aider`
+- `~/.cache/aider -> @@HOME@@/.cache/aider`
+
+**Verification tests**:
+- `Aider version`: `aider --version`
 
 ### `antigravity`
 **Description**: Google Antigravity CLI and coding agent framework
@@ -266,6 +283,83 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 **Verification tests**:
 - `Claude Code version`: `claude --version`
 - `Claude Code doctor check`: `claude doctor`
+
+### `continue`
+**Description**: Continue.dev CLI open-source AI coding assistant
+
+**Aliases**: `cn`, `continuedev`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `CONTINUE_*`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_HOST`
+
+**Read-write binds**:
+- `~/.continue -> @@HOME@@/.continue`
+
+**Verification tests**:
+- `Continue CLI version`: `cn --version`
+
+### `copilot`
+**Description**: GitHub Copilot CLI coding agent
+
+**Aliases**: `github-copilot`, `gh-copilot`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `GITHUB_TOKEN`, `GH_TOKEN`, `COPILOT_*`
+
+**Read-write binds**:
+- `~/.copilot -> @@HOME@@/.copilot`
+- `~/.config/github-copilot -> @@HOME@@/.config/github-copilot`
+- `~/.cache/github-copilot -> @@HOME@@/.cache/github-copilot`
+- `~/.config/gh -> @@HOME@@/.config/gh`
+- `~/.local/share/gh -> @@HOME@@/.local/share/gh`
+
+**Verification tests**:
+- `GitHub Copilot CLI version`: `copilot --version`
+
+### `llm`
+**Description**: Simon Willison's LLM CLI tool for Large Language Models
+
+**Aliases**: `simonw-llm`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_USER_PATH`, `LLM_*`
+
+**Read-write binds**:
+- `~/.config/io.datasette.llm -> @@HOME@@/.config/io.datasette.llm`
+
+**Verification tests**:
+- `LLM CLI version`: `llm --version`
+
+### `ollama`
+**Description**: Ollama local LLM runner and client
+
+**PATH additions**: `/usr/local/bin`, `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `OLLAMA_HOST`, `OLLAMA_MODELS`, `OLLAMA_KEEP_ALIVE`, `OLLAMA_NUM_PARALLEL`, `OLLAMA_NOPRUNE`, `OLLAMA_ORIGINS`
+
+**Read-write binds**:
+- `~/.ollama -> @@HOME@@/.ollama`
+
+**Verification tests**:
+- `Ollama version`: `ollama --version`
+
+### `sgpt`
+**Description**: Shell-GPT command-line personal AI assistant
+
+**Aliases**: `shell-gpt`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `SHELL_GPT_*`
+
+**Read-write binds**:
+- `~/.config/shell_gpt -> @@HOME@@/.config/shell_gpt`
+
+**Verification tests**:
+- `Shell-GPT smoke test`: `which sgpt`
 
 ### `oc`
 **Description**: OpenCode profile switcher CLI and configuration

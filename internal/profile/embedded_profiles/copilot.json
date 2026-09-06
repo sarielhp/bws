@@ -1,0 +1,50 @@
+{
+  "name": "copilot",
+  "aliases": [
+    "github-copilot",
+    "gh-copilot"
+  ],
+  "description": "GitHub Copilot CLI coding agent",
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "COPILOT_*"
+  ],
+  "binds_rw": [
+    [
+      "~/.copilot",
+      "@@HOME@@/.copilot"
+    ],
+    [
+      "~/.config/github-copilot",
+      "@@HOME@@/.config/github-copilot"
+    ],
+    [
+      "~/.cache/github-copilot",
+      "@@HOME@@/.cache/github-copilot"
+    ],
+    [
+      "~/.config/gh",
+      "@@HOME@@/.config/gh"
+    ],
+    [
+      "~/.local/share/gh",
+      "@@HOME@@/.local/share/gh"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "GitHub Copilot CLI version",
+      "cmd": [
+        "copilot",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "continue",
+  "aliases": [
+    "cn",
+    "continuedev"
+  ],
+  "description": "Continue.dev CLI open-source AI coding assistant",
+  "detect": {
+    "files": [
+      ".continue",
+      ".continurc.json"
+    ]
+  },
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "CONTINUE_*",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OLLAMA_HOST"
+  ],
+  "binds_rw": [
+    [
+      "~/.continue",
+      "@@HOME@@/.continue"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Continue CLI version",
+      "cmd": [
+        "cn",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

@@ -132,6 +132,8 @@ func GenerateDevConfigJSON(opts InitDevOptions) (string, error) {
 		{"~/bin", fmt.Sprintf("%s/bin", HomeToken)},
 		{"~/.local/bin", fmt.Sprintf("%s/.local/bin", HomeToken)},
 		{"~/.local/lib", fmt.Sprintf("%s/.local/lib", HomeToken)},
+		{"~/.local/share/uv", fmt.Sprintf("%s/.local/share/uv", HomeToken)},
+		{"~/.local/share/pipx", fmt.Sprintf("%s/.local/share/pipx", HomeToken)},
 		{"~/.gitconfig", fmt.Sprintf("%s/.gitconfig", HomeToken)},
 		{"~/.git-credentials", fmt.Sprintf("%s/.git-credentials", HomeToken)},
 		{"~/.ssh/config", fmt.Sprintf("%s/.ssh/config", HomeToken)},

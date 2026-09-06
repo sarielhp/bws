@@ -1,0 +1,34 @@
+{
+  "name": "ollama",
+  "description": "Ollama local LLM runner and client",
+  "path": [
+    "/usr/local/bin",
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "OLLAMA_HOST",
+    "OLLAMA_MODELS",
+    "OLLAMA_KEEP_ALIVE",
+    "OLLAMA_NUM_PARALLEL",
+    "OLLAMA_NOPRUNE",
+    "OLLAMA_ORIGINS"
+  ],
+  "binds_rw": [
+    [
+      "~/.ollama",
+      "@@HOME@@/.ollama"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Ollama version",
+      "cmd": [
+        "ollama",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

@@ -12,6 +12,10 @@
     [
       "~/.cache/uv",
       "@@HOME@@/.cache/uv"
+    ],
+    [
+      "~/.local/share/uv",
+      "@@HOME@@/.local/share/uv"
     ]
   ],
   "tests": [

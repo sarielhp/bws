@@ -1,0 +1,64 @@
+{
+  "name": "aider",
+  "aliases": [
+    "aider-chat"
+  ],
+  "description": "Aider AI pair programming CLI in your terminal",
+  "detect": {
+    "files": [
+      ".aider.conf.yml",
+      ".aider.chat.history.md",
+      ".aider.input.history",
+      ".aider"
+    ]
+  },
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_API_KEY",
+    "GROQ_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "OPENROUTER_API_KEY",
+    "OLLAMA_API_BASE",
+    "AIDER_*"
+  ],
+  "binds_rw": [
+    [
+      "~/.aider.conf.yml",
+      "@@HOME@@/.aider.conf.yml"
+    ],
+    [
+      "~/.aider",
+      "@@HOME@@/.aider"
+    ],
+    [
+      "~/.cache/aider",
+      "@@HOME@@/.cache/aider"
+    ]
+  ],
+  "binds_ro": [
+    [
+      "~/.local/share/uv",
+      "@@HOME@@/.local/share/uv"
+    ],
+    [
+      "~/.local/share/pipx",
+      "@@HOME@@/.local/share/pipx"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Aider version",
+      "cmd": [
+        "aider",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}
