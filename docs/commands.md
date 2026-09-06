@@ -78,7 +78,7 @@ bws test node
 ---
 
 ### `bws learn [options] [--] <cmd> [args...]`
-Learn required bind mounts, binary PATH additions, and sandbox features dynamically from a command with smart hierarchy-aware diffing and live config merging.
+Learn required bind mounts, binary PATH additions, and sandbox features dynamically from an interactive shell session or command, with smart hierarchy-aware diffing and live config merging.
 
 | Option | Description |
 | :--- | :--- |
@@ -88,6 +88,27 @@ Learn required bind mounts, binary PATH additions, and sandbox features dynamica
 | `-f`, `--force` | Overwrite existing profile without confirmation |
 | `-v`, `--verbose` | Print verbose debug information |
 
+#### Tracing an entire interactive session (recommended)
+Drop into a traced interactive shell, run all commands, builds, and tools needed by your workflow, then exit. `bws learn` traces the entire process tree (`strace -f`) across all subcommands and synthesizes the required mounts and features upon exit:
+
+```bash
+# Start an interactive traced session and save as a profile
+bws learn -p myproject bash
+# Inside the session: run builds, tests, scripts, tools...
+$ make build
+$ pytest tests/
+$ ./scripts/fetch_data.sh
+$ exit
+# Done! Profile saved to profiles/myproject.json
+
+# Or trace an interactive session and merge directly into .bws/config.jsonc
+bws learn bash
+
+# Preview discovered additions from a session without modifying files
+bws learn -n bash
+```
+
+#### Tracing single commands
 ```bash
 bws learn python train.py              # Learn Python dependencies and merge into .bws/config.jsonc
 bws learn -n -- pytest -k test_foo     # Preview discovered delta without modifying config

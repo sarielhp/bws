@@ -57,6 +57,7 @@ When developers run autonomous AI coding agents (such as Google Antigravity/`agy
 * **Air-gapped offline mode**: Completely isolate the sandbox network namespace via `-N` / `--offline` or the `offline` profile, severing both internet access and host `127.0.0.1` services.
 * **Automated smoke testing**: Verifies sandbox integrity and tool accessibility before running code (`bws test <profile>`).
 * **Automatic SSH & Git integration**: Transparent SSH agent forwarding with on-the-fly GitHub Deploy Key generation via `gh`.
+* **Dynamic session learning (`bws learn`)**: Run an interactive shell session (`bws learn bash`) under multi-process kernel tracing (`strace -f`). On exit, `bws` analyzes all executed commands and synthesizes required bind mounts, PATH additions, and features.
 * **Safe host pass-through**: Explicit environment variable forwarding (`pass_env`) preserving isolation without secret leakage.
 
 ---
@@ -234,6 +235,24 @@ bws test no-sudo
 
 # Verify that outbound network access and host local ports are blocked
 bws test offline
+```
+
+### 7. Learn sandbox access dynamically from an interactive session
+
+Instead of manually guessing which bind mounts or flags a complex project needs, launch a traced shell session, run commands, and exit:
+
+```bash
+# Start a traced shell session and save as a reusable capability profile
+bws learn -p myproject bash
+
+# Inside the session: run builds, test suites, or tools normally
+$ make build
+$ pytest tests/
+$ exit
+
+# Result: bws writes detected mounts, paths, and features to profiles/myproject.json!
+# To merge directly into local .bws/config.jsonc instead:
+bws learn bash
 ```
 
 ---

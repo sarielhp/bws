@@ -25,9 +25,11 @@ func learnCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 			clihelp.String(&lf.profileName, "-p, --profile <name>", "", "Save discovered configuration as a reusable capability profile"),
 		},
 		Examples: []clihelp.Example{
+			{Line: "bws learn -p myproject bash", Description: "Trace entire interactive shell session and save as capability profile"},
+			{Line: "bws learn bash", Description: "Trace interactive session and merge discovered mounts into .bws/config.jsonc"},
+			{Line: "bws learn -n bash", Description: "Preview discovered requirements from an interactive session without saving"},
 			{Line: "bws learn python -c \"import pandas\"", Description: "Learn Python dependencies and merge into .bws/config.jsonc"},
 			{Line: "bws learn -n -- pytest -k test_foo", Description: "Preview discovered delta without modifying config"},
-			{Line: "bws learn -p myapp -- ./bin/myapp", Description: "Trace binary and generate profiles/myapp.json"},
 			{Line: "bws learn -g cargo build", Description: "Learn and merge additions into global configuration"},
 		},
 		Run: func(ctx *clihelp.Context) error {
