@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"bws/internal/config"
 )
 
 var defaultFilteredPrefixes = []string{
@@ -31,6 +33,59 @@ var defaultUserPathSubdirs = []string{
 	".npm-global/bin",
 	".yarn/bin",
 	".krew/bin",
+}
+
+var shellStartupFiles = map[string]bool{
+	"~/.bashrc":       true,
+	"~/.bash_profile": true,
+	"~/.bash_login":   true,
+	"~/.bash_logout":  true,
+	"~/.profile":      true,
+	"~/.inputrc":      true,
+	"~/.zshrc":        true,
+	"~/.zshenv":       true,
+	"~/.zprofile":     true,
+	"~/.zlogin":       true,
+	"~/.zlogout":      true,
+	"~/.cshrc":        true,
+	"~/.tcshrc":       true,
+	"~/.login":        true,
+	"~/.logout":       true,
+}
+
+var sensitiveSecretStores = []string{
+	"~/.aws",
+	"~/.azure",
+	"~/.config/gcloud",
+	"~/.password-store",
+	"~/.vault-token",
+	"~/.gnupg",
+	"~/.config/auth",
+	"~/.auth",
+	"~/.netrc",
+}
+
+func isSensitiveSecretStore(cleanPath, homeDir string) bool {
+	norm := NormalizePath(cleanPath, homeDir)
+	for _, store := range sensitiveSecretStores {
+		if norm == store || strings.HasPrefix(norm, store+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func isHistoryOrShellStartup(cleanPath, homeDir string) bool {
+	norm := NormalizePath(cleanPath, homeDir)
+	if shellStartupFiles[norm] {
+		return true
+	}
+	for _, mask := range config.DefaultHistoryMasks {
+		if norm == mask {
+			return true
+		}
+	}
+	return false
 }
 
 // GetPathDirectories collects all directory paths in the PATH environment variable
@@ -106,6 +161,16 @@ func ShouldFilterAccess(path string, mode AccessMode, workDir, homeDir string, p
 
 	// Filter out the entire home directory if referenced directly
 	if homeDir != "" && clean == filepath.Clean(homeDir) {
+		return true
+	}
+
+	// Filter shell startup files (e.g. .bashrc, .zshrc) and command history files
+	if isHistoryOrShellStartup(clean, homeDir) {
+		return true
+	}
+
+	// Filter sensitive secret stores (e.g. ~/.aws, ~/.gnupg, ~/.config/auth) from auto-mounting
+	if isSensitiveSecretStore(clean, homeDir) {
 		return true
 	}
 

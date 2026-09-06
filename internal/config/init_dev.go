@@ -69,113 +69,9 @@ func GenerateDevConfigJSON(opts InitDevOptions) (string, error) {
 		opts.Features.EnableSSH = false
 	}
 
-	envMap := make(map[string]string)
-	if opts.Features.EnableSSH {
-		envMap["GIT_SSH_COMMAND"] = fmt.Sprintf("ssh -F %s/.ssh/config", HomeToken)
-	}
-	if opts.Features.HasGo {
-		envMap["GOPATH"] = fmt.Sprintf("%s/.go", HomeToken)
-	}
-
-	rwBinds := [][]string{
-		{"~/.gemini", fmt.Sprintf("%s/.gemini", HomeToken)},
-	}
-
-	if opts.Features.HasGo {
-		rwBinds = append(rwBinds,
-			[]string{"~/.cache/go-build", fmt.Sprintf("%s/.cache/go-build", HomeToken)},
-			[]string{"~/.config/go", fmt.Sprintf("%s/.config/go", HomeToken)},
-			[]string{"~/.go", fmt.Sprintf("%s/.go", HomeToken)},
-		)
-	}
-
-	if opts.Features.HasPython {
-		rwBinds = append(rwBinds,
-			[]string{"~/.cache/uv", fmt.Sprintf("%s/.cache/uv", HomeToken)},
-		)
-	}
-
-	if opts.Features.HasRust {
-		rwBinds = append(rwBinds,
-			[]string{"~/.cargo", fmt.Sprintf("%s/.cargo", HomeToken)},
-		)
-	}
-
-	if opts.Features.HasNode {
-		rwBinds = append(rwBinds,
-			[]string{"~/.npm", fmt.Sprintf("%s/.npm", HomeToken)},
-			[]string{"~/.cache/yarn", fmt.Sprintf("%s/.cache/yarn", HomeToken)},
-		)
-	}
-
-	if opts.Features.HasLatex {
-		rwBinds = append(rwBinds,
-			[]string{"~/.texlive2026/texmf-var", fmt.Sprintf("%s/.texlive2026/texmf-var", HomeToken)},
-			[]string{"~/.texlive2026/texmf-config", fmt.Sprintf("%s/.texlive2026/texmf-config", HomeToken)},
-			[]string{"~/.local/share/fonts", fmt.Sprintf("%s/.local/share/fonts", HomeToken)},
-			[]string{"~/.cache/fontconfig", fmt.Sprintf("%s/.cache/fontconfig", HomeToken)},
-		)
-	}
-
-	if opts.Features.HasOpenCode {
-		rwBinds = append(rwBinds,
-			[]string{"~/.opencode", fmt.Sprintf("%s/.opencode", HomeToken)},
-			[]string{"~/.config/opencode", fmt.Sprintf("%s/.config/opencode", HomeToken)},
-			[]string{"~/.config/opencode-switcher", fmt.Sprintf("%s/.config/opencode-switcher", HomeToken)},
-			[]string{"~/.local/share/opencode", fmt.Sprintf("%s/.local/share/opencode", HomeToken)},
-			[]string{"~/.local/state/opencode", fmt.Sprintf("%s/.local/state/opencode", HomeToken)},
-			[]string{"~/.cache/opencode", fmt.Sprintf("%s/.cache/opencode", HomeToken)},
-		)
-	}
-
-	roBinds := [][]string{
-		{"~/bin", fmt.Sprintf("%s/bin", HomeToken)},
-		{"~/.local/bin", fmt.Sprintf("%s/.local/bin", HomeToken)},
-		{"~/.local/lib", fmt.Sprintf("%s/.local/lib", HomeToken)},
-		{"~/.local/share/uv", fmt.Sprintf("%s/.local/share/uv", HomeToken)},
-		{"~/.local/share/pipx", fmt.Sprintf("%s/.local/share/pipx", HomeToken)},
-		{"~/.gitconfig", fmt.Sprintf("%s/.gitconfig", HomeToken)},
-		{"~/.git-credentials", fmt.Sprintf("%s/.git-credentials", HomeToken)},
-		{"~/.ssh/config", fmt.Sprintf("%s/.ssh/config", HomeToken)},
-		{"~/.ssh/known_hosts", fmt.Sprintf("%s/.ssh/known_hosts", HomeToken)},
-	}
-
-	if opts.Features.HasRust {
-		roBinds = append(roBinds,
-			[]string{"~/.rustup", fmt.Sprintf("%s/.rustup", HomeToken)},
-		)
-	}
-
-	if opts.Features.HasLatex {
-		roBinds = append(roBinds,
-			[]string{"/var/lib/texmf", "/var/lib/texmf"},
-			[]string{"/var/cache/fontconfig", "/var/cache/fontconfig"},
-		)
-	}
-
-	for k, v := range opts.ExtraEnv {
-		envMap[k] = v
-	}
-
-	seenRW := make(map[string]bool)
-	var finalRW [][]string
-	for _, b := range append(rwBinds, opts.ExtraBindsRW...) {
-		key := strings.Join(b, "->")
-		if !seenRW[key] {
-			seenRW[key] = true
-			finalRW = append(finalRW, b)
-		}
-	}
-
-	seenRO := make(map[string]bool)
-	var finalRO [][]string
-	for _, b := range append(roBinds, opts.ExtraBindsRO...) {
-		key := strings.Join(b, "->")
-		if !seenRO[key] {
-			seenRO[key] = true
-			finalRO = append(finalRO, b)
-		}
-	}
+	envMap := buildDevEnv(opts)
+	finalRW := dedupBinds(buildDevRWBinds(opts), opts.ExtraBindsRW)
+	finalRO := dedupBinds(buildDevROBinds(opts), opts.ExtraBindsRO)
 
 	type localFeatures struct {
 		EnableSSH bool `json:"enable_ssh"`
@@ -212,4 +108,105 @@ func GenerateDevConfigJSON(opts InitDevOptions) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func buildDevEnv(opts InitDevOptions) map[string]string {
+	envMap := make(map[string]string)
+	if opts.Features.EnableSSH {
+		envMap["GIT_SSH_COMMAND"] = fmt.Sprintf("ssh -F %s/.ssh/config", HomeToken)
+	}
+	if opts.Features.HasGo {
+		envMap["GOPATH"] = fmt.Sprintf("%s/.go", HomeToken)
+	}
+	for k, v := range opts.ExtraEnv {
+		envMap[k] = v
+	}
+	return envMap
+}
+
+func buildDevRWBinds(opts InitDevOptions) [][]string {
+	rwBinds := [][]string{
+		{"~/.gemini", fmt.Sprintf("%s/.gemini", HomeToken)},
+	}
+	if opts.Features.HasGo {
+		rwBinds = append(rwBinds,
+			[]string{"~/.cache/go-build", fmt.Sprintf("%s/.cache/go-build", HomeToken)},
+			[]string{"~/.config/go", fmt.Sprintf("%s/.config/go", HomeToken)},
+			[]string{"~/.go", fmt.Sprintf("%s/.go", HomeToken)},
+		)
+	}
+	if opts.Features.HasPython {
+		rwBinds = append(rwBinds,
+			[]string{"~/.cache/uv", fmt.Sprintf("%s/.cache/uv", HomeToken)},
+		)
+	}
+	if opts.Features.HasRust {
+		rwBinds = append(rwBinds,
+			[]string{"~/.cargo", fmt.Sprintf("%s/.cargo", HomeToken)},
+		)
+	}
+	if opts.Features.HasNode {
+		rwBinds = append(rwBinds,
+			[]string{"~/.npm", fmt.Sprintf("%s/.npm", HomeToken)},
+			[]string{"~/.cache/yarn", fmt.Sprintf("%s/.cache/yarn", HomeToken)},
+		)
+	}
+	if opts.Features.HasLatex {
+		rwBinds = append(rwBinds,
+			[]string{"~/.texlive2026/texmf-var", fmt.Sprintf("%s/.texlive2026/texmf-var", HomeToken)},
+			[]string{"~/.texlive2026/texmf-config", fmt.Sprintf("%s/.texlive2026/texmf-config", HomeToken)},
+			[]string{"~/.local/share/fonts", fmt.Sprintf("%s/.local/share/fonts", HomeToken)},
+			[]string{"~/.cache/fontconfig", fmt.Sprintf("%s/.cache/fontconfig", HomeToken)},
+		)
+	}
+	if opts.Features.HasOpenCode {
+		rwBinds = append(rwBinds,
+			[]string{"~/.opencode", fmt.Sprintf("%s/.opencode", HomeToken)},
+			[]string{"~/.config/opencode", fmt.Sprintf("%s/.config/opencode", HomeToken)},
+			[]string{"~/.config/opencode-switcher", fmt.Sprintf("%s/.config/opencode-switcher", HomeToken)},
+			[]string{"~/.local/share/opencode", fmt.Sprintf("%s/.local/share/opencode", HomeToken)},
+			[]string{"~/.local/state/opencode", fmt.Sprintf("%s/.local/state/opencode", HomeToken)},
+			[]string{"~/.cache/opencode", fmt.Sprintf("%s/.cache/opencode", HomeToken)},
+		)
+	}
+	return rwBinds
+}
+
+func buildDevROBinds(opts InitDevOptions) [][]string {
+	roBinds := [][]string{
+		{"~/bin", fmt.Sprintf("%s/bin", HomeToken)},
+		{"~/.local/bin", fmt.Sprintf("%s/.local/bin", HomeToken)},
+		{"~/.local/lib", fmt.Sprintf("%s/.local/lib", HomeToken)},
+		{"~/.local/share/uv", fmt.Sprintf("%s/.local/share/uv", HomeToken)},
+		{"~/.local/share/pipx", fmt.Sprintf("%s/.local/share/pipx", HomeToken)},
+		{"~/.gitconfig", fmt.Sprintf("%s/.gitconfig", HomeToken)},
+		{"~/.git-credentials", fmt.Sprintf("%s/.git-credentials", HomeToken)},
+		{"~/.ssh/config", fmt.Sprintf("%s/.ssh/config", HomeToken)},
+		{"~/.ssh/known_hosts", fmt.Sprintf("%s/.ssh/known_hosts", HomeToken)},
+	}
+	if opts.Features.HasRust {
+		roBinds = append(roBinds,
+			[]string{"~/.rustup", fmt.Sprintf("%s/.rustup", HomeToken)},
+		)
+	}
+	if opts.Features.HasLatex {
+		roBinds = append(roBinds,
+			[]string{"/var/lib/texmf", "/var/lib/texmf"},
+			[]string{"/var/cache/fontconfig", "/var/cache/fontconfig"},
+		)
+	}
+	return roBinds
+}
+
+func dedupBinds(primary, extra [][]string) [][]string {
+	seen := make(map[string]bool)
+	var result [][]string
+	for _, b := range append(primary, extra...) {
+		key := strings.Join(b, "->")
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, b)
+		}
+	}
+	return result
 }

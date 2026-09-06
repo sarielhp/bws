@@ -26,6 +26,9 @@ var sensitivePathPrefixes = []string{
 	"~/.config/gcloud",
 	"~/.password-store",
 	"~/.vault-token",
+	"~/.config/auth",
+	"~/.auth",
+	"~/.netrc",
 }
 
 // IsSensitivePath checks if a normalized or raw path targets a security-sensitive location.
