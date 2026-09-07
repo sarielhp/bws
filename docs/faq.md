@@ -7,6 +7,9 @@
 * [How does `bws` differ from raw `bwrap` or Firejail?](#how-does-bws-differ-from-raw-bwrap-or-firejail)
 * [Does `bws` require root or daemon processes?](#does-bws-require-root-or-daemon-processes)
 * [Can code or agents inside the sandbox escape or modify host configs?](#can-code-or-agents-inside-the-sandbox-escape-or-modify-host-configs)
+* [Why is the GitHub CLI (`gh`) blocked inside the sandbox?](#why-is-the-github-cli-gh-blocked-inside-the-sandbox)
+* [How do I push Git branches or create pull requests?](#how-do-i-push-git-branches-or-create-pull-requests)
+* [Does blocking `gh` affect `bws gw` (git-workflow)?](#does-blocking-gh-affect-bws-gw-git-workflow)
 * [Does `bws` restrict outbound network access?](#does-bws-restrict-outbound-network-access)
 * [How does automatic SSH deploy-key generation work?](#how-does-automatic-ssh-deploy-key-generation-work)
 * [What happens to files created inside the sandbox home?](#what-happens-to-files-created-inside-the-sandbox-home)
@@ -55,6 +58,37 @@
 * **Unmapped host `$HOME`**: Your real host home directory is not mounted; only explicitly declared toolchain caches and the staged ephemeral home exist.
 * **Auto-masked `.bws/`**: The local `.bws/` configuration directory and `.bws.jsonc` file are overlaid with an empty `tmpfs` / `/dev/null`, preventing in-sandbox code from modifying host launcher rules.
 * **Privilege escalation blocked**: Profiles like `no-sudo` overlay `/dev/null` on `sudo`, `su`, `pkexec`, and mask `/etc/sudoers`.
+
+---
+
+## Why is the GitHub CLI (`gh`) blocked inside the sandbox?
+
+`bws` hardens developer environments against credential leakage and unauthorized API actions:
+
+* **Account-wide token containment**: Untrusted scripts, compromised dependencies, or autonomous AI agents running inside the sandbox should not have ambient access to account-level GitHub tokens, personal access tokens (PATs), or forge administrative capabilities.
+* **Blast-radius minimization**: An unrestricted `gh` CLI inside the sandbox could list private repositories across your GitHub account or organizations, push unauthorized branches, create public gists containing sensitive code, or tamper with pull requests and releases.
+* **Default masking**: `gh` and sibling forge binaries (`glab`, `hub`, `tea`), along with credential caches (`~/.config/gh`, `~/.git-credentials`, `~/.netrc`), are masked by default via `/dev/null` overlays and empty `tmpfs` mounts.
+
+---
+
+## How do I push Git branches or create pull requests?
+
+`bws` uses a host-triage model for Git forge interactions:
+
+1. **Local repository workflow in sandbox**: Inside the sandbox, agents and developers work freely on local Git branches—creating commits, rebasing, running test suites, and staging changes.
+2. **Push and PR triage on the host**: Because the workspace directory is mounted directly into the sandbox, changes made inside the sandbox are immediately visible on your host filesystem. Pushing branches (`git push origin <branch>`) and opening pull requests (`gh pr create`) can be performed directly from your authenticated host terminal.
+3. **Automated deploy keys for scoped push**: If outbound Git push is required from within the sandbox, enable SSH agent integration (`enable_ssh: true`). `bws` registers a dedicated per-repository deploy key on GitHub via the host `gh` CLI before launching the container, allowing repository-scoped pushes over SSH without exposing account-wide tokens.
+4. **Explicit opt-out**: If an interactive session genuinely requires `gh` inside the sandbox, disable blocking by setting `"block_gh": false` under `"features"` in `.bws/config.jsonc`.
+
+---
+
+## Does blocking `gh` affect `bws gw` (git-workflow)?
+
+**No.** `bws gw` (or `bws git-workflow`) remains 100% operational.
+
+* **Host orchestration**: `bws gw` runs on the host to create an isolated, disposable Git clone or worktree in `/tmp/bws/agent_*`.
+* **Isolated execution**: `bws` executes the agent command inside the sandbox on that isolated clone. The agent commits its work to local Git branches inside the worktree without needing `gh`.
+* **Host triage and integration**: When the agent finishes, `bws gw` on the host inspects the worktree, shows diffs, and manages branch merging or cleanup. Any remote Git push or PR creation is initiated from the host environment where your host credentials reside.
 
 ---
 

@@ -8,6 +8,7 @@
     "no-browser",
     "no-email",
     "no-secrets",
-    "no-history"
+    "no-history",
+    "no-gh"
   ]
 }

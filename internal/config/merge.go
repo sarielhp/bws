@@ -169,6 +169,9 @@ func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.MaskHistory != nil {
 		r.MaskHistory = local.MaskHistory
 	}
+	if local.BlockGH != nil {
+		r.BlockGH = local.BlockGH
+	}
 	return &r
 }
 

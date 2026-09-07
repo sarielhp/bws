@@ -33,6 +33,7 @@ type FeaturesConfig struct {
 	UnshareNet        *bool    `json:"unshare_net,omitempty"`
 	AutoInit          string   `json:"auto_init,omitempty"`
 	MaskHistory       *bool    `json:"mask_history,omitempty"`
+	BlockGH           *bool    `json:"block_gh,omitempty"`
 }
 
 func (f *FeaturesConfig) UnmarshalJSON(data []byte) error {
@@ -249,4 +250,10 @@ func generateDefaultConfig() string {
 		h = "/home/" + os.Getenv("USER")
 	}
 	return strings.ReplaceAll(DefaultConfigTemplate, HomeToken, h)
+}
+
+// BlockGH returns true if gh binary and forge credentials should be blocked/masked.
+// Defaults to true unless explicitly disabled in features (block_gh: false).
+func BlockGH(cfg *Config) bool {
+	return FeatureEnabledDefault(cfg, func(f *FeaturesConfig) *bool { return f.BlockGH }, true)
 }

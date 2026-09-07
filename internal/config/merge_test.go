@@ -280,3 +280,34 @@ func TestMergeEmptyLocal(t *testing.T) {
 		t.Errorf("expected Path preserved")
 	}
 }
+
+func TestBlockGHFeatureAndMerge(t *testing.T) {
+	if !BlockGH(nil) {
+		t.Error("expected BlockGH(nil) to be true by default")
+	}
+	emptyCfg := &Config{}
+	if !BlockGH(emptyCfg) {
+		t.Error("expected BlockGH(emptyCfg) to be true by default")
+	}
+	cfgWithFeatures := &Config{Features: &FeaturesConfig{}}
+	if !BlockGH(cfgWithFeatures) {
+		t.Error("expected BlockGH(cfgWithFeatures) to be true by default")
+	}
+
+	fFalse := false
+	disabledCfg := &Config{Features: &FeaturesConfig{BlockGH: &fFalse}}
+	if BlockGH(disabledCfg) {
+		t.Error("expected BlockGH to be false when explicitly disabled")
+	}
+
+	fTrue := true
+	merged := MergeFeatures(&FeaturesConfig{BlockGH: &fTrue}, &FeaturesConfig{BlockGH: &fFalse})
+	if *merged.BlockGH != false {
+		t.Error("expected local false to override global true in MergeFeatures")
+	}
+
+	merged2 := MergeFeatures(&FeaturesConfig{BlockGH: &fFalse}, &FeaturesConfig{BlockGH: &fTrue})
+	if *merged2.BlockGH != true {
+		t.Error("expected local true to override global false in MergeFeatures")
+	}
+}

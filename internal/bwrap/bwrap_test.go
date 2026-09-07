@@ -274,3 +274,156 @@ func TestNoDuplicateHistoryMasks(t *testing.T) {
 		}
 	}
 }
+
+func TestBlockGHMasksDefault(t *testing.T) {
+	cfg := &config.Config{}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	home := util.HomeDir()
+	ghBin := "/usr/bin/gh"
+	if fi, err := os.Stat(ghBin); err == nil && !fi.IsDir() {
+		found := false
+		for i := 0; i < len(args)-2; i++ {
+			if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == ghBin {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %s to be masked with /dev/null by default in args: %v", ghBin, args)
+		}
+	}
+
+	ghConfig := filepath.Join(home, ".config", "gh")
+	if fi, err := os.Stat(ghConfig); err == nil && fi.IsDir() {
+		found := false
+		for i := 0; i < len(args)-1; i++ {
+			if args[i] == "--tmpfs" && args[i+1] == ghConfig {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %s to be masked with --tmpfs by default in args: %v", ghConfig, args)
+		}
+	}
+
+	gitCreds := filepath.Join(home, ".git-credentials")
+	if fi, err := os.Stat(gitCreds); err == nil && !fi.IsDir() {
+		found := false
+		for i := 0; i < len(args)-2; i++ {
+			if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == gitCreds {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %s to be masked with /dev/null by default in args: %v", gitCreds, args)
+		}
+	}
+}
+
+func TestBlockGHDisabled(t *testing.T) {
+	f := false
+	cfg := &config.Config{
+		Features: &config.FeaturesConfig{
+			BlockGH: &f,
+		},
+	}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	home := util.HomeDir()
+	ghBin := "/usr/bin/gh"
+	for i := 0; i < len(args)-2; i++ {
+		if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == ghBin {
+			t.Errorf("%s should not be masked when block_gh is false", ghBin)
+		}
+	}
+
+	ghConfig := filepath.Join(home, ".config", "gh")
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--tmpfs" && args[i+1] == ghConfig {
+			t.Errorf("%s should not be masked when block_gh is false", ghConfig)
+		}
+	}
+
+	gitCreds := filepath.Join(home, ".git-credentials")
+	for i := 0; i < len(args)-2; i++ {
+		if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == gitCreds {
+			t.Errorf("%s should not be masked when block_gh is false", gitCreds)
+		}
+	}
+}
+
+func TestScrubForgeTokensFromPassEnv(t *testing.T) {
+	t.Setenv("GH_TOKEN", "secret-gh")
+	t.Setenv("GITHUB_TOKEN", "secret-github")
+	t.Setenv("GH_ENTERPRISE_TOKEN", "secret-gh-ent")
+	t.Setenv("GITHUB_ENTERPRISE_TOKEN", "secret-github-ent")
+	t.Setenv("SAFE_VAR", "safe-value")
+
+	cfg := &config.Config{
+		PassEnv: []string{"GH_*", "GITHUB_*", "SAFE_VAR"},
+	}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	foundSafe := false
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--setenv" && args[i+1] == "SAFE_VAR" {
+			foundSafe = true
+		}
+		if args[i] == "--setenv" {
+			for _, blocked := range blockedForgeTokens {
+				if args[i+1] == blocked {
+					t.Errorf("blocked token %s was set via pass_env wildcard: %v", blocked, args)
+				}
+			}
+		}
+	}
+	if !foundSafe {
+		t.Error("expected SAFE_VAR to be set via pass_env")
+	}
+}
+
+func TestExplicitEnvAllowsForgeToken(t *testing.T) {
+	cfg := &config.Config{
+		Env: map[string]string{
+			"GH_TOKEN": "explicitly-allowed",
+		},
+	}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	found := false
+	for i := 0; i < len(args)-2; i++ {
+		if args[i] == "--setenv" && args[i+1] == "GH_TOKEN" && args[i+2] == "explicitly-allowed" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected GH_TOKEN to be set when explicitly declared in config.Env")
+	}
+}
+
+func TestClearenvFalseUnsetsForgeTokens(t *testing.T) {
+	f := false
+	cfg := &config.Config{
+		System: &config.SystemConfig{
+			Clearenv: &f,
+		},
+	}
+	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+
+	for _, blocked := range blockedForgeTokens {
+		foundUnset := false
+		for i := 0; i < len(args)-1; i++ {
+			if args[i] == "--unsetenv" && args[i+1] == blocked {
+				foundUnset = true
+				break
+			}
+		}
+		if !foundUnset {
+			t.Errorf("expected --unsetenv %s when clearenv is false", blocked)
+		}
+	}
+}

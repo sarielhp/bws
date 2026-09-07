@@ -40,7 +40,8 @@ When a profile is activated (via `"profiles": ["go-dev"]` in `~/.config/bws/conf
 | **`no-browser`** | Web sessions & passwords | Firefox, Chrome, Chromium, Brave, Edge |
 | **`no-email`** | Local email stores | Thunderbird, Evolution, Mutt, Maildir |
 | **`no-chat`** | Messaging databases | Discord, Slack, Signal, Telegram |
-| **`no-secrets`** | Cloud provider keys | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.gnupg` |
+| **`no-secrets`** | Cloud provider & Git keys | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.gnupg`, `~/.git-credentials`, `~/.netrc` |
+| **`no-gh`** | GitHub CLI & configs | `gh`, `~/.config/gh`, `~/.local/share/gh`, `~/.local/state/gh` |
 | **`no-history`**| Command line logs | `.bash_history`, `.zsh_history`, `.python_history` |
 | **`offline`** | Network isolation | Blocks outbound internet and isolates loopback (host `127.0.0.1` unreachable) |
 | **`secure-agent`**| All of the above combined | Hardened environment for autonomous AI agents |
@@ -70,9 +71,9 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 ```
 
 ### `go-dev`
-**Description**: Full Go developer environment (Go toolchain, Gopls LSP, Git, GitHub CLI, Editor)
+**Description**: Full Go developer environment (Go toolchain, Gopls LSP, Git, Editor)
 
-**Requires**: `go`, `gopls`, `git`, `gh`, `editor`
+**Requires**: `go`, `gopls`, `git`, `editor`
 
 ### `latex-dev`
 **Description**: Complete LaTeX authoring environment (alias for latex-use)
@@ -85,14 +86,14 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 **Requires**: `latex`, `pandoc`, `editor`
 
 ### `python-dev`
-**Description**: Full Python developer environment (Python3, UV, Git, GitHub CLI, Editor)
+**Description**: Full Python developer environment (Python3, UV, Git, Editor)
 
-**Requires**: `python`, `uv`, `git`, `gh`, `editor`
+**Requires**: `python`, `uv`, `git`, `editor`
 
 ### `rust-dev`
-**Description**: Full Rust developer environment (Rustc, Cargo, Git, GitHub CLI, Editor)
+**Description**: Full Rust developer environment (Rustc, Cargo, Git, Editor)
 
-**Requires**: `rust`, `git`, `gh`, `editor`
+**Requires**: `rust`, `git`, `editor`
 
 ---
 
@@ -473,7 +474,7 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 - `shell history is masked`: `bash -c ! test -s ~/.bash_history && ! test -s ~/.zsh_history`
 
 ### `no-secrets`
-**Description**: Mask cloud provider credentials, GPG keyrings, and password stores
+**Description**: Mask cloud provider credentials, GPG keyrings, Git forge tokens, and password stores
 
 **Masked / blocked paths**:
 - ⊘ `~/.aws`
@@ -482,9 +483,30 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 - ⊘ `~/.password-store`
 - ⊘ `~/.gnupg`
 - ⊘ `~/.vault-token`
+- ⊘ `~/.config/gh`
+- ⊘ `~/.git-credentials`
+- ⊘ `~/.config/git/credentials`
+- ⊘ `~/.netrc`
 
 **Verification tests**:
-- `cloud and gpg secrets are masked`: `bash -c ! test -e ~/.aws/credentials && ! test -e ~/.gnupg/secring.gpg`
+- `cloud, gpg, and git secrets are masked`: `bash -c ! test -s ~/.aws/credentials && ! test -s ~/.gnupg/secring.gpg && ! test -s ~/.git-credentials && ! test -s ~/.config/gh/hosts.yml`
+
+### `no-gh`
+**Description**: Mask GitHub CLI binary and configuration stores
+
+**Masked / blocked paths**:
+- ⊘ `/usr/bin/gh`
+- ⊘ `/usr/local/bin/gh`
+- ⊘ `/bin/gh`
+- ⊘ `@@HOME@@/.local/bin/gh`
+- ⊘ `@@HOME@@/bin/gh`
+- ⊘ `~/.config/gh`
+- ⊘ `~/.local/share/gh`
+- ⊘ `~/.local/state/gh`
+
+**Verification tests**:
+- `gh binary execution blocked`: `bash -c ! gh --version 2>/dev/null`
+- `gh configuration masked`: `bash -c ! test -f ~/.config/gh/hosts.yml && ! test -f ~/.config/gh/config.yml`
 
 ### `no-ssh`
 **Description**: Block all SSH access, configuration, and host keys

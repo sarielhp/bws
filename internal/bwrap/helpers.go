@@ -252,10 +252,43 @@ func execLookPath(file string) (string, error) {
 	return "", fmt.Errorf("not found")
 }
 
+func collectForgeMasks(homeDir string) []string {
+	var masks []string
+	for _, bin := range []string{"gh", "glab", "hub", "tea"} {
+		if p, err := execLookPath(bin); err == nil && p != "" {
+			masks = append(masks, p)
+		}
+	}
+	masks = append(masks,
+		"/usr/bin/gh",
+		"/usr/local/bin/gh",
+		"/bin/gh",
+		filepath.Join(homeDir, ".local", "bin", "gh"),
+		filepath.Join(homeDir, "bin", "gh"),
+		"/usr/bin/glab",
+		"/usr/bin/hub",
+		"/usr/bin/tea",
+		filepath.Join(homeDir, ".config", "gh"),
+		filepath.Join(homeDir, ".local", "share", "gh"),
+		filepath.Join(homeDir, ".local", "state", "gh"),
+		filepath.Join(homeDir, ".config", "glab-cli"),
+		filepath.Join(homeDir, ".config", "hub"),
+		filepath.Join(homeDir, ".config", "tea"),
+		filepath.Join(homeDir, ".git-credentials"),
+		filepath.Join(homeDir, ".config", "git", "credentials"),
+		filepath.Join(homeDir, ".netrc"),
+		filepath.Join(homeDir, ".config", "netrc"),
+	)
+	return masks
+}
+
 func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string, verbose bool) {
 	maskList := append([]string{}, cfg.Mask...)
 	if config.HistoryMaskEnabled(cfg) {
 		maskList = append(maskList, config.DefaultHistoryMasks...)
+	}
+	if config.BlockGH(cfg) {
+		maskList = append(maskList, collectForgeMasks(homeDir)...)
 	}
 
 	seen := make(map[string]bool)

@@ -1,0 +1,34 @@
+{
+  "name": "no-gh",
+  "description": "Mask GitHub CLI binary and configuration stores",
+  "mask": [
+    "/usr/bin/gh",
+    "/usr/local/bin/gh",
+    "/bin/gh",
+    "@@HOME@@/.local/bin/gh",
+    "@@HOME@@/bin/gh",
+    "~/.config/gh",
+    "~/.local/share/gh",
+    "~/.local/state/gh"
+  ],
+  "tests": [
+    {
+      "name": "gh binary execution blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! gh --version 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "gh configuration masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -f ~/.config/gh/hosts.yml && ! test -f ~/.config/gh/config.yml"
+      ],
+      "type": "smoke"
+    }
+  ]
+}
