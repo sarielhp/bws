@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/fatih/color v1.19.0
-	github.com/sarielhp/clihelp v0.3.1
+	github.com/sarielhp/clihelp v0.3.5
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
 	golang.org/x/term v0.45.0
 )

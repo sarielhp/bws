@@ -12,8 +12,8 @@ github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWE
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/mattn/go-runewidth v0.0.28 h1:rPyg2ybwEKPebvpzVWe1gKBkH8EQFkxO4Y0hjBeLaBU=
 github.com/mattn/go-runewidth v0.0.28/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
-github.com/sarielhp/clihelp v0.3.1 h1:x15qma7jYChc4ElhDQdzQ/GZUEXiv8jJMWjf+R7wxGM=
-github.com/sarielhp/clihelp v0.3.1/go.mod h1:z9v8VJhD55UuQrHCsjN1DcBWlZtOGF9lLpeJ3Ph8DeI=
+github.com/sarielhp/clihelp v0.3.5 h1:AWDp8WF99KyJ/o9GdeoTmJc8F7UwY2w1rTjy8T1Hb/0=
+github.com/sarielhp/clihelp v0.3.5/go.mod h1:z9v8VJhD55UuQrHCsjN1DcBWlZtOGF9lLpeJ3Ph8DeI=
 github.com/spf13/pflag v1.0.10 h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=
 github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f h1:9hiVElpCmKzsBKQHkBqZ8LGzt82iLfM8egxr4sew+Ys=
