@@ -10,22 +10,25 @@ import (
 	"bws/internal/util"
 )
 
-func TestBuildArgsUnshareIPC(t *testing.T) {
+func TestBuildArgsDefaultIsolationFlags(t *testing.T) {
 	cfg := &config.Config{}
 	sandboxDir := t.TempDir()
 	currentDir := t.TempDir()
 
 	args := BuildArgs(cfg, sandboxDir, currentDir, true, false)
 
-	foundUnshareIPC := false
-	for _, arg := range args {
-		if arg == "--unshare-ipc" {
-			foundUnshareIPC = true
-			break
+	expectedFlags := []string{"--unshare-ipc", "--unshare-pid", "--new-session"}
+	for _, flag := range expectedFlags {
+		found := false
+		for _, arg := range args {
+			if arg == flag {
+				found = true
+				break
+			}
 		}
-	}
-	if !foundUnshareIPC {
-		t.Errorf("expected --unshare-ipc in BuildArgs output, got: %v", args)
+		if !found {
+			t.Errorf("expected %s in BuildArgs output, got: %v", flag, args)
+		}
 	}
 }
 

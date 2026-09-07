@@ -16,6 +16,57 @@ type gitWorkflowFlags struct {
 	pruneDryRun  bool
 }
 
+func gitWorkflowListSubcommand(gwFlags *gitWorkflowFlags) clihelp.Command {
+	return clihelp.Command{
+		Name:        "list",
+		Aliases:     []string{"ls"},
+		Description: "List all bws-agent-* branches with commit info and merge status",
+		UsageLine:   "bws git-workflow list [--merged | --unmerged]",
+		Args:        clihelp.NoArgs,
+		Options: []clihelp.Option{
+			clihelp.Bool(&gwFlags.listMerged, "--merged", false, "List only merged agent branches"),
+			clihelp.Bool(&gwFlags.listUnmerged, "--unmerged", false, "List only unmerged agent branches"),
+		},
+		Examples: []clihelp.Example{
+			{Line: "bws gw list", Description: "List all bws-agent-* branches"},
+			{Line: "bws gw list --merged", Description: "List only merged bws-agent-* branches"},
+			{Line: "bws gw list --unmerged", Description: "List only unmerged bws-agent-* branches"},
+		},
+		Run: func(ctx *clihelp.Context) error {
+			return gitworkflow.List(gitworkflow.ListOptions{
+				MergedOnly:   gwFlags.listMerged,
+				UnmergedOnly: gwFlags.listUnmerged,
+			})
+		},
+	}
+}
+
+func gitWorkflowPruneSubcommand(gwFlags *gitWorkflowFlags, f *appFlags) clihelp.Command {
+	return clihelp.Command{
+		Name:        "prune",
+		Aliases:     []string{"clean", "rm"},
+		Description: "Remove merged/abandoned bws-agent branches and cleanup /tmp/bws/agent_* temp dirs",
+		UsageLine:   "bws git-workflow prune [-a] [-n]",
+		Args:        clihelp.NoArgs,
+		Options: []clihelp.Option{
+			clihelp.Bool(&gwFlags.pruneAll, "-a, --all", false, "Remove all bws-agent branches, including unmerged/abandoned"),
+			clihelp.Bool(&gwFlags.pruneDryRun, "-n, --dry-run", false, "Preview branches and temp directories to prune without deleting"),
+		},
+		Examples: []clihelp.Example{
+			{Line: "bws gw prune", Description: "Prune merged agent branches and cleanup temp directories"},
+			{Line: "bws gw prune -a", Description: "Prune all agent branches (including unmerged) and temp dirs"},
+			{Line: "bws gw prune -n", Description: "Dry run preview of what would be pruned"},
+		},
+		Run: func(ctx *clihelp.Context) error {
+			return gitworkflow.Prune(gitworkflow.PruneOptions{
+				All:     gwFlags.pruneAll || f.force,
+				DryRun:  gwFlags.pruneDryRun,
+				Verbose: f.verbose,
+			})
+		},
+	}
+}
+
 func gitWorkflowCmd(f *appFlags) clihelp.Command {
 	var gwFlags gitWorkflowFlags
 
@@ -31,51 +82,8 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 			clihelp.Bool(&gwFlags.allowDirty, "--allow-dirty", false, "Allow starting even if working tree has uncommitted changes"),
 		},
 		Subcommands: []clihelp.Command{
-			{
-				Name:        "list",
-				Aliases:     []string{"ls"},
-				Description: "List all bws-agent-* branches with commit info and merge status",
-				UsageLine:   "bws git-workflow list [--merged | --unmerged]",
-				Args:        clihelp.NoArgs,
-				Options: []clihelp.Option{
-					clihelp.Bool(&gwFlags.listMerged, "--merged", false, "List only merged agent branches"),
-					clihelp.Bool(&gwFlags.listUnmerged, "--unmerged", false, "List only unmerged agent branches"),
-				},
-				Examples: []clihelp.Example{
-					{Line: "bws gw list", Description: "List all bws-agent-* branches"},
-					{Line: "bws gw list --merged", Description: "List only merged bws-agent-* branches"},
-					{Line: "bws gw list --unmerged", Description: "List only unmerged bws-agent-* branches"},
-				},
-				Run: func(ctx *clihelp.Context) error {
-					return gitworkflow.List(gitworkflow.ListOptions{
-						MergedOnly:   gwFlags.listMerged,
-						UnmergedOnly: gwFlags.listUnmerged,
-					})
-				},
-			},
-			{
-				Name:        "prune",
-				Aliases:     []string{"clean", "rm"},
-				Description: "Remove merged/abandoned bws-agent branches and cleanup /tmp/bws/agent_* temp dirs",
-				UsageLine:   "bws git-workflow prune [-a] [-n]",
-				Args:        clihelp.NoArgs,
-				Options: []clihelp.Option{
-					clihelp.Bool(&gwFlags.pruneAll, "-a, --all", false, "Remove all bws-agent branches, including unmerged/abandoned"),
-					clihelp.Bool(&gwFlags.pruneDryRun, "-n, --dry-run", false, "Preview branches and temp directories to prune without deleting"),
-				},
-				Examples: []clihelp.Example{
-					{Line: "bws gw prune", Description: "Prune merged agent branches and cleanup temp directories"},
-					{Line: "bws gw prune -a", Description: "Prune all agent branches (including unmerged) and temp dirs"},
-					{Line: "bws gw prune -n", Description: "Dry run preview of what would be pruned"},
-				},
-				Run: func(ctx *clihelp.Context) error {
-					return gitworkflow.Prune(gitworkflow.PruneOptions{
-						All:     gwFlags.pruneAll || f.force,
-						DryRun:  gwFlags.pruneDryRun,
-						Verbose: f.verbose,
-					})
-				},
-			},
+			gitWorkflowListSubcommand(&gwFlags),
+			gitWorkflowPruneSubcommand(&gwFlags, f),
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws gw", Description: "Start an interactive shell in a disposable agent clone"},
@@ -96,6 +104,12 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 				Stash:      gwFlags.stash,
 				Command:    ctx.Args,
 				Verbose:    f.verbose,
+				NoNet:      f.noNet,
+				Proxy:      f.proxy,
+				NoProxy:    f.noProxy,
+				DBus:       f.dbus,
+				NoDBus:     f.noDBus,
+				NoInit:     f.noInit,
 			})
 		},
 	}

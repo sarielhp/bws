@@ -99,3 +99,12 @@ func copyDirRecursive(src, dest string) error {
 		return os.WriteFile(target, data, 0644)
 	})
 }
+
+func excludeSensitiveFiles(destDir string) {
+	excludePath := filepath.Join(destDir, ".git", "info", "exclude")
+	f, err := os.OpenFile(excludePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		defer f.Close()
+		_, _ = f.WriteString("\n.bws/\n.env*\n")
+	}
+}
