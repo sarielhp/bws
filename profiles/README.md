@@ -609,7 +609,6 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 
 **Read-only binds**:
 - `~/.gitconfig -> @@HOME@@/.gitconfig`
-- `~/.git-credentials -> @@HOME@@/.git-credentials`
 
 **Verification tests**:
 - `Git binary version`: `git --version`

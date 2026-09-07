@@ -113,3 +113,30 @@ func TestComputeDelta_EmptyWhenCovered(t *testing.T) {
 		t.Errorf("expected delta.IsEmpty() = true, got %+v", delta)
 	}
 }
+
+func TestComputeDelta_MultipleDiscoveredPaths(t *testing.T) {
+	homeDir := "/home/testuser"
+
+	existingConfig := &config.Config{
+		Path: []string{"/usr/bin"},
+	}
+
+	res := &TraceResult{
+		Command: []string{"tool"},
+		DiscoveredPaths: []string{
+			"/usr/bin",
+			"~/.cargo/bin",
+			"/bin",
+			"/opt/custom/bin",
+		},
+		DiscoveredPath: "~/.cargo/bin",
+	}
+
+	delta := ComputeDelta(res, existingConfig, homeDir)
+	if len(delta.Path) != 2 {
+		t.Fatalf("delta.Path = %v, want 2 entries", delta.Path)
+	}
+	if delta.Path[0] != "~/.cargo/bin" || delta.Path[1] != "/opt/custom/bin" {
+		t.Errorf("delta.Path = %v, want [~/.cargo/bin, /opt/custom/bin]", delta.Path)
+	}
+}

@@ -28,7 +28,21 @@ var sensitivePathPrefixes = []string{
 	"~/.vault-token",
 	"~/.config/auth",
 	"~/.auth",
+	"~/.config/gh",
+	"~/.local/share/gh",
+	"~/.local/state/gh",
+	"~/.git-credentials",
+	"~/.config/git/credentials",
 	"~/.netrc",
+	"~/.config/netrc",
+	"~/.kube",
+	"~/.docker",
+	"~/.npmrc",
+	"~/.pypirc",
+	"~/.cargo/credentials.toml",
+	"~/.local/share/keyrings",
+	"~/.config/op",
+	"~/.terraform.d",
 }
 
 // IsSensitivePath checks if a normalized or raw path targets a security-sensitive location.

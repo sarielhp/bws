@@ -22,6 +22,30 @@ func ComputeDelta(res *TraceResult, targetConfig *config.Config, homeDir string)
 		SecurityAlerts: append([]string{}, res.SecurityAlerts...),
 	}
 
+	existingRW, existingRO, existingPaths, existingFeatures := extractExistingConfig(targetConfig)
+
+	// 1. Binary PATH diffing
+	delta.Path = diffPaths(res, existingPaths, homeDir)
+
+	// 2. RW mounts diffing & RO -> RW upgrade detection
+	deltaRW, upgradedMap := diffBindsRW(res.BindsRW, existingRW, existingRO, homeDir)
+	delta.BindsRW = deltaRW
+
+	for u := range upgradedMap {
+		delta.UpgradedRO = append(delta.UpgradedRO, u)
+	}
+	sort.Strings(delta.UpgradedRO)
+
+	// 3. RO mounts diffing
+	delta.BindsRO = diffBindsRO(res.BindsRO, existingRW, existingRO, delta.BindsRW, upgradedMap, homeDir)
+
+	// 4. Features diffing
+	delta.Features = diffFeatures(res.Features, existingFeatures)
+
+	return delta
+}
+
+func extractExistingConfig(targetConfig *config.Config) ([]string, []string, []string, config.FeaturesConfig) {
 	var existingRW []string
 	var existingRO []string
 	var existingPaths []string
@@ -44,17 +68,47 @@ func ComputeDelta(res *TraceResult, targetConfig *config.Config, homeDir string)
 		}
 	}
 
-	// 1. Binary PATH diffing
-	if res.DiscoveredPath != "" && !IsPathCovered(res.DiscoveredPath, existingPaths, homeDir) {
-		delta.Path = append(delta.Path, res.DiscoveredPath)
+	return existingRW, existingRO, existingPaths, existingFeatures
+}
+
+func diffPaths(res *TraceResult, existingPaths []string, homeDir string) []string {
+	var candidates []string
+	if len(res.DiscoveredPaths) > 0 {
+		candidates = append(candidates, res.DiscoveredPaths...)
+	}
+	if res.DiscoveredPath != "" && !containsPath(candidates, res.DiscoveredPath) {
+		candidates = append(candidates, res.DiscoveredPath)
 	}
 
-	// 2. RW mounts diffing & RO -> RW upgrade detection
+	var deltaPath []string
+	for _, p := range candidates {
+		if p == "" {
+			continue
+		}
+		if !IsPathCovered(p, existingPaths, homeDir) && !IsPathInList(p, deltaPath, homeDir) {
+			deltaPath = append(deltaPath, p)
+		}
+	}
+	return deltaPath
+}
+
+func containsPath(list []string, target string) bool {
+	for _, item := range list {
+		if item == target {
+			return true
+		}
+	}
+	return false
+}
+
+func diffBindsRW(discoveredRW, existingRW, existingRO []string, homeDir string) ([]string, map[string]bool) {
+	var deltaRW []string
 	upgradedMap := make(map[string]bool)
-	for _, discoveredRW := range res.BindsRW {
+
+	for _, dRW := range discoveredRW {
 		covered := false
 		for _, exRW := range existingRW {
-			if IsSubpathOrEqual(discoveredRW, exRW, homeDir) {
+			if IsSubpathOrEqual(dRW, exRW, homeDir) {
 				covered = true
 				break
 			}
@@ -63,73 +117,68 @@ func ComputeDelta(res *TraceResult, targetConfig *config.Config, homeDir string)
 			continue
 		}
 
-		// Check for RO -> RW upgrades
 		for _, exRO := range existingRO {
-			if IsSubpathOrEqual(exRO, discoveredRW, homeDir) {
+			if IsSubpathOrEqual(exRO, dRW, homeDir) {
 				upgradedMap[exRO] = true
 			}
 		}
 
-		delta.BindsRW = append(delta.BindsRW, discoveredRW)
+		deltaRW = append(deltaRW, dRW)
 	}
 
-	for u := range upgradedMap {
-		delta.UpgradedRO = append(delta.UpgradedRO, u)
-	}
-	sort.Strings(delta.UpgradedRO)
+	return deltaRW, upgradedMap
+}
 
-	// 3. RO mounts diffing
-	for _, discoveredRO := range res.BindsRO {
-		covered := false
-		// Skip if already in existing RW
-		for _, exRW := range existingRW {
-			if IsSubpathOrEqual(discoveredRO, exRW, homeDir) {
-				covered = true
-				break
-			}
+func diffBindsRO(discoveredRO, existingRW, existingRO, deltaRW []string, upgradedMap map[string]bool, homeDir string) []string {
+	var deltaRO []string
+
+	for _, dRO := range discoveredRO {
+		if isCoveredByAny(dRO, existingRW, homeDir) {
+			continue
 		}
-		if covered {
+		if isCoveredByAny(dRO, deltaRW, homeDir) {
 			continue
 		}
 
-		// Skip if covered by newly added RW
-		for _, dRW := range delta.BindsRW {
-			if IsSubpathOrEqual(discoveredRO, dRW, homeDir) {
-				covered = true
-				break
-			}
-		}
-		if covered {
-			continue
-		}
-
-		// Skip if in existing RO (and not being upgraded)
+		coveredByExistingRO := false
 		for _, exRO := range existingRO {
-			if !upgradedMap[exRO] && IsSubpathOrEqual(discoveredRO, exRO, homeDir) {
-				covered = true
+			if !upgradedMap[exRO] && IsSubpathOrEqual(dRO, exRO, homeDir) {
+				coveredByExistingRO = true
 				break
 			}
 		}
-		if covered {
+		if coveredByExistingRO {
 			continue
 		}
 
-		delta.BindsRO = append(delta.BindsRO, discoveredRO)
+		deltaRO = append(deltaRO, dRO)
 	}
 
-	// 4. Features diffing
-	if res.Features.SSH && (existingFeatures.EnableSSH == nil || !*existingFeatures.EnableSSH) {
-		delta.Features.SSH = true
-	}
-	if res.Features.DBus && (existingFeatures.EnableDBus == nil || !*existingFeatures.EnableDBus) {
-		delta.Features.DBus = true
-	}
-	if res.Features.X11 && (existingFeatures.EnableX11 == nil || !*existingFeatures.EnableX11) {
-		delta.Features.X11 = true
-	}
-	if res.Features.WSL && (existingFeatures.EnableWSL == nil || !*existingFeatures.EnableWSL) {
-		delta.Features.WSL = true
-	}
+	return deltaRO
+}
 
-	return delta
+func isCoveredByAny(target string, paths []string, homeDir string) bool {
+	for _, p := range paths {
+		if IsSubpathOrEqual(target, p, homeDir) {
+			return true
+		}
+	}
+	return false
+}
+
+func diffFeatures(detected DetectedFeatures, existing config.FeaturesConfig) DetectedFeatures {
+	var deltaFeatures DetectedFeatures
+	if detected.SSH && (existing.EnableSSH == nil || !*existing.EnableSSH) {
+		deltaFeatures.SSH = true
+	}
+	if detected.DBus && (existing.EnableDBus == nil || !*existing.EnableDBus) {
+		deltaFeatures.DBus = true
+	}
+	if detected.X11 && (existing.EnableX11 == nil || !*existing.EnableX11) {
+		deltaFeatures.X11 = true
+	}
+	if detected.WSL && (existing.EnableWSL == nil || !*existing.EnableWSL) {
+		deltaFeatures.WSL = true
+	}
+	return deltaFeatures
 }

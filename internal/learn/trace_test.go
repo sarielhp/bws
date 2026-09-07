@@ -227,3 +227,63 @@ func TestToProfile(t *testing.T) {
 		t.Errorf("p.Features.EnableSSH should be true")
 	}
 }
+
+func TestAnalyzeTraceLines_ExecveBinaryPathDiscovery(t *testing.T) {
+	lines := []string{
+		`1001 execve("/home/user/.cargo/bin/cargo", ["cargo", "build"], 0x7ffd) = 0`,
+		`1001 execveat(3, "/home/user/.local/bin/subtool", ["subtool"], 0x7ffd, 0) = 0`,
+		`1001 openat(AT_FDCWD, "/home/user/.cargo/config.toml", O_RDONLY) = 3`,
+	}
+
+	opts := TraceOptions{
+		Command: []string{"cargo", "build"},
+		WorkDir: "/home/user/workspace",
+		HomeDir: "/home/user",
+	}
+
+	res := AnalyzeTraceLines(lines, opts)
+
+	if len(res.DiscoveredPaths) < 2 {
+		t.Fatalf("expected at least 2 discovered paths, got %v", res.DiscoveredPaths)
+	}
+
+	if !containsString(res.DiscoveredPaths, "~/.cargo/bin") {
+		t.Errorf("expected ~/.cargo/bin in DiscoveredPaths, got %v", res.DiscoveredPaths)
+	}
+	if !containsString(res.DiscoveredPaths, "~/.local/bin") {
+		t.Errorf("expected ~/.local/bin in DiscoveredPaths, got %v", res.DiscoveredPaths)
+	}
+	if res.DiscoveredPath != "~/.cargo/bin" {
+		t.Errorf("res.DiscoveredPath = %q, want '~/.cargo/bin'", res.DiscoveredPath)
+	}
+}
+
+func TestAnalyzeTraceLines_SecretReadFilteringEndToEnd(t *testing.T) {
+	lines := []string{
+		`1001 openat(AT_FDCWD, "/home/user/.git-credentials", O_RDONLY) = 3`,
+		`1001 openat(AT_FDCWD, "/home/user/.ssh/id_rsa", O_RDONLY) = 4`,
+		`1001 openat(AT_FDCWD, "/home/user/.cargo/credentials.toml", O_RDONLY) = 5`,
+		`1001 openat(AT_FDCWD, "/home/user/.docker/config.json", O_RDONLY) = 6`,
+		`1001 openat(AT_FDCWD, "/home/user/.config/gh/hosts.yml", O_RDONLY) = 7`,
+		`1001 openat(AT_FDCWD, "/home/user/.terraform.d/credentials.tfrc.json", O_RDONLY) = 8`,
+		`1001 openat(AT_FDCWD, "/home/user/.gitconfig", O_RDONLY) = 9`,
+	}
+
+	opts := TraceOptions{
+		Command: []string{"git", "push"},
+		WorkDir: "/home/user/repo",
+		HomeDir: "/home/user",
+	}
+
+	res := AnalyzeTraceLines(lines, opts)
+
+	for _, ro := range res.BindsRO {
+		if strings.Contains(ro, "credentials") || strings.Contains(ro, "ssh") || strings.Contains(ro, "docker") || strings.Contains(ro, "gh") || strings.Contains(ro, "terraform") {
+			t.Errorf("sensitive path leaked into BindsRO: %s", ro)
+		}
+	}
+
+	if len(res.BindsRO) != 1 || res.BindsRO[0] != "~/.gitconfig" {
+		t.Errorf("res.BindsRO = %v, want [~/.gitconfig]", res.BindsRO)
+	}
+}

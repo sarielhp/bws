@@ -54,6 +54,7 @@ var shellStartupFiles = map[string]bool{
 }
 
 var sensitiveSecretStores = []string{
+	"~/.ssh",
 	"~/.aws",
 	"~/.azure",
 	"~/.config/gcloud",
@@ -62,7 +63,21 @@ var sensitiveSecretStores = []string{
 	"~/.gnupg",
 	"~/.config/auth",
 	"~/.auth",
+	"~/.config/gh",
+	"~/.local/share/gh",
+	"~/.local/state/gh",
+	"~/.git-credentials",
+	"~/.config/git/credentials",
 	"~/.netrc",
+	"~/.config/netrc",
+	"~/.kube",
+	"~/.docker",
+	"~/.npmrc",
+	"~/.pypirc",
+	"~/.cargo/credentials.toml",
+	"~/.local/share/keyrings",
+	"~/.config/op",
+	"~/.terraform.d",
 }
 
 func isSensitiveSecretStore(cleanPath, homeDir string) bool {

@@ -31,3 +31,47 @@ func TestShouldFilterAccess_AncestorFiltering(t *testing.T) {
 		t.Errorf("expected workspace internal file %s to be filtered, but it was not", workFile)
 	}
 }
+
+func TestShouldFilterAccess_SecretReadFiltering(t *testing.T) {
+	homeDir := "/home/testuser"
+	workDir := "/home/testuser/myproject"
+
+	secretPaths := []string{
+		"/home/testuser/.ssh",
+		"/home/testuser/.ssh/id_rsa",
+		"/home/testuser/.ssh/config",
+		"/home/testuser/.config/gh/hosts.yml",
+		"/home/testuser/.local/share/gh/hosts.yml",
+		"/home/testuser/.local/state/gh/state.yml",
+		"/home/testuser/.git-credentials",
+		"/home/testuser/.config/git/credentials",
+		"/home/testuser/.netrc",
+		"/home/testuser/.config/netrc",
+		"/home/testuser/.kube/config",
+		"/home/testuser/.docker/config.json",
+		"/home/testuser/.npmrc",
+		"/home/testuser/.pypirc",
+		"/home/testuser/.cargo/credentials.toml",
+		"/home/testuser/.local/share/keyrings/default.keyring",
+		"/home/testuser/.config/op/config",
+		"/home/testuser/.terraform.d/credentials.tfrc.json",
+	}
+
+	for _, p := range secretPaths {
+		if !ShouldFilterAccess(p, AccessRead, workDir, homeDir) {
+			t.Errorf("expected secret path %s to be filtered on read, but it was allowed", p)
+		}
+	}
+
+	nonSecretPaths := []string{
+		"/home/testuser/.gitconfig",
+		"/home/testuser/.cargo/config.toml",
+		"/home/testuser/.config/app/settings.json",
+	}
+
+	for _, p := range nonSecretPaths {
+		if ShouldFilterAccess(p, AccessRead, workDir, homeDir) {
+			t.Errorf("expected non-secret path %s to NOT be filtered on read, but it was filtered", p)
+		}
+	}
+}

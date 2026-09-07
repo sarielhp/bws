@@ -40,14 +40,15 @@ type ParsedSyscall struct {
 
 // TraceResult contains the aggregated output of dynamic runtime tracing.
 type TraceResult struct {
-	Command        []string              `json:"command"`
-	ExitCode       int                   `json:"exit_code"`
-	Features       DetectedFeatures      `json:"features"`
-	BindsRW        []string              `json:"binds_rw"`
-	BindsRO        []string              `json:"binds_ro"`
-	DiscoveredPath string                `json:"discovered_path,omitempty"`
-	SecurityAlerts []string              `json:"security_alerts,omitempty"`
-	AllAccesses    map[string]AccessMode `json:"-"`
+	Command         []string              `json:"command"`
+	ExitCode        int                   `json:"exit_code"`
+	Features        DetectedFeatures      `json:"features"`
+	BindsRW         []string              `json:"binds_rw"`
+	BindsRO         []string              `json:"binds_ro"`
+	DiscoveredPath  string                `json:"discovered_path,omitempty"`
+	DiscoveredPaths []string              `json:"discovered_paths,omitempty"`
+	SecurityAlerts  []string              `json:"security_alerts,omitempty"`
+	AllAccesses     map[string]AccessMode `json:"-"`
 }
 
 // TraceOptions configures the execution and parsing of a trace session.

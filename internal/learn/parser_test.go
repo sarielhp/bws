@@ -4,16 +4,53 @@ import (
 	"testing"
 )
 
-func TestParseTraceLine(t *testing.T) {
-	tests := []struct {
-		name        string
-		line        string
-		wantName    string
-		wantPaths   []string
-		wantMode    AccessMode
-		wantSock    string
-		wantSuccess bool
-	}{
+type traceTestCase struct {
+	name        string
+	line        string
+	wantName    string
+	wantPaths   []string
+	wantMode    AccessMode
+	wantSock    string
+	wantSuccess bool
+}
+
+func runTraceTestCases(t *testing.T, tests []traceTestCase) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := ParseTraceLine(tt.line)
+			if p == nil {
+				t.Fatalf("expected non-nil parsed line for %q", tt.line)
+			}
+			if p.Name != tt.wantName {
+				t.Errorf("p.Name = %q, want %q", p.Name, tt.wantName)
+			}
+			if p.Mode != tt.wantMode {
+				t.Errorf("p.Mode = %v, want %v", p.Mode, tt.wantMode)
+			}
+			if p.Success != tt.wantSuccess {
+				t.Errorf("p.Success = %v, want %v", p.Success, tt.wantSuccess)
+			}
+			if len(tt.wantPaths) > 0 {
+				if len(p.Paths) != len(tt.wantPaths) {
+					t.Errorf("p.Paths = %v, want %v", p.Paths, tt.wantPaths)
+				} else {
+					for i := range tt.wantPaths {
+						if p.Paths[i] != tt.wantPaths[i] {
+							t.Errorf("p.Paths[%d] = %q, want %q", i, p.Paths[i], tt.wantPaths[i])
+						}
+					}
+				}
+			}
+			if tt.wantSock != "" && !startsWith(p.SockAddr, tt.wantSock) {
+				t.Errorf("p.SockAddr = %q, want prefix %q", p.SockAddr, tt.wantSock)
+			}
+		})
+	}
+}
+
+func TestParseTraceLine_Files(t *testing.T) {
+	tests := []traceTestCase{
 		{
 			name:        "open read-only",
 			line:        `1001 openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3`,
@@ -70,6 +107,28 @@ func TestParseTraceLine(t *testing.T) {
 			wantMode:    AccessRead,
 			wantSuccess: true,
 		},
+	}
+	runTraceTestCases(t, tests)
+}
+
+func TestParseTraceLine_ExecAndSockets(t *testing.T) {
+	tests := []traceTestCase{
+		{
+			name:        "execve binary",
+			line:        `1001 execve("/usr/bin/git", ["git", "status"], 0x7ffd) = 0`,
+			wantName:    "execve",
+			wantPaths:   []string{"/usr/bin/git"},
+			wantMode:    AccessRead,
+			wantSuccess: true,
+		},
+		{
+			name:        "execveat binary",
+			line:        `1001 execveat(3, "/usr/local/bin/myhelper", ["myhelper"], 0x7ffd, 0) = 0`,
+			wantName:    "execveat",
+			wantPaths:   []string{"/usr/local/bin/myhelper"},
+			wantMode:    AccessRead,
+			wantSuccess: true,
+		},
 		{
 			name:        "connect inet",
 			line:        `1001 connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.216.34")}, 16) = 0`,
@@ -95,38 +154,7 @@ func TestParseTraceLine(t *testing.T) {
 			wantSuccess: false,
 		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := ParseTraceLine(tt.line)
-			if p == nil {
-				t.Fatalf("expected non-nil parsed line for %q", tt.line)
-			}
-			if p.Name != tt.wantName {
-				t.Errorf("p.Name = %q, want %q", p.Name, tt.wantName)
-			}
-			if p.Mode != tt.wantMode {
-				t.Errorf("p.Mode = %v, want %v", p.Mode, tt.wantMode)
-			}
-			if p.Success != tt.wantSuccess {
-				t.Errorf("p.Success = %v, want %v", p.Success, tt.wantSuccess)
-			}
-			if len(tt.wantPaths) > 0 {
-				if len(p.Paths) != len(tt.wantPaths) {
-					t.Errorf("p.Paths = %v, want %v", p.Paths, tt.wantPaths)
-				} else {
-					for i := range tt.wantPaths {
-						if p.Paths[i] != tt.wantPaths[i] {
-							t.Errorf("p.Paths[%d] = %q, want %q", i, p.Paths[i], tt.wantPaths[i])
-						}
-					}
-				}
-			}
-			if tt.wantSock != "" && !startsWith(p.SockAddr, tt.wantSock) {
-				t.Errorf("p.SockAddr = %q, want prefix %q", p.SockAddr, tt.wantSock)
-			}
-		})
-	}
+	runTraceTestCases(t, tests)
 }
 
 func startsWith(s, prefix string) bool {

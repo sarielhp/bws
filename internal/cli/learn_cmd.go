@@ -127,7 +127,13 @@ func printLearnSummary(res *learn.TraceResult, delta *learn.Delta) {
 	fmt.Printf("  • WSL2 Interop:        %s\n", boolStatus(res.Features.WSL, green, dim))
 	fmt.Println()
 
-	if res.DiscoveredPath != "" {
+	if len(res.DiscoveredPaths) > 0 {
+		fmt.Println(cyan("Binary PATH Discovery:"))
+		for _, p := range res.DiscoveredPaths {
+			fmt.Printf("  • Binary directory:    %s\n", yellow(p))
+		}
+		fmt.Println()
+	} else if res.DiscoveredPath != "" {
 		fmt.Println(cyan("Binary PATH Discovery:"))
 		fmt.Printf("  • Binary directory:    %s\n\n", yellow(res.DiscoveredPath))
 	}

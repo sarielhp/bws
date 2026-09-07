@@ -12,10 +12,6 @@
     [
       "~/.gitconfig",
       "@@HOME@@/.gitconfig"
-    ],
-    [
-      "~/.git-credentials",
-      "@@HOME@@/.git-credentials"
     ]
   ],
   "tests": [

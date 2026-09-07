@@ -38,17 +38,7 @@ func (p *TraceParser) ParseLine(line string) *ParsedSyscall {
 		return nil
 	}
 
-	pid := 0
-	if match := pidPrefixRegex.FindStringSubmatch(trimmed); match != nil {
-		pStr := match[1]
-		if pStr == "" {
-			pStr = match[2]
-		}
-		if parsedPID, err := strconv.Atoi(pStr); err == nil {
-			pid = parsedPID
-		}
-		trimmed = strings.TrimSpace(trimmed[len(match[0]):])
-	}
+	pid, trimmed := extractPID(trimmed)
 
 	// Check if this is an unfinished syscall
 	if m := unfinishedCallRegex.FindStringSubmatch(trimmed); m != nil {
@@ -60,33 +50,8 @@ func (p *TraceParser) ParseLine(line string) *ParsedSyscall {
 	}
 
 	// Check if this is a resumed syscall
-	if m := resumedCallRegex.FindStringSubmatch(trimmed); m != nil {
-		callName := m[1]
-		extraArgs := m[2]
-		retStr := m[3]
-		retErr := m[4]
-
-		if pendingCall, ok := p.pending[pid]; ok && pendingCall.Name == callName {
-			delete(p.pending, pid)
-			completeArgs := pendingCall.Args + extraArgs
-			retVal, _ := strconv.Atoi(retStr)
-			success := retVal >= 0 && !strings.Contains(retErr, "ENOENT")
-
-			parsed := &ParsedSyscall{
-				PID:     pid,
-				Name:    callName,
-				RawArgs: completeArgs,
-				RetVal:  retVal,
-				Success: success,
-			}
-			populateParsedSyscall(parsed, callName, completeArgs)
-			return parsed
-		}
-		return nil
-	}
-
 	if strings.HasPrefix(trimmed, "<...") {
-		return nil
+		return p.handleResumed(pid, trimmed)
 	}
 
 	m := syscallCallRegex.FindStringSubmatch(trimmed)
@@ -116,6 +81,52 @@ func (p *TraceParser) ParseLine(line string) *ParsedSyscall {
 	return parsed
 }
 
+func extractPID(trimmed string) (int, string) {
+	if match := pidPrefixRegex.FindStringSubmatch(trimmed); match != nil {
+		pStr := match[1]
+		if pStr == "" {
+			pStr = match[2]
+		}
+		pid := 0
+		if parsedPID, err := strconv.Atoi(pStr); err == nil {
+			pid = parsedPID
+		}
+		return pid, strings.TrimSpace(trimmed[len(match[0]):])
+	}
+	return 0, trimmed
+}
+
+func (p *TraceParser) handleResumed(pid int, trimmed string) *ParsedSyscall {
+	m := resumedCallRegex.FindStringSubmatch(trimmed)
+	if m == nil {
+		return nil
+	}
+	callName := m[1]
+	extraArgs := m[2]
+	retStr := m[3]
+	retErr := m[4]
+
+	pendingCall, ok := p.pending[pid]
+	if !ok || pendingCall.Name != callName {
+		return nil
+	}
+
+	delete(p.pending, pid)
+	completeArgs := pendingCall.Args + extraArgs
+	retVal, _ := strconv.Atoi(retStr)
+	success := retVal >= 0 && !strings.Contains(retErr, "ENOENT")
+
+	parsed := &ParsedSyscall{
+		PID:     pid,
+		Name:    callName,
+		RawArgs: completeArgs,
+		RetVal:  retVal,
+		Success: success,
+	}
+	populateParsedSyscall(parsed, callName, completeArgs)
+	return parsed
+}
+
 func populateParsedSyscall(parsed *ParsedSyscall, callName, argsStr string) {
 	switch callName {
 	case "open", "openat", "openat2", "creat":
@@ -124,6 +135,13 @@ func populateParsedSyscall(parsed *ParsedSyscall, callName, argsStr string) {
 			parsed.Paths = []string{paths[0]}
 		}
 		parsed.Mode = determineOpenMode(callName, argsStr)
+
+	case "execve", "execveat":
+		paths := extractQuotedStrings(argsStr)
+		if len(paths) > 0 {
+			parsed.Paths = []string{paths[0]}
+		}
+		parsed.Mode = AccessRead
 
 	case "unlink", "unlinkat":
 		paths := extractQuotedStrings(argsStr)

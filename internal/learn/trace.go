@@ -21,55 +21,22 @@ func RunTrace(opts TraceOptions) (*TraceResult, error) {
 		return nil, fmt.Errorf("strace is required for bws learn but was not found in PATH")
 	}
 
-	if opts.HomeDir == "" {
-		opts.HomeDir = util.HomeDir()
-	}
-	if opts.WorkDir == "" {
-		if pwd, err := os.Getwd(); err == nil {
-			opts.WorkDir = pwd
-		}
-	}
-	if realWorkDir, err := filepath.EvalSymlinks(opts.WorkDir); err == nil {
-		opts.WorkDir = realWorkDir
-	}
+	normalizeTraceOptions(&opts)
 
-	// 1. Binary PATH discovery
-	var discoveredPath string
+	var initialPath string
 	if binDir, err := ResolveBinaryDir(opts.Command[0], opts.WorkDir, opts.HomeDir); err == nil && binDir != "" {
-		discoveredPath = binDir
+		initialPath = binDir
 	}
 
-	tmpFile, err := os.CreateTemp("", "bws-learn-*.log")
+	tmpPath, err := createTempLog()
 	if err != nil {
-		return nil, fmt.Errorf("creating temporary trace log file: %w", err)
+		return nil, err
 	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
 	defer os.Remove(tmpPath)
 
-	traceSyscalls := "open,openat,creat,unlink,unlinkat,rename,renameat,renameat2,mkdir,mkdirat,connect,bind,stat,lstat,newfstatat,statx,access,faccessat,faccessat2,openat2,truncate,ftruncate"
-	straceArgs := []string{
-		"-f",
-		"-e", "trace=" + traceSyscalls,
-		"-s", "1024",
-		"-o", tmpPath,
-		"--",
-	}
-	straceArgs = append(straceArgs, opts.Command...)
-
-	cmd := exec.Command("strace", straceArgs...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	runErr := cmd.Run()
-	exitCode := 0
-	if runErr != nil {
-		if exitErr, ok := runErr.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			return nil, fmt.Errorf("executing trace: %w", runErr)
-		}
+	exitCode, err := executeStrace(opts.Command, tmpPath)
+	if err != nil {
+		return nil, err
 	}
 
 	logFile, err := os.Open(tmpPath)
@@ -84,9 +51,65 @@ func RunTrace(opts TraceOptions) (*TraceResult, error) {
 	}
 	res.ExitCode = exitCode
 	res.Command = opts.Command
-	res.DiscoveredPath = discoveredPath
+
+	if initialPath != "" && !containsString(res.DiscoveredPaths, initialPath) {
+		res.DiscoveredPaths = append([]string{initialPath}, res.DiscoveredPaths...)
+	}
+	if res.DiscoveredPath == "" && len(res.DiscoveredPaths) > 0 {
+		res.DiscoveredPath = res.DiscoveredPaths[0]
+	}
 
 	return res, nil
+}
+
+func normalizeTraceOptions(opts *TraceOptions) {
+	if opts.HomeDir == "" {
+		opts.HomeDir = util.HomeDir()
+	}
+	if opts.WorkDir == "" {
+		if pwd, err := os.Getwd(); err == nil {
+			opts.WorkDir = pwd
+		}
+	}
+	if realWorkDir, err := filepath.EvalSymlinks(opts.WorkDir); err == nil {
+		opts.WorkDir = realWorkDir
+	}
+}
+
+func createTempLog() (string, error) {
+	tmpFile, err := os.CreateTemp("", "bws-learn-*.log")
+	if err != nil {
+		return "", fmt.Errorf("creating temporary trace log file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	return tmpPath, nil
+}
+
+func executeStrace(command []string, tmpPath string) (int, error) {
+	traceSyscalls := "open,openat,creat,unlink,unlinkat,rename,renameat,renameat2,mkdir,mkdirat,connect,bind,stat,lstat,newfstatat,statx,access,faccessat,faccessat2,openat2,truncate,ftruncate,execve,execveat"
+	straceArgs := []string{
+		"-f",
+		"-e", "trace=" + traceSyscalls,
+		"-s", "1024",
+		"-o", tmpPath,
+		"--",
+	}
+	straceArgs = append(straceArgs, command...)
+
+	cmd := exec.Command("strace", straceArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	runErr := cmd.Run()
+	if runErr != nil {
+		if exitErr, ok := runErr.(*exec.ExitError); ok {
+			return exitErr.ExitCode(), nil
+		}
+		return 0, fmt.Errorf("executing trace: %w", runErr)
+	}
+	return 0, nil
 }
 
 // AnalyzeTrace reads strace log lines from an io.Reader and generates a TraceResult.
@@ -105,22 +128,21 @@ func AnalyzeTrace(r io.Reader, opts TraceOptions) (*TraceResult, error) {
 
 // AnalyzeTraceLines parses a slice of strace log lines into a TraceResult.
 func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
-	if opts.HomeDir == "" {
-		opts.HomeDir = util.HomeDir()
-	}
-	if opts.WorkDir == "" {
-		if pwd, err := os.Getwd(); err == nil {
-			opts.WorkDir = pwd
-		}
-	}
-	if realWorkDir, err := filepath.EvalSymlinks(opts.WorkDir); err == nil {
-		opts.WorkDir = realWorkDir
-	}
-
+	normalizeTraceOptions(&opts)
 	pathDirs := GetPathDirectories(opts.HomeDir, opts.PathEnv, opts.PathDirs...)
 
 	features := DetectedFeatures{}
 	accesses := make(map[string]AccessMode)
+
+	var discoveredPaths []string
+	discoveredSeen := make(map[string]bool)
+	addDiscovered := func(dir string) {
+		if dir == "" || discoveredSeen[dir] {
+			return
+		}
+		discoveredSeen[dir] = true
+		discoveredPaths = append(discoveredPaths, dir)
+	}
 
 	parser := NewTraceParser()
 	for _, line := range lines {
@@ -137,34 +159,68 @@ func AnalyzeTraceLines(lines []string, opts TraceOptions) *TraceResult {
 			continue
 		}
 
-		for _, path := range parsed.Paths {
-			absPath := path
-			if !filepath.IsAbs(path) && opts.WorkDir != "" {
-				absPath = filepath.Join(opts.WorkDir, path)
+		if parsed.Name == "execve" || parsed.Name == "execveat" {
+			for _, binPath := range parsed.Paths {
+				if binDir, err := ResolveBinaryDir(binPath, opts.WorkDir, opts.HomeDir); err == nil && binDir != "" {
+					addDiscovered(binDir)
+				}
 			}
-			if realAbs, err := filepath.EvalSymlinks(absPath); err == nil {
-				absPath = realAbs
-			}
+		}
 
-			DetectPathFeatures(absPath, &features)
+		processParsedPaths(parsed, opts, pathDirs, &features, accesses)
+	}
 
-			if ShouldFilterAccess(absPath, parsed.Mode, opts.WorkDir, opts.HomeDir, pathDirs...) {
-				continue
-			}
-
-			accesses[absPath] |= parsed.Mode
+	if len(discoveredPaths) == 0 && len(opts.Command) > 0 {
+		if binDir, err := ResolveBinaryDir(opts.Command[0], opts.WorkDir, opts.HomeDir); err == nil && binDir != "" {
+			addDiscovered(binDir)
 		}
 	}
 
 	rawRW, bindsRO := CollapseAndClassify(accesses, opts.HomeDir)
 	safeRW, alerts := FilterSensitiveWrites(rawRW, opts.HomeDir)
 
-	return &TraceResult{
-		Command:        opts.Command,
-		Features:       features,
-		BindsRW:        safeRW,
-		BindsRO:        bindsRO,
-		SecurityAlerts: alerts,
-		AllAccesses:    accesses,
+	var primaryPath string
+	if len(discoveredPaths) > 0 {
+		primaryPath = discoveredPaths[0]
 	}
+
+	return &TraceResult{
+		Command:         opts.Command,
+		Features:        features,
+		BindsRW:         safeRW,
+		BindsRO:         bindsRO,
+		DiscoveredPath:  primaryPath,
+		DiscoveredPaths: discoveredPaths,
+		SecurityAlerts:  alerts,
+		AllAccesses:     accesses,
+	}
+}
+
+func processParsedPaths(parsed *ParsedSyscall, opts TraceOptions, pathDirs []string, features *DetectedFeatures, accesses map[string]AccessMode) {
+	for _, path := range parsed.Paths {
+		absPath := path
+		if !filepath.IsAbs(path) && opts.WorkDir != "" {
+			absPath = filepath.Join(opts.WorkDir, path)
+		}
+		if realAbs, err := filepath.EvalSymlinks(absPath); err == nil {
+			absPath = realAbs
+		}
+
+		DetectPathFeatures(absPath, features)
+
+		if ShouldFilterAccess(absPath, parsed.Mode, opts.WorkDir, opts.HomeDir, pathDirs...) {
+			continue
+		}
+
+		accesses[absPath] |= parsed.Mode
+	}
+}
+
+func containsString(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
 }
