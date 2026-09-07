@@ -56,13 +56,11 @@ flowchart TD
      * Python: `sys.prefix`, `site.getusersitepackages()`, `$VIRTUAL_ENV`
      * Node: `npm config get prefix cache`
      This resolves toolchain roots in ~10 ms and is immune to warm-cache under-learning.
-  3. **Self-healing AI agent recovery (`bws doctor`)**:
-     Install a `command_not_found_handle` in the sandbox skeleton `~/.bashrc`:
-     ```text
-     bws: 'gopls' not found in sandbox but present on host at ~/go/bin/gopls
-          fix: bws mount ~/go/bin   (or: bws learn -- gopls version)
-     ```
-     When an autonomous agent hits a missing tool, it receives an actionable one-line repair command instead of failing.
+  3. **Host-only authority & in-sandbox immutability**:
+     The AI agent inside the bubble is an untrusted actor. It must **never** be able to reconfigure the sandbox, discover unmounted host binaries, or expand its own perimeter.
+     * `bws` configuration (`.bws/` and `.bws.jsonc`) remains masked inside the container.
+     * `bws learn` and `bws mount` are strictly **host-side developer commands**.
+     * If an agent inside the sandbox attempts to run a missing or unmounted command, it must fail immediately (`command not found`). It cannot invoke `bws` or self-promote privileges. Missing tool additions must be evaluated and approved by the human developer on the host.
 
 ---
 
@@ -111,7 +109,6 @@ flowchart TD
 ### P1 — Developer ergonomics & toolchain speed
 * [ ] **Static toolchain discovery queries**: Implement fast-path queries for Go, Rust, Python, and Node toolchain roots (`go env`, `rustc --print sysroot`).
 * [ ] **Configuration split**: Support `.bws/local.jsonc` (gitignored, learned machine mounts) merged on top of `.bws/config.jsonc` (committed intent).
-* [ ] **`command_not_found_handle` in skeleton `.bashrc`**: Wire missing commands to `bws doctor` for self-healing agent workflows.
 * [ ] **`bws verify [script]`**: Run the workflow script in-sandbox and report pass/fail convergence.
 
 ### P2 — Architectural consolidation
