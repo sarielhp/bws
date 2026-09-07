@@ -62,10 +62,10 @@ func HandleProfileAdd(names []string, global, local bool) {
 		label = "local"
 	}
 	for _, name := range added {
-		fmt.Printf("Added profile %s to %s sandbox configuration (%s).\n", ColorProfile(name), label, targetPath)
+		fmt.Printf("Added profile %s to %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
 	}
 	for _, name := range refreshed {
-		fmt.Printf("Profile %s is active in %s sandbox configuration (%s).\n", ColorProfile(name), label, targetPath)
+		fmt.Printf("Profile %s is active in %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
 	}
 }
 
@@ -111,7 +111,7 @@ func HandleProfileDel(names []string, global, local bool) {
 			}
 		}
 		if !found {
-			fmt.Fprintf(os.Stderr, "Profile %s not found in %s configuration (%s).\n", ColorProfile(name), label, targetPath)
+			fmt.Fprintf(os.Stderr, "Profile %s not found in %s configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
 		}
 	}
 
@@ -125,6 +125,6 @@ func HandleProfileDel(names []string, global, local bool) {
 	}
 
 	for _, name := range removed {
-		fmt.Printf("Removed profile %s from %s sandbox configuration (%s).\n", ColorProfile(name), label, targetPath)
+		fmt.Printf("Removed profile %s from %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
 	}
 }

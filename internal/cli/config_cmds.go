@@ -138,7 +138,7 @@ func HandleConfigSet(key, value string, global, local bool) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Set %s in %s configuration (%s) = %s\n", key, label, path, value)
+	fmt.Printf("Set %s in %s configuration (%s) = %s\n", key, label, formatConfigDisplay(path, global), value)
 }
 
 // HandleConfigGet reads a configuration key value from target config.
@@ -187,7 +187,7 @@ func HandleConfigUnset(key string, global, local bool) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Unset %s from %s configuration (%s)\n", key, label, path)
+	fmt.Printf("Unset %s from %s configuration (%s)\n", key, label, formatConfigDisplay(path, global))
 }
 
 // HandleConfigPush copies global configuration & theme files to a remote host via SCP.

@@ -25,6 +25,24 @@ func configFilePath(global bool) string {
 	return config.LocalPath()
 }
 
+func formatConfigDisplay(path string, global bool) string {
+	if global {
+		if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(path, home) {
+			return "~" + strings.TrimPrefix(path, home)
+		}
+		return path
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		if rel, err := filepath.Rel(cwd, path); err == nil && !strings.HasPrefix(rel, "../../../../../") {
+			return rel
+		}
+	}
+	if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(path, home) {
+		return "~" + strings.TrimPrefix(path, home)
+	}
+	return path
+}
+
 func VerifyTools(isDefaultSession, skipFail bool) {
 	type tool struct {
 		cmd      string
@@ -174,7 +192,7 @@ func HandleCopyAdd(prog string, global, local bool) {
 	if !global {
 		label = "local"
 	}
-	fmt.Printf("Added '%s' to %s copy configuration (%s).\n", prog, label, path)
+	fmt.Printf("Added '%s' to %s copy configuration (%s).\n", prog, label, formatConfigDisplay(path, global))
 }
 
 func HandleCopyList() {

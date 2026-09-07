@@ -215,7 +215,7 @@ func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
 		label = "global"
 	}
 
-	fmt.Printf("✓ Updated %s configuration (%s):\n", label, targetPath)
+	fmt.Printf("✓ Updated %s configuration (%s):\n", label, formatConfigDisplay(targetPath, global))
 	if mergeRes.AddedRW > 0 {
 		fmt.Printf("  • Added %d read-write bind mounts\n", mergeRes.AddedRW)
 		for _, b := range delta.BindsRW {

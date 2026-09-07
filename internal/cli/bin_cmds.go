@@ -89,7 +89,7 @@ func HandleBinAdd(hostPath string, global, local bool) {
 	if expanded != sandboxPath {
 		fmt.Printf(" -> '%s'", sandboxPath)
 	}
-	fmt.Printf(" as read-only binary to %s configuration (%s).\n", label, targetPath)
+	fmt.Printf(" as read-only binary to %s configuration (%s).\n", label, formatConfigDisplay(targetPath, global))
 }
 
 // HandleBinDel removes an exposed binary from the configuration.
@@ -135,7 +135,7 @@ func HandleBinDel(nameOrPath string, global, local bool) {
 	if global {
 		label = "global"
 	}
-	fmt.Printf("Removed binary '%s' from %s configuration (%s).\n", matchedHost, label, targetPath)
+	fmt.Printf("Removed binary '%s' from %s configuration (%s).\n", matchedHost, label, formatConfigDisplay(targetPath, global))
 }
 
 // HandleBinList lists all exposed binaries in the configuration.

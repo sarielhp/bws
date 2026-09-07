@@ -48,7 +48,7 @@ func HandlePathAdd(dir string, global, local bool) {
 	if !global {
 		label = "local"
 	}
-	fmt.Printf("Added '%s' to %s PATH configuration (%s).\n", dir, label, targetPath)
+	fmt.Printf("Added '%s' to %s PATH configuration (%s).\n", dir, label, formatConfigDisplay(targetPath, global))
 }
 
 // HandlePathDel removes a directory from the PATH array in the config
