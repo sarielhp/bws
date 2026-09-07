@@ -294,14 +294,14 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 
 	addSystemAndNetArgs(cfg, &args, verbose)
 	addSandboxHomeBind(sandboxDir, homeDir, &args, dryRun, verbose)
+	addStandardMounts(cfg, sandboxDir, currentDir, &args, dryRun, verbose)
+	addFeatureMountArgs(cfg, sandboxDir, &args, dryRun)
 	args = append(args, buildBinds(cfg, sandboxDir, homeDir, currentDir, verbose)...)
 
 	addPassEnvArgs(cfg, &args, verbose)
 	addCustomEnvArgs(cfg, homeDir, &args, verbose)
 	addPathArgs(cfg, homeDir, &args, verbose)
 
-	addFeatureMountArgs(cfg, sandboxDir, &args, dryRun)
-	addStandardMounts(cfg, sandboxDir, currentDir, &args, dryRun, verbose)
 	addMaskArgs(&args, cfg, homeDir, currentDir, verbose)
 
 	return args

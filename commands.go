@@ -11,6 +11,7 @@ type appFlags struct {
 	global   bool
 	local    bool
 	ro       bool
+	rw       bool
 	verbose  bool
 	dryRun   bool
 	noSSH    bool

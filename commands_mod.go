@@ -58,19 +58,21 @@ func mountCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 			{
 				Name:             "add",
 				Aliases:          []string{"enable"},
-				Description:      "Add a bind mount (-g for global, defaults to local workspace; --ro for read-only)",
-				UsageLine:        "bws mount add <host-path> [sandbox-path] [-g | -l] [--ro]",
+				Description:      "Add a bind mount (-g for global, defaults to local workspace; read-only by default, --rw for read-write)",
+				UsageLine:        "bws mount add <host-path> [sandbox-path] [-g | -l] [--rw] [--ro]",
 				Args:             clihelp.RangeArgs(1, 2),
 				OptionsValidator: glValidator,
 				Options: []clihelp.Option{
-					clihelp.Bool(&f.ro, "--ro", false, "Make the bind mount read-only"),
+					clihelp.Bool(&f.rw, "--rw", false, "Make the bind mount read-write (defaults to read-only)"),
+					clihelp.Bool(&f.ro, "--ro", false, "Make the bind mount read-only (default)"),
 				},
 				Notes: []clihelp.Note{
-					{Heading: "Mount semantics", Text: "A bind mount makes a host directory or file accessible inside the sandbox. Read-write (default): the sandbox can modify the host file. Read-only (--ro): the sandbox can only read. If sandbox-path is omitted, the host path is used as-is inside the sandbox."},
+					{Heading: "Mount semantics", Text: "A bind mount makes a host directory or file accessible inside the sandbox. Read-only (default): the sandbox can only read. Read-write (--rw): the sandbox can modify the host file. If sandbox-path is omitted, the host path is used as-is inside the sandbox."},
 				},
 				Examples: []clihelp.Example{
-					{Line: "bws mount add /home/user/projects /projects", Description: "Add read-write mount to local config"},
-					{Line: "bws mount add /usr/share/dict --ro -g", Description: "Add read-only mount to global config"},
+					{Line: "bws mount add /usr/share/dict", Description: "Add read-only mount to local config (default)"},
+					{Line: "bws mount add /home/user/projects /projects --rw", Description: "Add read-write mount to local config"},
+					{Line: "bws mount add /usr/share/dict -g", Description: "Add read-only mount to global config"},
 				},
 				Run: func(ctx *clihelp.Context) error {
 					hostPath := ctx.Args[0]
@@ -78,7 +80,7 @@ func mountCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 					if len(ctx.Args) > 1 {
 						sandboxPath = ctx.Args[1]
 					}
-					cli.HandleMountAdd(hostPath, sandboxPath, f.ro, f.global, f.local)
+					cli.HandleMountAdd(hostPath, sandboxPath, f.rw, f.global, f.local)
 					return nil
 				},
 			},

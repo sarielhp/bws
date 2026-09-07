@@ -7,91 +7,185 @@ import (
 	"strings"
 
 	"bws/internal/config"
+	"bws/internal/util"
 )
 
-func HandleBindAdd(hostPath, sandboxPath string, ro, global, local bool) {
+func isPathInside(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel))
+}
+
+func tokenizePath(p string) string {
+	homeDir := util.HomeDir()
+	if homeDir == "" {
+		return p
+	}
+	if p == homeDir {
+		return config.HomeToken
+	}
+	if strings.HasPrefix(p, homeDir+"/") {
+		return config.HomeToken + strings.TrimPrefix(p, homeDir)
+	}
+	return p
+}
+
+func resolveHostCheckPath(hostPath string, global bool) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getting working directory: %w", err)
+	}
+
+	hostExpanded := utilExpandHome(hostPath)
+	if filepath.IsAbs(hostExpanded) {
+		return filepath.Clean(hostExpanded), nil
+	}
+	if global {
+		return "", fmt.Errorf("global bind mount host path must be absolute")
+	}
+	return filepath.Clean(filepath.Join(cwd, hostExpanded)), nil
+}
+
+func evaluateSymlink(hostPath, checkPath string) (string, bool, error) {
+	fi, err := os.Lstat(checkPath)
+	if err != nil {
+		return "", false, fmt.Errorf("host path '%s' does not exist (%w)", hostPath, err)
+	}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		return hostPath, false, nil
+	}
+
+	target, err := filepath.EvalSymlinks(checkPath)
+	if err != nil {
+		return "", false, fmt.Errorf("symlink '%s' is dangling: target does not exist (%w)", hostPath, err)
+	}
+	if _, err := os.Stat(target); err != nil {
+		return "", false, fmt.Errorf("symlink '%s' is dangling: target '%s' does not exist (%w)", hostPath, target, err)
+	}
+
+	cwd, _ := os.Getwd()
+	evalCwd, _ := filepath.EvalSymlinks(cwd)
+	if isPathInside(cwd, target) || (evalCwd != "" && isPathInside(evalCwd, target)) {
+		fmt.Printf("Note: '%s' resolves to '%s' which is already accessible inside the workspace.\n", hostPath, target)
+		return "", true, nil
+	}
+
+	tokenizedTarget := tokenizePath(target)
+	fmt.Printf("Resolved symlink %s -> %s\n", hostPath, tokenizedTarget)
+	return tokenizedTarget, false, nil
+}
+
+func runBindAdd(hostPath, sandboxPath string, rw, global, local bool) error {
+	checkPath, err := resolveHostCheckPath(hostPath, global)
+	if err != nil {
+		return err
+	}
+	resolvedHost, skip, err := evaluateSymlink(hostPath, checkPath)
+	if err != nil {
+		return err
+	}
+	if skip {
+		return nil
+	}
+
 	if !global && !local {
 		local = true
 	}
 	targetPath := configFilePath(global)
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		config.CreateDefault(targetPath)
-	}
-
-	hostExpanded := utilExpandHome(hostPath)
-	if !strings.HasPrefix(hostExpanded, "/") {
-		if global {
-			fmt.Fprintf(os.Stderr, "Error: Global bind mount host path must be absolute.\n")
-			os.Exit(1)
-		}
-		cwd, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Getting working directory: %v\n", err)
-			os.Exit(1)
-		}
-		absPath := filepath.Clean(filepath.Join(cwd, hostPath))
-		if _, err := os.Stat(absPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Host path '%s' does not exist (%v).\n", hostPath, err)
-			os.Exit(1)
+		if err := config.CreateDefault(targetPath); err != nil {
+			return fmt.Errorf("creating default config: %w", err)
 		}
 	}
 
-	key := "binds_rw"
-	modeLabel := "read-write"
-	if ro {
-		key = "binds_ro"
-		modeLabel = "read-only"
+	key := "binds_ro"
+	modeLabel := "read-only"
+	if rw {
+		key = "binds_rw"
+		modeLabel = "read-write"
 	}
 
-	entry := fmt.Sprintf("%q", hostPath)
-	if sandboxPath != "" && sandboxPath != hostPath {
-		entry = fmt.Sprintf("[%q, %q]", hostPath, sandboxPath)
+	entry := fmt.Sprintf("%q", resolvedHost)
+	if sandboxPath != "" && sandboxPath != resolvedHost {
+		entry = fmt.Sprintf("[%q, %q]", resolvedHost, sandboxPath)
 	}
 
 	if err := config.AddBindArrayElement(targetPath, key, entry); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	label := "global"
 	if local {
 		label = "local"
 	}
-	fmt.Printf("Added %s bind mount '%s'", modeLabel, hostPath)
-	if sandboxPath != "" && sandboxPath != hostPath {
+	fmt.Printf("Added %s bind mount '%s'", modeLabel, resolvedHost)
+	if sandboxPath != "" && sandboxPath != resolvedHost {
 		fmt.Printf(" -> '%s'", sandboxPath)
 	}
 	fmt.Printf(" to %s configuration (%s).\n", label, targetPath)
+	return nil
 }
 
-func HandleMountAdd(hostPath, sandboxPath string, ro, global, local bool) {
-	HandleBindAdd(hostPath, sandboxPath, ro, global, local)
+func HandleBindAdd(hostPath, sandboxPath string, rw, global, local bool) {
+	if err := runBindAdd(hostPath, sandboxPath, rw, global, local); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
-func HandleBindDel(hostPath string, global, local bool) {
+func HandleMountAdd(hostPath, sandboxPath string, rw, global, local bool) {
+	HandleBindAdd(hostPath, sandboxPath, rw, global, local)
+}
+
+func runBindDel(hostPath string, global, local bool) error {
 	if !global && !local {
 		local = true
 	}
 	targetPath := configFilePath(global)
 
+	candidates := []string{hostPath, tokenizePath(utilExpandHome(hostPath))}
+	if checkPath, err := resolveHostCheckPath(hostPath, global); err == nil {
+		if fi, err := os.Lstat(checkPath); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			if target, err := filepath.EvalSymlinks(checkPath); err == nil {
+				candidates = append(candidates, tokenizePath(target))
+			}
+		}
+	}
+
 	found := false
-	for _, key := range []string{"binds_rw", "binds_ro"} {
-		f, err := config.RemoveBindElement(targetPath, key, hostPath)
-		if err != nil || f {
-			found = found || f
+	var matchedPath string
+	for _, cand := range candidates {
+		for _, key := range []string{"binds_rw", "binds_ro"} {
+			f, err := config.RemoveBindElement(targetPath, key, cand)
+			if err != nil || f {
+				found = found || f
+			}
+		}
+		if found {
+			matchedPath = cand
+			break
 		}
 	}
 
 	if !found {
-		fmt.Fprintf(os.Stderr, "Bind mount '%s' not found in configuration.\n", hostPath)
-		os.Exit(1)
+		return fmt.Errorf("bind mount '%s' not found in configuration", hostPath)
 	}
 
 	label := "global"
 	if local {
 		label = "local"
 	}
-	fmt.Printf("Removed bind mount '%s' from %s configuration (%s).\n", hostPath, label, targetPath)
+	fmt.Printf("Removed bind mount '%s' from %s configuration (%s).\n", matchedPath, label, targetPath)
+	return nil
+}
+
+func HandleBindDel(hostPath string, global, local bool) {
+	if err := runBindDel(hostPath, global, local); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func HandleMountDel(hostPath string, global, local bool) {

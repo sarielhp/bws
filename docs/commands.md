@@ -224,13 +224,30 @@ bws profile save ml-env -d "ML stack setup"   # Set custom description
 
 ## Environment modifiers (mount, bin, copy, path)
 
-### `bws mount add <host-path> [dest] [-g | -l] [--ro]`
+### `bws mount add <host-path> [dest] [-g | -l] [--rw] [--ro]`
 Add a persistent bind mount to configuration (defaults to local workspace `-l`).
+
+Bind mounts default to read-only (`binds_ro`). Pass `--rw` to explicitly configure a read-write mount (`binds_rw`). The `--ro` flag is supported as a backward-compatible no-op.
+
 ```bash
-bws mount add /opt/tools /tools           # Read-write mount
-bws mount add /data/models /models --ro   # Read-only mount
-bws mount add /opt/global-tools -g        # Global mount
+bws mount add /data/models /models        # Read-only mount (default)
+bws mount add /opt/tools /tools --rw      # Read-write mount
+bws mount add /usr/share/dict --ro        # Read-only mount (explicit)
+bws mount add /opt/global-tools -g        # Global read-only mount
 ```
+
+#### Symlink auto-resolution
+When `<host-path>` points to a symbolic link on the host, `bws` detects it via `os.Lstat` and canonicalizes the destination using `filepath.EvalSymlinks`:
+- **Dangling symlinks**: If the target does not exist, the command exits with code 1 and prints a descriptive error.
+- **Internal workspace symlinks**: If the canonical target resides inside the current workspace directory (`currentDir`), `bws` reports that the target is already accessible within the workspace and exits cleanly without modifying configuration.
+- **External symlinks**: If the canonical target is outside the workspace, paths located under `$HOME` are tokenized as `@@HOME@@`. The tool prints `Resolved symlink <hostPath> -> <target>` and persists the canonical target into `binds_ro` (or `binds_rw` if `--rw` is set).
+
+#### Nested mount semantics
+The runtime mount engine structures Bubblewrap arguments to support nested mounts (read-only directories within read-write mounts, and read-write subdirectories within read-only mounts):
+- Base parent mounts (`sandbox home`, host temporary directory `/tmp`, and the workspace directory `currentDir`) are mounted prior to user-defined mounts. This ensures user mounts targeting subdirectories of the workspace are not shadowed by `--bind currentDir currentDir`.
+- User bind mounts are topologically sorted so parent directories strictly precede child subdirectories (`depth parent < depth child`).
+- When path depths are equal, read-only mounts precede read-write mounts, allowing read-write overrides over read-only roots.
+- Security masking (`addMaskArgs`) executes strictly last, ensuring security barriers take precedence over all user mounts.
 
 ### `bws mount rm <host-path> [-g | -l]`
 Remove a bind mount by its host path (aliases: `del`, `delete`, `remove`).
