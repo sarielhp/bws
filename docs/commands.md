@@ -158,6 +158,16 @@ bws plan
 
 ---
 
+### `bws doctor`
+Inspect and validate sandbox environment, configuration, mounts, and prerequisites. Runs seven diagnostic checks (kernel user namespaces, critical host tools, configuration and profile validity, dead bind mounts, workspace symlink boundary audit, mount masking conflicts, and SSH agent socket health).
+
+```bash
+bws doctor                      # Run environment diagnostics and health report
+bws doctor -v                   # Run diagnostics with verbose output
+```
+
+---
+
 ### `bws add <profile...> [-g | -l]`
 Add and enable one or more capability profiles in the current environment (defaults to local workspace `-l`; pass `-g` for global). Alias: `enable`.
 ```bash

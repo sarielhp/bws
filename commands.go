@@ -94,3 +94,16 @@ func planCmd(f *appFlags) clihelp.Command {
 		},
 	}
 }
+
+func doctorCmd(f *appFlags) clihelp.Command {
+	return clihelp.Command{
+		Name:        "doctor",
+		Group:       "Current environment",
+		Description: "Inspect and validate sandbox environment, configuration, mounts, and prerequisites",
+		UsageLine:   "bws doctor",
+		Args:        clihelp.NoArgs,
+		Run: func(ctx *clihelp.Context) error {
+			return cli.HandleDoctor(f.verbose)
+		},
+	}
+}
