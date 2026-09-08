@@ -430,3 +430,48 @@ func TestClearenvFalseUnsetsForgeTokens(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildArgsMountsWorkspaceRootWhenInSubdirectory(t *testing.T) {
+	wsRoot := t.TempDir()
+	bwsDir := filepath.Join(wsRoot, ".bws")
+	if err := os.MkdirAll(bwsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bwsDir, "config.jsonc"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	subDir := filepath.Join(wsRoot, "sub", "chapter")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{}
+	sandboxDir := t.TempDir()
+	args := BuildArgs(cfg, sandboxDir, subDir, true, false)
+
+	foundWsRoot := false
+	foundSubDir := false
+	foundChdir := false
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--bind" && i+2 < len(args) && args[i+1] == wsRoot && args[i+2] == wsRoot {
+			foundWsRoot = true
+		}
+		if args[i] == "--bind" && i+2 < len(args) && args[i+1] == subDir && args[i+2] == subDir {
+			foundSubDir = true
+		}
+		if args[i] == "--chdir" && args[i+1] == subDir {
+			foundChdir = true
+		}
+	}
+
+	if !foundWsRoot {
+		t.Errorf("expected workspace root %s to be bound, got args: %v", wsRoot, args)
+	}
+	if !foundSubDir {
+		t.Errorf("expected sub directory %s to be bound, got args: %v", subDir, args)
+	}
+	if !foundChdir {
+		t.Errorf("expected chdir to %s, got args: %v", subDir, args)
+	}
+}

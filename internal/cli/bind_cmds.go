@@ -48,12 +48,33 @@ func resolveHostCheckPath(hostPath string, global bool) (string, error) {
 	return filepath.Clean(filepath.Join(cwd, hostExpanded)), nil
 }
 
+func isInsideWorkspace(target string) bool {
+	cwd, _ := os.Getwd()
+	evalCwd, _ := filepath.EvalSymlinks(cwd)
+	if isPathInside(cwd, target) || (evalCwd != "" && isPathInside(evalCwd, target)) {
+		return true
+	}
+	wsRoot, _ := config.FindWorkspaceRoot(cwd)
+	if wsRoot != "" {
+		evalWsRoot, _ := filepath.EvalSymlinks(wsRoot)
+		if isPathInside(wsRoot, target) || (evalWsRoot != "" && isPathInside(evalWsRoot, target)) {
+			return true
+		}
+	}
+	return false
+}
+
 func evaluateSymlink(hostPath, checkPath string) (string, bool, error) {
 	fi, err := os.Lstat(checkPath)
 	if err != nil {
 		return "", false, fmt.Errorf("host path '%s' does not exist (%w)", hostPath, err)
 	}
+
 	if fi.Mode()&os.ModeSymlink == 0 {
+		if isInsideWorkspace(checkPath) {
+			fmt.Printf("Note: '%s' is already accessible inside the workspace.\n", hostPath)
+			return "", true, nil
+		}
 		return hostPath, false, nil
 	}
 
@@ -65,9 +86,7 @@ func evaluateSymlink(hostPath, checkPath string) (string, bool, error) {
 		return "", false, fmt.Errorf("symlink '%s' is dangling: target '%s' does not exist (%w)", hostPath, target, err)
 	}
 
-	cwd, _ := os.Getwd()
-	evalCwd, _ := filepath.EvalSymlinks(cwd)
-	if isPathInside(cwd, target) || (evalCwd != "" && isPathInside(evalCwd, target)) {
+	if isInsideWorkspace(target) {
 		fmt.Printf("Note: '%s' resolves to '%s' which is already accessible inside the workspace.\n", hostPath, target)
 		return "", true, nil
 	}

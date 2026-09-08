@@ -130,13 +130,42 @@ func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 	// 4. Pre-create mountpoint paths inside staged home
 	precreateMountpoints(cfg, stageDir, currentDir, util.HomeDir())
 
+	// 5. Replicate host home convenience symlinks
+	replicateHomeSymlinks(stageDir, util.HomeDir())
+
 	return stageDir, cleanup, nil
 }
 
+func replicateHomeSymlinks(stageDir, home string) {
+	entries, err := os.ReadDir(home)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Type()&os.ModeSymlink == 0 {
+			continue
+		}
+		name := e.Name()
+		dest := filepath.Join(stageDir, name)
+		if _, err := os.Lstat(dest); err == nil {
+			continue
+		}
+		src := filepath.Join(home, name)
+		target, err := os.Readlink(src)
+		if err != nil {
+			continue
+		}
+		_ = os.Symlink(target, dest)
+	}
+}
+
 func precreateMountpoints(cfg *config.Config, stageDir, currentDir, home string) {
-	if strings.HasPrefix(currentDir, home+"/") {
-		relCwd := strings.TrimPrefix(currentDir, home+"/")
-		_ = os.MkdirAll(filepath.Join(stageDir, relCwd), 0755)
+	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
+	for _, d := range []string{currentDir, wsRoot} {
+		if d != "" && strings.HasPrefix(d, home+"/") {
+			rel := strings.TrimPrefix(d, home+"/")
+			_ = os.MkdirAll(filepath.Join(stageDir, rel), 0755)
+		}
 	}
 
 	resolvePath := func(p string) string {

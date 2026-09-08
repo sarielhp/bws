@@ -223,39 +223,7 @@ func addFeatureMountArgs(cfg *config.Config, sandboxDir string, args *[]string, 
 	addQuartoBind(args)
 }
 
-func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *[]string, dryRun, verbose bool) {
-	hostTmp := "/tmp/bws/SANDBOX_TMP"
-	if !dryRun {
-		os.MkdirAll("/tmp/bws", 0755)
-		if tmp, err := os.MkdirTemp("/tmp/bws", "sandbox_"); err == nil {
-			hostTmp = tmp
-		}
-	}
-
-	*args = append(*args,
-		"--bind", hostTmp, "/tmp",
-		"--proc", "/proc",
-		"--dev", "/dev",
-		"--ro-bind-try", "/sys", "/sys",
-		"--die-with-parent",
-		"--bind", currentDir, currentDir,
-		"--chdir", currentDir,
-	)
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "[verbose]   --bind %s /tmp\n", hostTmp)
-		fmt.Fprintf(os.Stderr, "[verbose]   --proc /proc\n")
-		fmt.Fprintf(os.Stderr, "[verbose]   --dev /dev\n")
-		fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /sys /sys\n")
-		fmt.Fprintf(os.Stderr, "[verbose]   --die-with-parent\n")
-		fmt.Fprintf(os.Stderr, "[verbose]   --bind %s %s\n", currentDir, currentDir)
-		fmt.Fprintf(os.Stderr, "[verbose]   --chdir %s\n", currentDir)
-	}
-
-	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableX11 }) && os.Getenv("DISPLAY") != "" {
-		*args = append(*args, "--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix")
-	}
-
+func addNetworkMounts(sandboxDir string, args *[]string) {
 	for _, p := range []string{
 		"/run/systemd/resolve",
 		"/opt/google",
@@ -284,6 +252,56 @@ func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *
 	if _, err := os.Stat(hostsPath); err == nil {
 		*args = append(*args, "--ro-bind", hostsPath, "/etc/hosts")
 	}
+}
+
+func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *[]string, dryRun, verbose bool) {
+	hostTmp := "/tmp/bws/SANDBOX_TMP"
+	if !dryRun {
+		os.MkdirAll("/tmp/bws", 0755)
+		if tmp, err := os.MkdirTemp("/tmp/bws", "sandbox_"); err == nil {
+			hostTmp = tmp
+		}
+	}
+
+	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
+	mountTarget := currentDir
+	if wsRoot != "" && wsRoot != "/" && wsRoot != currentDir {
+		mountTarget = wsRoot
+	}
+
+	*args = append(*args,
+		"--bind", hostTmp, "/tmp",
+		"--proc", "/proc",
+		"--dev", "/dev",
+		"--ro-bind-try", "/sys", "/sys",
+		"--die-with-parent",
+	)
+	if mountTarget != currentDir {
+		*args = append(*args, "--bind", mountTarget, mountTarget)
+	}
+	*args = append(*args,
+		"--bind", currentDir, currentDir,
+		"--chdir", currentDir,
+	)
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[verbose]   --bind %s /tmp\n", hostTmp)
+		fmt.Fprintf(os.Stderr, "[verbose]   --proc /proc\n")
+		fmt.Fprintf(os.Stderr, "[verbose]   --dev /dev\n")
+		fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /sys /sys\n")
+		fmt.Fprintf(os.Stderr, "[verbose]   --die-with-parent\n")
+		if mountTarget != currentDir {
+			fmt.Fprintf(os.Stderr, "[verbose]   --bind %s %s (workspace root)\n", mountTarget, mountTarget)
+		}
+		fmt.Fprintf(os.Stderr, "[verbose]   --bind %s %s\n", currentDir, currentDir)
+		fmt.Fprintf(os.Stderr, "[verbose]   --chdir %s\n", currentDir)
+	}
+
+	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableX11 }) && os.Getenv("DISPLAY") != "" {
+		*args = append(*args, "--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix")
+	}
+
+	addNetworkMounts(sandboxDir, args)
 }
 
 func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbose bool) []string {

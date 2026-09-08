@@ -156,3 +156,32 @@ func TestStageHomePopulatesTmuxConf(t *testing.T) {
 		t.Errorf("staged .tmux.conf missing M-Left pane navigation")
 	}
 }
+
+func TestReplicateHomeSymlinks(t *testing.T) {
+	mockHome := t.TempDir()
+	stageDir := t.TempDir()
+
+	targetDir := filepath.Join(mockHome, "real_target")
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	symlinkPath := filepath.Join(mockHome, "link_to_target")
+	if err := os.Symlink(targetDir, symlinkPath); err != nil {
+		t.Fatal(err)
+	}
+
+	replicateHomeSymlinks(stageDir, mockHome)
+
+	stagedLink := filepath.Join(stageDir, "link_to_target")
+	fi, err := os.Lstat(stagedLink)
+	if err != nil {
+		t.Fatalf("expected replicated symlink in stageDir: %v", err)
+	}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("expected %s to be a symlink", stagedLink)
+	}
+	target, err := os.Readlink(stagedLink)
+	if err != nil || target != targetDir {
+		t.Errorf("expected target %s, got %s (err: %v)", targetDir, target, err)
+	}
+}

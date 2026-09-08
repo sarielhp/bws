@@ -16,6 +16,9 @@
       "*.ltx"
     ]
   },
+  "env": {
+    "openout_any": "a"
+  },
   "pass_env": [
     "TEXINPUTS",
     "BIBINPUTS",
