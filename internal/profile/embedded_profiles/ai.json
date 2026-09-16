@@ -1,5 +1,6 @@
 {
   "name": "ai",
+  "kind": "compound",
   "description": "AI Coding Assistant stack (Antigravity CLI, OpenCode, oc switcher, Claude Code, Aider, Copilot, Continue, LLM, Shell-GPT, Ollama)",
   "requires": [
     "opencode",

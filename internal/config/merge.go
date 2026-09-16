@@ -8,6 +8,7 @@ func boolPtrVal(b *bool) bool {
 }
 
 func Merge(global, local *Config) *Config {
+	global, local = Clone(global), Clone(local)
 	if global == nil && local == nil {
 		return &Config{}
 	}
@@ -35,6 +36,12 @@ func Merge(global, local *Config) *Config {
 	result.System = mergeSystem(global.System, local.System)
 	result.Features = MergeFeatures(global.Features, local.Features)
 	result.Env = mergeEnv(global.Env, local.Env)
+	if result.ReviewedProfiles == nil {
+		result.ReviewedProfiles = make(map[string]ProfileApproval)
+	}
+	for name, approval := range local.ReviewedProfiles {
+		result.ReviewedProfiles[name] = approval
+	}
 
 	result.PassEnv = mergeStringSlices(global.PassEnv, local.PassEnv)
 	result.Path = mergeStringSlices(global.Path, local.Path)

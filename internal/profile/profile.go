@@ -25,31 +25,37 @@ type TestSpec struct {
 
 // DetectSpec defines heuristics for auto-detecting when a profile applies to a workspace.
 type DetectSpec struct {
-	Files       []string `json:"files,omitempty"`
-	Globs       []string `json:"globs,omitempty"`
-	DirContains []string `json:"dir_contains,omitempty"`
+	Files       []string     `json:"files,omitempty"`
+	Globs       []string     `json:"globs,omitempty"`
+	DirContains []string     `json:"dir_contains,omitempty"`
+	AllOf       []DetectSpec `json:"all_of,omitempty"`
 }
 
 // Profile represents a declarative sandbox tool capability profile.
 type Profile struct {
-	Name        string                 `json:"name"`
-	Aliases     []string               `json:"aliases,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Requires    []string               `json:"requires,omitempty"`
-	Path        []string               `json:"path,omitempty"`
-	Env         map[string]string      `json:"env,omitempty"`
-	PassEnv     []string               `json:"pass_env,omitempty"`
-	Mask        []string               `json:"mask,omitempty"`
-	BindsRW     [][]string             `json:"binds_rw,omitempty"`
-	BindsRO     [][]string             `json:"binds_ro,omitempty"`
-	Copy        []string               `json:"copy,omitempty"`
-	UnshareNet  bool                   `json:"unshare_net,omitempty"`
-	NoNet       bool                   `json:"no_net,omitempty"`
-	Features    *config.FeaturesConfig `json:"features,omitempty"`
-	Detect      *DetectSpec            `json:"detect,omitempty"`
-	Tests       []TestSpec             `json:"tests,omitempty"`
-	Rules       []ProfileRule          `json:"rules,omitempty"`
-	Source      string                 `json:"source,omitempty"` // "embedded", "global", "local"
+	Name                string                 `json:"name"`
+	Kind                string                 `json:"kind,omitempty"`
+	Reviewed            map[string]Dependency  `json:"reviewed_dependencies,omitempty"`
+	ReviewedPermissions []string               `json:"reviewed_permissions,omitempty"`
+	ReviewedPolicy      string                 `json:"reviewed_policy_sha256,omitempty"`
+	Origin              string                 `json:"-"`
+	Aliases             []string               `json:"aliases,omitempty"`
+	Description         string                 `json:"description,omitempty"`
+	Requires            []string               `json:"requires,omitempty"`
+	Path                []string               `json:"path,omitempty"`
+	Env                 map[string]string      `json:"env,omitempty"`
+	PassEnv             []string               `json:"pass_env,omitempty"`
+	Mask                []string               `json:"mask,omitempty"`
+	BindsRW             [][]string             `json:"binds_rw,omitempty"`
+	BindsRO             [][]string             `json:"binds_ro,omitempty"`
+	Copy                []string               `json:"copy,omitempty"`
+	UnshareNet          bool                   `json:"unshare_net,omitempty"`
+	NoNet               bool                   `json:"no_net,omitempty"`
+	Features            *config.FeaturesConfig `json:"features,omitempty"`
+	Detect              *DetectSpec            `json:"detect,omitempty"`
+	Tests               []TestSpec             `json:"tests,omitempty"`
+	Rules               []ProfileRule          `json:"rules,omitempty"`
+	Source              string                 `json:"source,omitempty"` // "embedded", "global", "local"
 }
 
 // ResolvedProfile contains flattened and merged configuration after dependency resolution.
@@ -155,7 +161,11 @@ func loadDirProfiles(dir, source string, registry map[string]*Profile) error {
 			if p.Name == "" {
 				return fmt.Errorf("profile %s has no name", path)
 			}
+			if err := ValidateDefinition(&p); err != nil {
+				return fmt.Errorf("profile %s: %w", path, err)
+			}
 			p.Source = source
+			p.Origin = path
 			registry[p.Name] = &p
 			for _, alias := range p.Aliases {
 				registry[alias] = &p
@@ -206,6 +216,9 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 	if err != nil {
 		return nil, err
 	}
+	if err := ValidateComposition(registry[name], registry, ctx); err != nil {
+		return nil, err
+	}
 	res := &ResolvedProfile{
 		Name:     name,
 		Profiles: order,
@@ -214,6 +227,14 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 
 	for _, pName := range order {
 		p := registry[pName]
+		if pName != name && p.ReviewedPolicy != "" {
+			if _, err := ResolveProfile(pName, registry, ctx); err != nil {
+				return nil, err
+			}
+		}
+		if err := CheckReviewed(p, registry); err != nil {
+			return nil, err
+		}
 		if res.Description == "" && p.Description != "" {
 			res.Description = p.Description
 		}
@@ -237,7 +258,15 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 
 		res.Tests = append(res.Tests, p.Tests...)
 	}
-
+	if expected := registry[name].ReviewedPolicy; expected != "" {
+		digest, err := PermissionDigest(res)
+		if err != nil {
+			return nil, err
+		}
+		if digest != expected {
+			return nil, fmt.Errorf("profile %q effective permissions changed; run 'bws profile review %s' before approving", name, name)
+		}
+	}
 	return res, nil
 }
 

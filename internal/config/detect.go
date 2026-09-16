@@ -1,7 +1,7 @@
 package config
 
 import (
-	"io/fs"
+	"bws/internal/detect"
 	"path/filepath"
 	"strings"
 )
@@ -75,65 +75,20 @@ func inspectFile(name, nameLower string, features *ProjectFeatures) {
 
 // DetectFeatures inspects the specified directory and detects project characteristics.
 func DetectFeatures(dir string) (ProjectFeatures, error) {
-	features := ProjectFeatures{
-		EnableSSH: true,
-	}
-
-	absDir, err := filepath.Abs(dir)
+	features := ProjectFeatures{EnableSSH: true}
+	evidence, err := detect.Scan(dir)
 	if err != nil {
 		return features, err
 	}
-
-	dirLower := strings.ToLower(filepath.Base(absDir))
-	if strings.Contains(dirLower, "opencode") || strings.Contains(dirLower, "oc") {
-		features.HasOpenCode = true
-	}
-
-	maxDepth := 3
-	walkErr := filepath.WalkDir(absDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		rel, err := filepath.Rel(absDir, path)
-		if err != nil {
-			return nil
-		}
-
-		if d.IsDir() {
-			name := d.Name()
-			if rel != "." {
-				// Skip hidden or heavy directories
-				if strings.HasPrefix(name, ".") && name != ".open-mem" && name != ".opencode" {
-					return filepath.SkipDir
-				}
-				if name == "node_modules" || name == "vendor" || name == "target" ||
-					name == "dist" || name == "build" || name == "__pycache__" ||
-					name == ".venv" || name == "venv" || name == ".sandbox" {
-					return filepath.SkipDir
-				}
-			}
-
+	for _, entry := range evidence.Entries {
+		name := filepath.Base(entry.Path)
+		if entry.Directory {
 			if name == ".open-mem" || name == ".opencode" {
 				features.HasOpenCode = true
 			}
-
-			depth := strings.Count(rel, string(filepath.Separator))
-			if rel != "." && depth >= maxDepth {
-				return filepath.SkipDir
-			}
-			return nil
+			continue
 		}
-
-		name := d.Name()
-		nameLower := strings.ToLower(name)
-		inspectFile(name, nameLower, &features)
-		return nil
-	})
-
-	if walkErr != nil {
-		return features, walkErr
+		inspectFile(name, strings.ToLower(name), &features)
 	}
-
 	return features, nil
 }

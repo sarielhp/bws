@@ -48,7 +48,7 @@ func TestProfileSave(t *testing.T) {
 	wsDir, bwsDir := setupProfileSaveWorkspace(t)
 
 	// 1. Test saving locally
-	cmd := exec.Command(bwPath, "profile", "save", "snap-local", "-l", "-d", "My local test snapshot")
+	cmd := exec.Command(bwPath, "profile", "save", "snap-local", "--allow-machine-paths", "-l", "-d", "My local test snapshot")
 	cmd.Dir = wsDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -84,7 +84,7 @@ func TestProfileSave(t *testing.T) {
 	}
 
 	// 3. Test overwrite with -f
-	cmd = exec.Command(bwPath, "profile", "save", "snap-local", "-l", "-f", "-d", "Updated snapshot")
+	cmd = exec.Command(bwPath, "profile", "save", "snap-local", "--allow-machine-paths", "-l", "-f", "-d", "Updated snapshot")
 	cmd.Dir = wsDir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -106,7 +106,7 @@ func TestProfileSave(t *testing.T) {
 	}
 
 	// 5. Test global save
-	cmd = exec.Command(bwPath, "profile", "save", "snap-global", "-g")
+	cmd = exec.Command(bwPath, "profile", "save", "snap-global", "--allow-machine-paths", "-g")
 	cmd.Dir = wsDir
 	out, err = cmd.CombinedOutput()
 	if err != nil {

@@ -1,5 +1,7 @@
 {
   "name": "latex-dev",
+  "kind": "compound",
+  "detect": {"files":["latexmkrc",".latexmkrc","Tectonic.toml"],"globs":["*.tex"]},
   "description": "Complete LaTeX authoring environment (alias for latex-use)",
   "requires": [
     "latex-use"

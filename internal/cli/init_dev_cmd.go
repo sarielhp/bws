@@ -7,148 +7,110 @@ import (
 	"strings"
 
 	"bws/internal/config"
-	"bws/internal/profile"
+	"bws/internal/policy"
 )
 
-// HandleInit handles the `bws init` command.
-func HandleInit(targetDir string, force, dryRun, noSSH, opencode bool, preset string, profiles []string) error {
-	return HandleInitDev(targetDir, force, dryRun, noSSH, opencode, preset, profiles)
+// InitOptions selects a project setup without inferring user intent from filenames.
+type InitOptions struct {
+	TargetDir string
+	Profiles  []string
+	Preset    string
+	OpenCode  bool
+	Basic     bool
+	Force     bool
+	DryRun    bool
+	Yes       bool
+	Flags     policy.Flags
 }
 
-// HandleInitDev handles the `bws init-dev` command.
+// HandleInit keeps the historical Go entry point as an explicit basic-init adapter.
+func HandleInit(targetDir string, force, dryRun, noSSH, opencode bool, preset string, profiles []string) error {
+	return HandleInitOptions(InitOptions{TargetDir: targetDir, Force: force, DryRun: dryRun, OpenCode: opencode, Preset: preset, Profiles: profiles, Basic: true, Flags: policy.Flags{NoSSH: noSSH}})
+}
+
+// HandleInitDev preserves the init-dev handler alias.
 func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset string, profiles []string) error {
-	if targetDir == "" {
-		targetDir = "."
-	}
+	return HandleInit(targetDir, force, dryRun, noSSH, opencode, preset, profiles)
+}
 
-	absDir, err := filepath.Abs(targetDir)
-	if err != nil {
-		return fmt.Errorf("resolving target directory: %w", err)
-	}
-
-	fi, err := os.Stat(absDir)
-	if err != nil {
-		return fmt.Errorf("target directory %s: %w", absDir, err)
-	}
-	if !fi.IsDir() {
-		return fmt.Errorf("target path is not a directory: %s", absDir)
-	}
-
-	features, err := config.DetectFeatures(absDir)
-	if err != nil {
-		return fmt.Errorf("detecting workspace features: %w", err)
-	}
-
-	activeProfiles, extraRW, extraRO, extraPath, extraEnv, err := resolveInitProfiles(absDir, profiles)
+// HandleInitOptions previews and applies a reviewed initialization plan.
+func HandleInitOptions(opts InitOptions) error {
+	root, before, err := initDestination(opts.TargetDir)
 	if err != nil {
 		return err
 	}
-
-	opts := config.InitDevOptions{
-		Features:     features,
-		TargetDir:    absDir,
-		Force:        force,
-		DryRun:       dryRun,
-		NoSSH:        noSSH,
-		OpenCode:     opencode,
-		Preset:       preset,
-		Profiles:     activeProfiles,
-		ExtraBindsRW: extraRW,
-		ExtraBindsRO: extraRO,
-		ExtraPath:    extraPath,
-		ExtraEnv:     extraEnv,
-	}
-
-	jsonContent, err := config.GenerateDevConfigJSON(opts)
-	if err != nil {
-		return fmt.Errorf("generating dev configuration: %w", err)
-	}
-
-	if dryRun {
-		fmt.Print(jsonContent)
+	if before != nil && !opts.Force {
+		fmt.Printf("Workspace already initialized: %s\nUnchanged. Use --force with an explicit selection to replace it.\n", root)
 		return nil
 	}
-
-	configPath := config.FindLocalPath(absDir)
-	if err := writeConfigFile(configPath, jsonContent, force); err != nil {
+	names, err := selectInitProfiles(root, opts)
+	if err != nil {
 		return err
 	}
-
-	printInitSummary(configPath, opts)
-	return nil
-}
-
-func resolveInitProfiles(absDir string, profiles []string) ([]string, [][]string, [][]string, []string, map[string]string, error) {
-	registry, err := profile.LoadRegistry(absDir)
+	plan, err := BuildInitPlan(root, names, opts.Flags)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return err
 	}
-	detectedProfiles := profile.DetectProfiles(absDir, registry)
-	activeProfileNames := make(map[string]bool)
-
-	for _, p := range detectedProfiles {
-		activeProfileNames[p.Name] = true
+	fmt.Fprintf(os.Stderr, "Workspace: %s\nSelected profiles: %s\n", root, strings.Join(names, ", "))
+	PrintPolicySummary(os.Stderr, plan.Effective)
+	if opts.DryRun {
+		_, err = os.Stdout.Write(plan.Data)
+		return err
 	}
-	for _, pName := range profiles {
-		clean := strings.TrimSpace(pName)
-		if clean != "" {
-			activeProfileNames[clean] = true
+	if !opts.Yes && IsInteractiveTTY(int(os.Stdin.Fd())) {
+		if err := confirmPolicy(os.Stdin, os.Stderr, "Initialize with these permissions?"); err != nil {
+			return err
 		}
 	}
-
-	var extraRW [][]string
-	var extraRO [][]string
-	var extraPath []string
-	extraEnv := make(map[string]string)
-	ctx := profile.DetectMatchContext()
-
-	var finalActiveProfiles []string
-	for pName := range activeProfileNames {
-		finalActiveProfiles = append(finalActiveProfiles, pName)
-		resolved, err := profile.ResolveProfile(pName, registry, ctx)
+	path := filepath.Join(root, ".bws", "config.jsonc")
+	if before != nil {
+		backup := path + ".bak"
+		prior, err := config.PolicyBytes(backup)
 		if err != nil {
-			return nil, nil, nil, nil, nil, err
+			return err
 		}
-		extraRW = append(extraRW, resolved.BindsRW...)
-		extraRO = append(extraRO, resolved.BindsRO...)
-		extraPath = append(extraPath, resolved.Path...)
-		for k, v := range resolved.Env {
-			extraEnv[k] = v
+		if err := config.AtomicPolicyWrite(backup, before, prior); err != nil {
+			return err
 		}
+		fmt.Printf("Backed up existing configuration to: %s\n", backup)
 	}
-	return finalActiveProfiles, extraRW, extraRO, extraPath, extraEnv, nil
-}
-
-func writeConfigFile(configPath, jsonContent string, force bool) error {
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-		return fmt.Errorf("creating directory %s: %w", filepath.Dir(configPath), err)
+	if err := config.AtomicPolicyWrite(path, plan.Data, before); err != nil {
+		return err
 	}
-
-	if _, err := os.Stat(configPath); err == nil && !force {
-		backupPath := configPath + ".bak"
-		if err := os.Rename(configPath, backupPath); err != nil {
-			return fmt.Errorf("backing up existing configuration: %w", err)
-		}
-		fmt.Printf("Backed up existing configuration to: %s\n", backupPath)
-	}
-
-	if err := config.WriteTrustedFile(configPath, []byte(jsonContent)); err != nil {
-		return fmt.Errorf("writing configuration to %s: %w", configPath, err)
-	}
+	fmt.Printf("Initialized development sandbox configuration: %s\n", path)
 	return nil
 }
 
-func printInitSummary(configPath string, opts config.InitDevOptions) {
-	detected := opts.Features.DetectedStacks()
-	if len(detected) == 0 {
-		detected = append(detected, "Generic Dev/Agent")
+func initDestination(dir string) (string, []byte, error) {
+	if dir == "" {
+		dir = "."
 	}
-
-	fmt.Printf("Initialized development sandbox configuration: %s\n", configPath)
-	fmt.Printf("  Detected stack(s): %s\n", strings.Join(detected, ", "))
-	if !opts.Features.EnableSSH {
-		fmt.Printf("  SSH forwarding:    disabled\n")
-	} else {
-		fmt.Printf("  SSH forwarding:    enabled (host agent)\n")
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", nil, err
 	}
+	fi, err := os.Stat(abs)
+	if err != nil {
+		return "", nil, err
+	}
+	if !fi.IsDir() {
+		return "", nil, fmt.Errorf("target path is not a directory: %s", abs)
+	}
+	root, path := config.FindWorkspaceRoot(abs)
+	if err := config.ValidateWorkspace(root, 1000, true); err != nil {
+		return "", nil, err
+	}
+	before, err := config.PolicyBytes(path)
+	if err != nil {
+		return "", nil, err
+	}
+	if before != nil {
+		if _, err := config.ReadTrustedFile(path); err != nil {
+			return "", nil, err
+		}
+		if filepath.Base(path) != "config.jsonc" || filepath.Base(filepath.Dir(path)) != ".bws" {
+			return "", nil, fmt.Errorf("legacy configuration %s must be migrated to .bws/config.jsonc before reinitialization", path)
+		}
+	}
+	return root, before, nil
 }

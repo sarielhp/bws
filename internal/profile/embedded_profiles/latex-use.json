@@ -1,5 +1,7 @@
 {
   "name": "latex-use",
+  "kind": "compound",
+  "detect": {"files":["latexmkrc",".latexmkrc","Tectonic.toml"],"globs":["*.tex"]},
   "description": "Complete LaTeX authoring environment (TeX Live, Pandoc, Editor)",
   "requires": [
     "latex",

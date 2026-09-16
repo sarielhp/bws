@@ -1,5 +1,6 @@
 {
   "name": "secure-agent",
+  "kind": "compound",
   "description": "Hardened AI agent environment with complete isolation from host secrets, browser data, and history",
   "requires": [
     "ai",

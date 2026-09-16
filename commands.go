@@ -26,6 +26,8 @@ type appFlags struct {
 	profiles []string
 	docsDir  string
 	desc     string
+	basic    bool
+	yes      bool
 }
 
 func initCmd(f *appFlags) clihelp.Command {
@@ -38,10 +40,12 @@ func initCmd(f *appFlags) clihelp.Command {
 		Name:        "init",
 		Aliases:     []string{"setup", "init-dev"},
 		Group:       "Current environment",
-		Description: "Initialize a hardened .bws/config.jsonc workspace configuration",
+		Description: "Select profiles and initialize a reviewed .bws/config.jsonc configuration",
 		UsageLine:   "bws init [options] [target-dir]",
 		Args:        clihelp.RangeArgs(0, 1),
 		Options: []clihelp.Option{
+			clihelp.Bool(&f.basic, "--basic", false, "Explicitly select detected embedded tool profiles"),
+			clihelp.Bool(&f.yes, "-y, --yes", false, "Confirm the explicitly selected initialization plan"),
 			clihelp.Bool(&f.dryRun, "-n, --dry-run", false, "Print generated configuration to stdout without writing to disk"),
 			clihelp.Bool(&f.opencode, "--opencode", false, "Force inclusion of OpenCode configuration directories"),
 			presetOpt,
@@ -49,16 +53,16 @@ func initCmd(f *appFlags) clihelp.Command {
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws init", Description: "Initialize .bws/config.jsonc in current directory"},
-			{Line: "bws init -n", Description: "Dry run: preview generated configuration"},
+			{Line: "bws init -p go-dev -n", Description: "Preview a selected profile without writing"},
 			{Line: "bws init --preset python", Description: "Initialize with Python/UV settings"},
-			{Line: "bws init -p node,git", Description: "Initialize with specific profiles"},
+			{Line: "bws init -p node,git", Description: "Initialize with exactly these profile selections"},
 		},
 		Run: func(ctx *clihelp.Context) error {
 			targetDir := "."
 			if len(ctx.Args) > 0 {
 				targetDir = ctx.Args[0]
 			}
-			return cli.HandleInit(targetDir, f.force, f.dryRun, f.noSSH, f.opencode, f.preset, f.profiles)
+			return cli.HandleInitOptions(cli.InitOptions{TargetDir: targetDir, Force: f.force, DryRun: f.dryRun, OpenCode: f.opencode, Preset: f.preset, Profiles: f.profiles, Basic: f.basic, Yes: f.yes, Flags: policyFlags(f)})
 		},
 	}
 }

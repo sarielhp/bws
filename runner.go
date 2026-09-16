@@ -296,7 +296,7 @@ func runSandboxCommand(name string, execArgs []string, force, verbose bool) erro
 	return nil
 }
 
-func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool) error {
+func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool, noInit ...bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
@@ -312,5 +312,9 @@ func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFl
 		return err
 	}
 
+	skipInit := len(noInit) > 0 && noInit[0]
+	if err := maybeAutoInit(sl, currentDir, force, skipInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose); err != nil {
+		return err
+	}
 	return buildAndRun(sl, currentDir, false, args, verbose)
 }

@@ -3,6 +3,16 @@
 This directory contains the declarative **capability profiles** for `bws` (Bubblewrap Sandbox).
 Profiles modularize bind mounts, environment variables, path additions, security masks, and verification smoke tests.
 
+## Compound profiles
+
+Use `bws profile save <name>` to save a working setup, or
+`bws profile compose <name> --profiles go,opencode,git` to combine tools.
+`bws profile suggest` explains matching candidates; `bws init --profile <name>`
+selects one without adding detected tools. Definitions with `kind: "compound"`
+use the same resolver and optional `detect.all_of` groups.
+See the [compound profile guide](../docs/compound_profiles.md) for portability,
+approval fingerprints, and examples.
+
 ---
 
 ## Table of contents
@@ -699,4 +709,3 @@ bws test <name>
 ```bash
 bws profile show <name>
 ```
-

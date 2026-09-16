@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"bws/internal/config"
+	"bws/internal/policy"
 )
 
 func TestPromptAutoInit(t *testing.T) {
@@ -83,19 +84,23 @@ func TestAutoConfigureWorkspaceGoProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read raw config file: %v", err)
 	}
-	if !strings.Contains(string(rawContent), "@@HOME@@/.go") {
-		t.Errorf("expected raw config file to contain @@HOME@@/.go, got:\n%s", string(rawContent))
+	if !strings.Contains(string(rawContent), `"go"`) || strings.Contains(string(rawContent), "binds_rw") {
+		t.Errorf("expected a Go profile reference without copied mounts, got:\n%s", string(rawContent))
 	}
 
 	loaded, err := config.LoadFile(configPath)
 	if err != nil {
 		t.Fatalf("failed to load generated config: %v", err)
 	}
-	if loaded.Features == nil || loaded.Features.EnableSSH == nil || !*loaded.Features.EnableSSH {
+	if !config.FeatureEnabled(loaded, func(f *config.FeaturesConfig) *bool { return f.EnableSSH }) {
 		t.Errorf("expected SSH enabled by default in Go project config")
 	}
-	if !strings.HasSuffix(loaded.Env["GOPATH"], "/.go") {
-		t.Errorf("expected GOPATH ending with /.go, got %q", loaded.Env["GOPATH"])
+	resolved, err := policy.Load(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(resolved.Config.Env["GOPATH"], "/.go") {
+		t.Errorf("expected resolved GOPATH ending with /.go, got %q", resolved.Config.Env["GOPATH"])
 	}
 }
 

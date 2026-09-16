@@ -122,20 +122,27 @@ func (b *BindEntry) UnmarshalJSON(data []byte) error {
 }
 
 type Config struct {
-	System          *SystemConfig     `json:"system"`
-	SandboxPath     string            `json:"sandbox_path"`
-	ModelsJSONPath  string            `json:"models_json_path"`
-	TmuxSessionName string            `json:"tmux_session_name"`
-	MaxFileCount    int               `json:"max_file_count"`
-	Features        *FeaturesConfig   `json:"features"`
-	Env             map[string]string `json:"env"`
-	PassEnv         []string          `json:"pass_env,omitempty"`
-	Path            []string          `json:"path"`
-	BindsRW         []BindEntry       `json:"binds_rw"`
-	BindsRO         []BindEntry       `json:"binds_ro"`
-	Profiles        []string          `json:"profiles,omitempty"`
-	Mask            []string          `json:"mask,omitempty"`
-	Copy            []string          `json:"copy"`
+	ReviewedProfiles map[string]ProfileApproval `json:"reviewed_profiles,omitempty"`
+	System           *SystemConfig              `json:"system"`
+	SandboxPath      string                     `json:"sandbox_path"`
+	ModelsJSONPath   string                     `json:"models_json_path"`
+	TmuxSessionName  string                     `json:"tmux_session_name"`
+	MaxFileCount     int                        `json:"max_file_count"`
+	Features         *FeaturesConfig            `json:"features"`
+	Env              map[string]string          `json:"env"`
+	PassEnv          []string                   `json:"pass_env,omitempty"`
+	Path             []string                   `json:"path"`
+	BindsRW          []BindEntry                `json:"binds_rw"`
+	BindsRO          []BindEntry                `json:"binds_ro"`
+	Profiles         []string                   `json:"profiles,omitempty"`
+	Mask             []string                   `json:"mask,omitempty"`
+	Copy             []string                   `json:"copy"`
+}
+
+// ProfileApproval records reviewed profile identity without importing the resolver.
+type ProfileApproval struct {
+	Source string `json:"source"`
+	SHA256 string `json:"sha256"`
 }
 
 func replaceHomeToken(obj interface{}, home string) interface{} {

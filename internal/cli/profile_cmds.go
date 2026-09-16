@@ -13,7 +13,7 @@ import (
 )
 
 // HandleProfileList lists all registered profiles and their source.
-func HandleProfileList() error {
+func HandleProfileList(compoundOnly ...bool) error {
 	cwd, _ := os.Getwd()
 	registry, err := profile.LoadRegistry(cwd)
 	if err != nil {
@@ -23,6 +23,9 @@ func HandleProfileList() error {
 	var uniqueProfiles []*profile.Profile
 	seen := make(map[string]bool)
 	for _, p := range registry {
+		if len(compoundOnly) > 0 && compoundOnly[0] && p.Kind != "compound" {
+			continue
+		}
 		if !seen[p.Name] {
 			seen[p.Name] = true
 			uniqueProfiles = append(uniqueProfiles, p)
@@ -82,6 +85,9 @@ func HandleProfileShow(name string) error {
 
 	fmt.Printf("Profile: %s\n", ColorProfile(p.Name))
 	fmt.Printf("Source:  %s\n", p.Source)
+	if err := printCompoundDetails(p, registry); err != nil {
+		return err
+	}
 	if p.Description != "" {
 		fmt.Printf("Description: %s\n", p.Description)
 	}
@@ -100,6 +106,10 @@ func HandleProfileShow(name string) error {
 		fmt.Printf("Resolved Chain: %s\n", strings.Join(coloredChain, " -> "))
 	}
 
+	return printResolvedProfile(resolved)
+}
+
+func printResolvedProfile(resolved *profile.ResolvedProfile) error {
 	if len(resolved.Path) > 0 {
 		fmt.Println("\nPath Additions:")
 		for _, pt := range resolved.Path {

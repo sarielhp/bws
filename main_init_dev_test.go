@@ -15,18 +15,18 @@ func TestInitDevDryRun(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test"), 0644)
 
-	cmd := exec.Command(bwPath, "init-dev", "-n", tmpDir)
+	cmd := exec.Command(bwPath, "init-dev", "--profile", "go", "-n", tmpDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("bws init-dev -n failed: %v\n%s", err, string(output))
 	}
 
 	outStr := string(output)
-	if !containsStr(outStr, `"GOPATH": "@@HOME@@/.go"`) {
-		t.Errorf("expected GOPATH in dry run output, got:\n%s", outStr)
+	if !containsStr(outStr, `"go"`) {
+		t.Errorf("expected Go profile reference in dry run output, got:\n%s", outStr)
 	}
-	if !containsStr(outStr, `"~/.gemini"`) {
-		t.Errorf("expected ~/.gemini in dry run output, got:\n%s", outStr)
+	if containsStr(outStr, `"~/.gemini"`) {
+		t.Errorf("unexpected unrelated agent mount in dry run output:\n%s", outStr)
 	}
 
 	// Make sure .bws/config.jsonc was NOT written
@@ -44,7 +44,7 @@ func TestInitDevWriteAndBackup(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "pyproject.toml"), []byte("[project]"), 0644)
 
 	// First init
-	cmd := exec.Command(bwPath, "init-dev", tmpDir)
+	cmd := exec.Command(bwPath, "init-dev", "--profile", "python", tmpDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("bws init-dev failed: %v\n%s", err, string(output))
@@ -59,7 +59,7 @@ func TestInitDevWriteAndBackup(t *testing.T) {
 	}
 
 	// Second init (should backup old)
-	cmd = exec.Command(bwPath, "init-dev", tmpDir)
+	cmd = exec.Command(bwPath, "init-dev", "--profile", "python", "--force", tmpDir)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("second bws init-dev failed: %v\n%s", err, string(output))

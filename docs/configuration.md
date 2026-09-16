@@ -28,7 +28,13 @@ When the global configuration is absent, launch and preview use embedded default
 
 * **Maps & hashes** (`env`): Deep merged. Local keys override global keys.
 * **Lists & arrays** (`profiles`, `mask`, `pass_env`, `path`, `binds_rw`, `binds_ro`): Merged and deduplicated while preserving declaration order.
-* **Tokens**: `@@HOME@@` is dynamically expanded to the target sandbox user home directory at launch time.
+* **Tokens**: `@@HOME@@` identifies the user's home directory. `@@WORKSPACE@@` identifies the selected workspace root in path-bearing declarations.
+* **Compound profile environment**: Explicit compound settings override global environment defaults; explicit project environment settings take precedence over those.
+* **Restrictive features**: Local defaults cannot re-enable a capability disabled by the resolved profiles, or remove offline/history restrictions.
+
+Initialization now stores selected profile references and `reviewed_profiles`
+source/content fingerprints rather than expanded mounts. Saving and reusing
+setups is covered in [compound profiles](compound_profiles.md).
 
 ---
 

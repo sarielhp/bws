@@ -1,5 +1,7 @@
 {
   "name": "python-dev",
+  "kind": "compound",
+  "detect": {"files":["pyproject.toml","requirements.txt","Pipfile","uv.lock"],"globs":["*.py"]},
   "description": "Full Python developer environment (Python3, UV, Git, Editor)",
   "requires": [
     "python",

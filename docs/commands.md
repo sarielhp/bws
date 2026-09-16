@@ -121,19 +121,21 @@ bws learn -g cargo build               # Learn and merge additions into global c
 ## Current environment
 
 ### `bws init [options] [dir]`
-Inspect workspace repository markers and generate `.bws/config.jsonc` (aliases: `setup`, `init-dev`). If `[dir]` is omitted, defaults to current directory.
+Inspect workspace markers, suggest compound profiles, and generate a reference-based `.bws/config.jsonc` (aliases: `setup`, `init-dev`). Existing projects remain unchanged without `--force`. Noninteractive use requires an explicit selection or `--basic`.
 
 | Option | Description |
 | :--- | :--- |
 | `-n`, `--dry-run` | Preview generated JSONC on stdout without creating `.bws/` |
 | `--preset <name>` | Force stack preset (`go`, `python`, `rust`, `node`, `latex`, `agent`, `all`) |
-| `-p`, `--profile <name>`| Comma-separated extra capability profile names to include |
+| `-p`, `--profile <name>`| Explicit selections; do not add detected profiles |
+| `--basic` | Select detected embedded tool profiles |
+| `-y`, `--yes` | Skip confirmation of an explicit selection |
 
 ```bash
-bws init                        # Auto-detect current directory
-bws init -n                     # Dry run: preview generated JSONC
+bws init                        # Suggest and select interactively
+bws init -p go-dev -n            # Preview the selected configuration
 bws init --preset python        # Explicitly select Python stack
-bws init -p docker,pandoc       # Include extra tool profiles
+bws init -p docker,pandoc       # Select these profiles explicitly
 bws init /path/to/project       # Initialize specific directory
 ```
 
@@ -222,15 +224,31 @@ bws profile update
 ```
 
 ### `bws profile save <name> [-g | -l] [-f] [-d <description>]`
-Snapshot the current workspace configuration (`.bws/config.jsonc`) as a reusable profile. Aliases: `snap`, `export`.
+Save effective global, trusted local, and profile capabilities as a reusable compound profile. Aliases: `snap`, `export`. Saving does not activate it.
 ```bash
 bws profile save my-env                       # Save as global profile in ~/.config/bws/profiles/
 bws profile save my-env -f                    # Overwrite existing profile
 bws profile save project-env -l               # Save as local profile in .bws/profiles/
 bws profile save ml-env -d "ML stack setup"   # Set custom description
+bws profile save my-env --dry-run             # Preview JSON without writes
+bws profile save my-env --flatten             # Materialize supported settings
 ```
 
 ---
+
+### Compound authoring, suggestions, and review
+
+```bash
+bws profile compose go-agent --profiles go,opencode,git --no-ssh --match go.mod
+bws profile suggest --compound
+bws profile suggest /path/to/project --json
+bws profile list --compound
+bws profile review go-agent
+bws profile review go-agent --accept
+```
+
+See [compound profiles](compound_profiles.md) for matching rules, save limitations,
+portability acknowledgments, dependency review, and noninteractive behavior.
 
 ## Environment modifiers (mount, bin, copy, path)
 

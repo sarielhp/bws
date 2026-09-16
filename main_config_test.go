@@ -14,7 +14,7 @@ func TestCLIConfigSetGetUnset(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	cmdInit := exec.Command(bwPath, "init", "-f", tmpDir)
+	cmdInit := exec.Command(bwPath, "init", "--basic", "-f", tmpDir)
 	if out, err := cmdInit.CombinedOutput(); err != nil {
 		t.Fatalf("init failed: %v\n%s", err, string(out))
 	}

@@ -1,5 +1,7 @@
 {
   "name": "go-dev",
+  "kind": "compound",
+  "detect": {"files":["go.mod","go.work"],"globs":["*.go"]},
   "description": "Full Go developer environment (Go toolchain, Gopls LSP, Git, Editor)",
   "requires": [
     "go",

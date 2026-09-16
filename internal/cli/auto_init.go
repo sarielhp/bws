@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"bws/internal/config"
+	"bws/internal/policy"
 
 	"golang.org/x/term"
 )
@@ -17,52 +17,37 @@ import (
 // and writes .bws/config.jsonc and returns (configPath, detectedSummary, nil).
 // If no project features are detected, it returns ("", "", nil) without writing any file.
 func AutoConfigureWorkspace(targetDir string, noSSH bool) (string, string, error) {
-	absDir, err := filepath.Abs(targetDir)
-	if err != nil {
-		return "", "", fmt.Errorf("resolving target directory: %w", err)
-	}
-
-	features, err := config.DetectFeatures(absDir)
-	if err != nil {
-		return "", "", fmt.Errorf("detecting workspace features: %w", err)
-	}
-	if !features.AnyDetected() {
-		return "", "", nil
-	}
-
-	summary := strings.Join(features.DetectedStacks(), ", ")
-	activeProfiles, extraRW, extraRO, extraPath, extraEnv, err := resolveInitProfiles(absDir, nil)
+	root, before, err := initDestination(targetDir)
 	if err != nil {
 		return "", "", err
 	}
-
-	opts := config.InitDevOptions{
-		Features:     features,
-		TargetDir:    absDir,
-		Force:        false,
-		DryRun:       false,
-		NoSSH:        noSSH,
-		Profiles:     activeProfiles,
-		ExtraBindsRW: extraRW,
-		ExtraBindsRO: extraRO,
-		ExtraPath:    extraPath,
-		ExtraEnv:     extraEnv,
+	if before != nil {
+		return "", "", nil
 	}
-
-	jsonContent, err := config.GenerateDevConfigJSON(opts)
+	names, err := basicProfiles(root)
 	if err != nil {
-		return "", "", fmt.Errorf("generating dev configuration: %w", err)
+		return "", "", err
 	}
-
-	configPath := filepath.Join(absDir, ".bws", "config.jsonc")
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-		return "", "", fmt.Errorf("creating directory %s: %w", filepath.Dir(configPath), err)
+	if len(names) == 0 {
+		return "", "", nil
 	}
-	if err := config.WriteTrustedFile(configPath, []byte(jsonContent)); err != nil {
-		return "", "", fmt.Errorf("writing configuration to %s: %w", configPath, err)
+	features, err := config.DetectFeatures(root)
+	if err != nil {
+		return "", "", err
 	}
-
-	return configPath, summary, nil
+	summary := strings.Join(features.DetectedStacks(), ", ")
+	if summary == "" {
+		summary = strings.Join(names, ", ")
+	}
+	plan, err := BuildInitPlan(root, names, policy.Flags{NoSSH: noSSH})
+	if err != nil {
+		return "", "", err
+	}
+	path := filepath.Join(root, ".bws", "config.jsonc")
+	if err := config.AtomicPolicyWrite(path, plan.Data, nil); err != nil {
+		return "", "", err
+	}
+	return path, summary, nil
 }
 
 // PromptAutoInit asks the user if they want to auto-configure the workspace.

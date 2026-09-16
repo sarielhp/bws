@@ -55,6 +55,33 @@ func GenerateProfile(name string) (*Profile, error) {
 		p.Description = fmt.Sprintf("%s toolchain and environment", cleanName)
 	}
 
+	fjWhitelists, fjReadOnlys, fjKeepVars := fetchFirejail(client, cleanName)
+	populateGeneratedAccess(p, cleanName, fjWhitelists, fjReadOnlys, fjKeepVars)
+
+	// 5. Formulate Tests
+	p.Tests = []TestSpec{
+		{
+			Name: fmt.Sprintf("%s binary version check", cleanName),
+			Cmd:  []string{cleanName, "--version"},
+			Type: "version",
+		},
+	}
+
+	// 6. Formulate Detect
+	p.Detect = &DetectSpec{
+		Files: []string{
+			fmt.Sprintf("%s.json", cleanName),
+			fmt.Sprintf(".%s", cleanName),
+		},
+		Globs: []string{
+			fmt.Sprintf("*.%s", cleanName),
+		},
+	}
+
+	return p, nil
+}
+
+func fetchFirejail(client *http.Client, cleanName string) ([]string, []string, []string) {
 	// 2. Query Firejail Profile Repository
 	fjURL := fmt.Sprintf("https://raw.githubusercontent.com/netblue30/firejail/master/etc/%s.profile", cleanName)
 	var fjWhitelists []string
@@ -83,6 +110,10 @@ func GenerateProfile(name string) (*Profile, error) {
 		}
 	}
 
+	return fjWhitelists, fjReadOnlys, fjKeepVars
+}
+
+func populateGeneratedAccess(p *Profile, cleanName string, fjWhitelists, fjReadOnlys, fjKeepVars []string) {
 	seenRW := make(map[string]bool)
 	seenRO := make(map[string]bool)
 
@@ -129,27 +160,6 @@ func GenerateProfile(name string) (*Profile, error) {
 		}
 	}
 
-	// 5. Formulate Tests
-	p.Tests = []TestSpec{
-		{
-			Name: fmt.Sprintf("%s binary version check", cleanName),
-			Cmd:  []string{cleanName, "--version"},
-			Type: "version",
-		},
-	}
-
-	// 6. Formulate Detect
-	p.Detect = &DetectSpec{
-		Files: []string{
-			fmt.Sprintf("%s.json", cleanName),
-			fmt.Sprintf(".%s", cleanName),
-		},
-		Globs: []string{
-			fmt.Sprintf("*.%s", cleanName),
-		},
-	}
-
-	return p, nil
 }
 
 func isSensitiveEnvVar(name string) bool {

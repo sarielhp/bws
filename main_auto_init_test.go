@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"bws/internal/config"
+	"bws/internal/policy"
 )
 
 func setupGlobalConfigWithAutoInit(t *testing.T, autoInit string) string {
@@ -61,12 +62,12 @@ func TestAutoInitAlwaysCreatesAndLoads(t *testing.T) {
 		t.Fatalf("expected .bws/config.jsonc to be created, stat err: %v", err)
 	}
 
-	cfg, err := config.LoadFile(configPath)
+	resolved, err := policy.Load(tmpDir)
 	if err != nil {
 		t.Fatalf("failed to load created config: %v", err)
 	}
-	if !strings.HasSuffix(cfg.Env["GOPATH"], "/.go") {
-		t.Errorf("expected GOPATH ending with /.go in loaded config, got %q", cfg.Env["GOPATH"])
+	if !strings.HasSuffix(resolved.Config.Env["GOPATH"], "/.go") {
+		t.Errorf("expected resolved GOPATH ending with /.go, got %q", resolved.Config.Env["GOPATH"])
 	}
 }
 
