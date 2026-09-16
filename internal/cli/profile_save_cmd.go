@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,12 +40,26 @@ func HandleProfileSave(name, description string, global, local, force bool) {
 		os.Exit(1)
 	}
 
-	cfg, err := config.LoadFile(localConfig)
+	cfg, err := config.LoadLocalFile(localConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading workspace configuration: %v\n", err)
 		os.Exit(1)
 	}
 
+	p := profileSnapshot(cfg, name, description)
+	if err := profile.SaveProfile(&p, targetFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing profile to %s: %v\n", targetFile, err)
+		os.Exit(1)
+	}
+	label := "global"
+	if local {
+		label = "local"
+	}
+	fmt.Printf("Saved environment snapshot as %s profile '%s' (%s).\n", label, name, targetFile)
+	fmt.Printf("Enable in any workspace with: bws add %s\n", name)
+}
+
+func profileSnapshot(cfg *config.Config, name, description string) profile.Profile {
 	homeDir := util.HomeDir()
 	sanitize := func(p string) string {
 		if p == homeDir {
@@ -82,27 +95,7 @@ func HandleProfileSave(name, description string, global, local, force bool) {
 		copyList = append(copyList, sanitize(cp))
 	}
 
-	var rwBinds [][]string
-	for _, b := range cfg.BindsRW {
-		host := sanitize(b.Host)
-		sandbox := sanitize(b.Sandbox)
-		if sandbox == "" {
-			sandbox = host
-		}
-		rwBinds = append(rwBinds, []string{host, sandbox})
-	}
-
-	var roBinds [][]string
-	for _, b := range cfg.BindsRO {
-		host := sanitize(b.Host)
-		sandbox := sanitize(b.Sandbox)
-		if sandbox == "" {
-			sandbox = host
-		}
-		roBinds = append(roBinds, []string{host, sandbox})
-	}
-
-	p := profile.Profile{
+	return profile.Profile{
 		Name:        name,
 		Description: description,
 		Requires:    cfg.Profiles,
@@ -112,30 +105,19 @@ func HandleProfileSave(name, description string, global, local, force bool) {
 		PassEnv:     cfg.PassEnv,
 		Mask:        cfg.Mask,
 		Copy:        copyList,
-		BindsRW:     rwBinds,
-		BindsRO:     roBinds,
+		BindsRW:     snapshotBinds(cfg.BindsRW, sanitize),
+		BindsRO:     snapshotBinds(cfg.BindsRO, sanitize),
 	}
+}
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating profile directory: %v\n", err)
-		os.Exit(1)
+func snapshotBinds(entries []config.BindEntry, sanitize func(string) string) [][]string {
+	var binds [][]string
+	for _, entry := range entries {
+		host, dest := sanitize(entry.Host), sanitize(entry.Sandbox)
+		if dest == "" {
+			dest = host
+		}
+		binds = append(binds, []string{host, dest})
 	}
-
-	data, err := json.MarshalIndent(p, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error serializing profile: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := os.WriteFile(targetFile, append(data, '\n'), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing profile to %s: %v\n", targetFile, err)
-		os.Exit(1)
-	}
-
-	label := "global"
-	if local {
-		label = "local"
-	}
-	fmt.Printf("Saved environment snapshot as %s profile '%s' (%s).\n", label, name, targetFile)
-	fmt.Printf("Enable in any workspace with: bws add %s\n", name)
+	return binds
 }

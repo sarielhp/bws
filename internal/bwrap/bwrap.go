@@ -276,6 +276,7 @@ func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *
 		"--ro-bind-try", "/sys", "/sys",
 		"--die-with-parent",
 	)
+	addSandboxHomeBind(sandboxDir, util.HomeDir(), args, dryRun, verbose)
 	if mountTarget != currentDir {
 		*args = append(*args, "--bind", mountTarget, mountTarget)
 	}
@@ -313,7 +314,6 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	}
 
 	addSystemAndNetArgs(cfg, &args, verbose)
-	addSandboxHomeBind(sandboxDir, homeDir, &args, dryRun, verbose)
 	addStandardMounts(cfg, sandboxDir, currentDir, &args, dryRun, verbose)
 	addFeatureMountArgs(cfg, sandboxDir, &args, dryRun)
 	args = append(args, buildBinds(cfg, sandboxDir, homeDir, currentDir, verbose)...)
@@ -321,6 +321,9 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	addPassEnvArgs(cfg, &args, verbose)
 	addCustomEnvArgs(cfg, homeDir, &args, verbose)
 	addPathArgs(cfg, homeDir, &args, verbose)
+	if !config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableSSH }) {
+		args = append(args, "--unsetenv", "SSH_AUTH_SOCK")
+	}
 
 	addMaskArgs(&args, cfg, homeDir, currentDir, verbose)
 

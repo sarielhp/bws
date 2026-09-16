@@ -32,25 +32,9 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 	if len(resolved.Tests) == 0 {
 		return nil, fmt.Errorf("no tests defined for profile %q", resolved.Name)
 	}
-
-	// Apply resolved profile mounts & environment to config for this test run
-	testCfg := copyConfig(cfg)
-	for _, b := range resolved.BindsRW {
-		testCfg.BindsRW = append(testCfg.BindsRW, config.BindEntry{Host: b[0], Sandbox: b[1]})
-	}
-	for _, b := range resolved.BindsRO {
-		testCfg.BindsRO = append(testCfg.BindsRO, config.BindEntry{Host: b[0], Sandbox: b[1]})
-	}
-	for _, p := range resolved.Path {
-		testCfg.Path = append(testCfg.Path, p)
-	}
-	testCfg.PassEnv = append(testCfg.PassEnv, resolved.PassEnv...)
-	testCfg.Mask = append(testCfg.Mask, resolved.Mask...)
-	for k, v := range resolved.Env {
-		if testCfg.Env == nil {
-			testCfg.Env = make(map[string]string)
-		}
-		testCfg.Env[k] = v
+	testCfg := profileTestConfig(cfg, resolved)
+	if err := config.ValidateWorkspace(currentDir, testCfg.MaxFileCount, false); err != nil {
+		return nil, err
 	}
 
 	var sandboxDir string
@@ -90,51 +74,61 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 		if len(t.Cmd) == 0 {
 			continue
 		}
-		testName := t.Name
-		if testName == "" {
-			testName = strings.Join(t.Cmd, " ")
-		}
-
-		binName := t.Cmd[0]
-		// If binary is not on host and test is marked optional (or standard check), skip it
-		if !isBinaryAvailable(binName, resolved.Path) {
-			results = append(results, TestResult{
-				Name:    testName,
-				Command: t.Cmd,
-				Status:  "skipped",
-				Output:  fmt.Sprintf("binary %q not found on host", binName),
-			})
-			continue
-		}
-
-		start := time.Now()
-		cmdArgs := append(append([]string{}, bwrapArgs...), t.Cmd...)
-		cmd := exec.Command("bwrap", cmdArgs...)
-		out, err := cmd.CombinedOutput()
-		dur := time.Since(start)
-
-		outStr := strings.TrimSpace(string(out))
-		if err != nil {
-			results = append(results, TestResult{
-				Name:     testName,
-				Command:  t.Cmd,
-				Status:   "failed",
-				Output:   outStr,
-				Duration: dur,
-				Error:    err,
-			})
-		} else {
-			results = append(results, TestResult{
-				Name:     testName,
-				Command:  t.Cmd,
-				Status:   "passed",
-				Output:   outStr,
-				Duration: dur,
-			})
-		}
+		results = append(results, runProfileTest(t, resolved.Path, bwrapArgs))
 	}
 
 	return results, nil
+}
+
+func profileTestConfig(cfg *config.Config, resolved *ResolvedProfile) *config.Config {
+	testCfg := copyConfig(cfg)
+	testCfg.Features = config.MergeFeatures(testCfg.Features, resolved.Features)
+	if resolved.UnshareNet {
+		if testCfg.Features == nil {
+			testCfg.Features = &config.FeaturesConfig{}
+		}
+		enabled := true
+		testCfg.Features.NoNet = &enabled
+	}
+	for _, b := range resolved.BindsRW {
+		testCfg.BindsRW = append(testCfg.BindsRW, config.BindEntry{Host: b[0], Sandbox: b[1]})
+	}
+	for _, b := range resolved.BindsRO {
+		testCfg.BindsRO = append(testCfg.BindsRO, config.BindEntry{Host: b[0], Sandbox: b[1]})
+	}
+	testCfg.Path = append(testCfg.Path, resolved.Path...)
+	testCfg.PassEnv = append(testCfg.PassEnv, resolved.PassEnv...)
+	testCfg.Mask = append(testCfg.Mask, resolved.Mask...)
+	if testCfg.Env == nil {
+		testCfg.Env = make(map[string]string)
+	}
+	for k, v := range resolved.Env {
+		testCfg.Env[k] = v
+	}
+	return testCfg
+}
+
+func runProfileTest(test TestSpec, paths, bwrapArgs []string) TestResult {
+	name := test.Name
+	if name == "" {
+		name = strings.Join(test.Cmd, " ")
+	}
+	result := TestResult{Name: name, Command: test.Cmd, Status: "passed"}
+	if !isBinaryAvailable(test.Cmd[0], paths) {
+		result.Status = "skipped"
+		result.Output = fmt.Sprintf("binary %q not found on host", test.Cmd[0])
+		return result
+	}
+	start := time.Now()
+	cmd := exec.Command("bwrap", append(append([]string{}, bwrapArgs...), test.Cmd...)...)
+	out, err := cmd.CombinedOutput()
+	result.Output = strings.TrimSpace(string(out))
+	result.Duration = time.Since(start)
+	result.Error = err
+	if err != nil {
+		result.Status = "failed"
+	}
+	return result
 }
 
 func isBinaryAvailable(bin string, extraPaths []string) bool {

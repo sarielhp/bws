@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"bws/internal/config"
 )
 
-func TestProfileSave(t *testing.T) {
-	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
-		t.Skip("binary not built, skipping")
-	}
-
+func setupProfileSaveWorkspace(t *testing.T) (string, string) {
+	t.Helper()
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
 
@@ -36,9 +35,17 @@ func TestProfileSave(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(bwsDir, "config.jsonc"), []byte(dummyConfig), 0644); err != nil {
+	if err := config.WriteTrustedFile(filepath.Join(bwsDir, "config.jsonc"), []byte(dummyConfig)); err != nil {
 		t.Fatalf("failed to write dummy config: %v", err)
 	}
+	return wsDir, bwsDir
+}
+
+func TestProfileSave(t *testing.T) {
+	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
+		t.Skip("binary not built, skipping")
+	}
+	wsDir, bwsDir := setupProfileSaveWorkspace(t)
 
 	// 1. Test saving locally
 	cmd := exec.Command(bwPath, "profile", "save", "snap-local", "-l", "-d", "My local test snapshot")
@@ -105,7 +112,7 @@ func TestProfileSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bws profile save -g failed: %v\n%s", err, string(out))
 	}
-	globalProfilePath := filepath.Join(tmpHome, ".config", "bws", "profiles", "snap-global.json")
+	globalProfilePath := filepath.Join(os.Getenv("HOME"), ".config", "bws", "profiles", "snap-global.json")
 	if _, err := os.Stat(globalProfilePath); err != nil {
 		t.Fatalf("expected global profile at %s: %v", globalProfilePath, err)
 	}

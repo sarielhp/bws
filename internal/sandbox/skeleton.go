@@ -4,9 +4,11 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"bws/internal/config"
 	"bws/internal/util"
@@ -104,7 +106,7 @@ func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 	// 2. Overlay project skeleton if present
 	localSkel := LocalSkeletonDir(currentDir)
 	if fi, err := os.Stat(localSkel); err == nil && fi.IsDir() {
-		if err := copyDirectoryContents(localSkel, stageDir); err != nil {
+		if err := copyLocalSkeleton(currentDir, stageDir); err != nil {
 			cleanup()
 			return "", nil, fmt.Errorf("copying local skeleton: %w", err)
 		}
@@ -230,27 +232,50 @@ func precreateMountpoints(cfg *config.Config, stageDir, currentDir, home string)
 }
 
 func copyDirectoryContents(srcDir, destDir string) error {
-	entries, err := os.ReadDir(srcDir)
+	root, err := os.OpenRoot(srcDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
+	defer root.Close()
+	return copyRootContents(root, ".", destDir)
+}
+
+func copyLocalSkeleton(projectDir, destDir string) error {
+	project, err := os.OpenRoot(projectDir)
+	if err != nil {
+		return err
+	}
+	defer project.Close()
+	root, err := project.OpenRoot(filepath.Join(".bw", "skeleton"))
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return copyRootContents(root, ".", destDir)
+}
+
+func copyRootContents(root *os.Root, dir, destDir string) error {
+	entries, err := fs.ReadDir(root.FS(), dir)
+	if err != nil {
+		return err
+	}
 
 	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
+		srcPath := filepath.Join(dir, entry.Name())
 		destPath := filepath.Join(destDir, entry.Name())
 
 		if entry.IsDir() {
 			if err := os.MkdirAll(destPath, 0755); err != nil {
 				return err
 			}
-			if err := copyDirectoryContents(srcPath, destPath); err != nil {
+			if err := copyRootContents(root, srcPath, destPath); err != nil {
 				return err
 			}
 		} else {
-			if err := copyFile(srcPath, destPath); err != nil {
+			if err := copyRootFile(root, srcPath, destPath); err != nil {
 				return err
 			}
 		}
@@ -258,12 +283,20 @@ func copyDirectoryContents(srcDir, destDir string) error {
 	return nil
 }
 
-func copyFile(src, dest string) error {
-	in, err := os.Open(src)
+func copyRootFile(root *os.Root, src, dest string) error {
+	info, err := root.Stat(src)
+	if err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("skeleton entry %s must resolve to a regular file inside the skeleton directory", src)
+	}
+	in, err := root.OpenFile(src, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
+	info, err = in.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("skeleton entry %s is not a regular file", src)
+	}
 
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {

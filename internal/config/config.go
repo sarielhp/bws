@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/tailscale/hujson"
 )
 
 const HomeToken = "@@HOME@@"
@@ -156,9 +158,18 @@ func replaceHomeToken(obj interface{}, home string) interface{} {
 }
 
 func LoadFile(path string) (*Config, error) {
-	standardized, err := LoadFileWithHuJSON(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
+	}
+	return Parse(data, path)
+}
+
+// Parse loads JSONC configuration without reading or writing files.
+func Parse(data []byte, path string) (*Config, error) {
+	standardized, err := hujson.Standardize(data)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JSONC in %s: %w", path, err)
 	}
 	var raw map[string]interface{}
 	if err := json.Unmarshal(standardized, &raw); err != nil {
@@ -197,6 +208,11 @@ func FindWorkspaceRoot(startDir string) (rootDir string, configPath string) {
 
 	dir := filepath.Clean(startDir)
 	for {
+		dirReal, _ := filepath.EvalSymlinks(dir)
+		binReal, _ := filepath.EvalSymlinks(filepath.Join(home, "bin"))
+		if dir == "/" || dir == "." || dirReal == homeReal || dir == home || (binReal != "" && dirReal == binReal) {
+			break
+		}
 		candidates := []string{
 			filepath.Join(dir, ".bws", "config.jsonc"),
 			filepath.Join(dir, ".bws", "config.json"),
@@ -206,10 +222,6 @@ func FindWorkspaceRoot(startDir string) (rootDir string, configPath string) {
 			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
 				return dir, p
 			}
-		}
-		dirReal, _ := filepath.EvalSymlinks(dir)
-		if dir == "/" || dir == "." || dirReal == homeReal || dir == home {
-			break
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -227,9 +239,11 @@ func FindLocalPath(cwd string) string {
 
 func CreateDefault(path string) error {
 	dir := filepath.Dir(path)
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
 	content := generateDefaultConfig()
-	return os.WriteFile(path, []byte(content), 0644)
+	return WriteTrustedFile(path, []byte(content))
 }
 
 func CreateExampleConfig(path string) error {

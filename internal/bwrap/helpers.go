@@ -325,6 +325,7 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 	}
 
 	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
+	*args = append(*args, "--tmpfs", config.TrustDir())
 	for _, dir := range []string{currentDir, wsRoot} {
 		bwsDir := filepath.Join(dir, ".bws")
 		if fi, err := os.Stat(bwsDir); err == nil && fi.IsDir() && !seen[bwsDir] {

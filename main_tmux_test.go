@@ -15,8 +15,8 @@ func TestTmuxSettingsInsideSandbox(t *testing.T) {
 		t.Skip("tmux not installed, skipping")
 	}
 
-	cmd := exec.Command(bwPath, "run", "--", "bash", "-c",
-		"tmux -u new-session -d -s test-sess && tmux show -g -t test-sess mouse && tmux kill-session -t test-sess")
+	cmd := exec.Command(bwPath, "run", "--no-ssh", "--", "bash", "-c",
+		"tmux -f \"$HOME/.tmux.conf\" -u new-session -d -s test-sess && tmux show -g -t test-sess mouse && tmux kill-session -t test-sess")
 	cmd.Dir = t.TempDir()
 
 	output, err := cmd.CombinedOutput()

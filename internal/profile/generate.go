@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"bws/internal/config"
 )
 
 type brewFormulaResponse struct {
@@ -188,7 +190,7 @@ func SaveProfile(p *Profile, targetPath string) error {
 		return fmt.Errorf("failed to encode profile: %w", err)
 	}
 
-	if err := os.WriteFile(targetPath, append(data, '\n'), 0644); err != nil {
+	if err := config.WriteTrustedFile(targetPath, append(data, '\n')); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
 	return nil

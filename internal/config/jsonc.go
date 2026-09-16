@@ -10,6 +10,9 @@ import (
 
 func EditJSONC(path string, fn func(root *hujson.Value) error) error {
 	data, err := os.ReadFile(path)
+	if IsLocalPolicy(path) && err == nil {
+		data, err = ReadTrustedFile(path)
+	}
 	if err != nil {
 		return err
 	}
@@ -21,7 +24,7 @@ func EditJSONC(path string, fn func(root *hujson.Value) error) error {
 		return err
 	}
 	out := ast.Pack()
-	return os.WriteFile(path, out, 0644)
+	return WriteTrustedFile(path, out)
 }
 
 func SetArrayValue(path, key string, newElements []string) error {

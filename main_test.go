@@ -126,6 +126,7 @@ func TestAppAudit(t *testing.T) {
 }
 
 func TestClihelpAbbrevAndCompletion(t *testing.T) {
+	t.Chdir(t.TempDir())
 	ensureGlobalConfig(t)
 	app := buildApp()
 

@@ -69,7 +69,10 @@ func HandleConfigReset(global, local bool) {
 		sandbox.EnsureGlobalSkeleton()
 	} else {
 		os.MkdirAll(filepath.Dir(path), 0755)
-		os.WriteFile(path, []byte(config.ExampleConfigContent), 0644)
+		if err := config.WriteTrustedFile(path, []byte(config.ExampleConfigContent)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 
 	fmt.Printf("Created clean %s config: %s\n", label, path)
@@ -107,6 +110,16 @@ func HandleConfigEdit(global, local bool) {
 		fmt.Fprintf(os.Stderr, "Error opening editor: %v\n", err)
 		os.Exit(1)
 	}
+	if !global {
+		if _, err := config.LoadFile(path); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := config.TrustFile(path); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
 }
 
 // HandleConfigSet sets a configuration key value in target config.
@@ -127,8 +140,9 @@ func HandleConfigSet(key, value string, global, local bool) {
 			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 				// explicitly ignored
 			}
-			if err := os.WriteFile(path, []byte("{\n}\n"), 0644); err != nil {
-				// explicitly ignored
+			if err := config.WriteTrustedFile(path, []byte("{\n}\n")); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
 		}
 	}

@@ -23,6 +23,7 @@ type Options struct {
 	DBus       bool
 	NoDBus     bool
 	NoInit     bool
+	Export     func(cloneDir, branch string, output io.Writer) error
 }
 
 func prepareHostRepo(opts Options) (string, string, string, func(), error) {
@@ -100,6 +101,9 @@ func prepareClone(hostRepo, baseBranch, requestedBranch string, verbose bool) (s
 	if branchName == baseBranch {
 		return "", "", nil, nil, fmt.Errorf("cannot use current branch %q as agent branch; specify a different branch with -b", branchName)
 	}
+	if err := runCmd(hostRepo, "git", "check-ref-format", "--branch", branchName); err != nil {
+		return "", "", nil, nil, fmt.Errorf("invalid agent branch %q: %w", branchName, err)
+	}
 
 	if err := os.MkdirAll("/tmp/bws", 0755); err != nil {
 		// explicitly ignored
@@ -134,7 +138,10 @@ func prepareClone(hostRepo, baseBranch, requestedBranch string, verbose bool) (s
 		return "", "", nil, nil, err
 	}
 
-	copyConfigFiles(hostRepo, tempDir)
+	if err := copyConfigFiles(hostRepo, tempDir); err != nil {
+		cleanup()
+		return "", "", nil, nil, err
+	}
 	excludeSensitiveFiles(tempDir)
 
 	return tempDir, branchName, cleanup, cancelCleanup, nil
@@ -195,17 +202,9 @@ func runSandboxSession(tempDir string, opts Options, branchName string) error {
 	return runErr
 }
 
-func commitAgentChanges(tempDir, branchName string) {
-	cloneDirty, _ := checkDirty(tempDir)
-	if cloneDirty {
-		fmt.Println("Auto-committing remaining changes in agent workspace...")
-		_ = runCmd(tempDir, "git", "add", "-A")
-		_ = runCmd(tempDir, "git", "commit", "--no-verify", "-m", fmt.Sprintf("bws(agent): changes from session on %s", branchName))
-	}
-}
-
-func fetchAgentBranch(hostRepo, tempDir, branchName string) error {
-	if err := runCmd(hostRepo, "git", "fetch", tempDir, fmt.Sprintf("+%s:%s", branchName, branchName)); err != nil {
+func fetchAgentBranch(hostRepo, bundlePath, branchName string) error {
+	ref := "refs/heads/" + branchName
+	if err := runCmd(hostRepo, "git", "fetch", "--", bundlePath, fmt.Sprintf("+%s:%s", ref, ref)); err != nil {
 		return fmt.Errorf("failed to fetch agent branch %s back to host: %w", branchName, err)
 	}
 	return nil
@@ -291,6 +290,9 @@ func promptTriage(r io.Reader, hostRepo, baseSHA, baseBranch, branchName string)
 
 // Run executes the full Clone-Fetch agent workflow.
 func Run(opts Options) error {
+	if opts.Export == nil {
+		return fmt.Errorf("sandboxed Git export is required")
+	}
 	hostRepo, baseBranch, baseSHA, unwrapStash, err := prepareHostRepo(opts)
 	if err != nil {
 		return err
@@ -305,14 +307,15 @@ func Run(opts Options) error {
 
 	_ = runSandboxSession(tempDir, opts, branchName)
 
-	commitAgentChanges(tempDir, branchName)
-
-	if err := fetchAgentBranch(hostRepo, tempDir, branchName); err != nil {
+	if err := exportAndFetch(hostRepo, tempDir, branchName, opts.Export); err != nil {
 		cancelCleanup()
 		return fmt.Errorf("%w\nAgent workspace preserved at: %s", err, tempDir)
 	}
 
-	diffStat, _ := getDiffStat(hostRepo, baseSHA, branchName)
+	diffStat, err := getDiffStat(hostRepo, baseSHA, branchName)
+	if err != nil {
+		return fmt.Errorf("reading imported agent changes: %w", err)
+	}
 	if strings.TrimSpace(diffStat) == "" {
 		fmt.Printf("No changes between %s and %s.\n", baseBranch, branchName)
 		_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
@@ -322,4 +325,20 @@ func Run(opts Options) error {
 	fmt.Printf("\nAgent changes on branch %s:\n\n%s\n", branchName, diffStat)
 	promptTriage(nil, hostRepo, baseSHA, baseBranch, branchName)
 	return nil
+}
+
+func exportAndFetch(hostRepo, cloneDir, branch string, export func(string, string, io.Writer) error) error {
+	bundle, err := os.CreateTemp("", "bws-agent-*.bundle")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(bundle.Name())
+	if err := export(cloneDir, branch, bundle); err != nil {
+		_ = bundle.Close()
+		return err
+	}
+	if err := bundle.Close(); err != nil {
+		return err
+	}
+	return fetchAgentBranch(hostRepo, bundle.Name(), branch)
 }

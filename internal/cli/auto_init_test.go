@@ -46,6 +46,7 @@ func TestPromptAutoInit(t *testing.T) {
 }
 
 func TestAutoConfigureWorkspaceEmptyDir(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	tmpDir := t.TempDir()
 	configPath, summary, err := AutoConfigureWorkspace(tmpDir, false)
 	if err != nil {
@@ -60,6 +61,7 @@ func TestAutoConfigureWorkspaceEmptyDir(t *testing.T) {
 }
 
 func TestAutoConfigureWorkspaceGoProject(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	tmpDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module mytest\n"), 0644); err != nil {
 		t.Fatalf("failed to create go.mod: %v", err)
@@ -98,6 +100,7 @@ func TestAutoConfigureWorkspaceGoProject(t *testing.T) {
 }
 
 func TestAutoConfigureWorkspaceNoSSH(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	tmpDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmpDir, "pyproject.toml"), []byte("[project]\n"), 0644); err != nil {
 		t.Fatalf("failed to create pyproject.toml: %v", err)

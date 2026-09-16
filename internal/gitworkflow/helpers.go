@@ -2,10 +2,13 @@ package gitworkflow
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"bws/internal/config"
 )
 
 func getGitRootDir(dir string) (string, error) {
@@ -61,43 +64,73 @@ func runCmdOutput(dir, name string, args ...string) (string, error) {
 	return string(out), err
 }
 
-func copyConfigFiles(srcDir, destDir string) {
-	srcBws := filepath.Join(srcDir, ".bws")
-	if fi, err := os.Stat(srcBws); err == nil && fi.IsDir() {
-		if err := copyDirRecursive(srcBws, filepath.Join(destDir, ".bws")); err != nil {
-			// explicitly ignored
-		}
+func copyConfigFiles(srcDir, destDir string) error {
+	src, err := os.OpenRoot(srcDir)
+	if err != nil {
+		return err
 	}
-	// Copy .env files
-	entries, _ := os.ReadDir(srcDir)
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), ".env") && !e.IsDir() {
-			data, err := os.ReadFile(filepath.Join(srcDir, e.Name()))
-			if err == nil {
-				if err := os.WriteFile(filepath.Join(destDir, e.Name()), data, 0644); err != nil {
-					// explicitly ignored
-				}
+	defer src.Close()
+	dest, err := os.OpenRoot(destDir)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+	entries, err := fs.ReadDir(src.FS(), ".")
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == ".bws" {
+			if err := copyPolicyTree(src, dest, name); err != nil {
+				return err
+			}
+		} else if name == ".bws.jsonc" || (strings.HasPrefix(name, ".env") && !entry.IsDir()) {
+			if err := copyPolicyFile(src, dest, name); err != nil {
+				return err
 			}
 		}
 	}
+	return nil
 }
 
-func copyDirRecursive(src, dest string) error {
-	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+func copyPolicyTree(src, dest *os.Root, dir string) error {
+	return fs.WalkDir(src.FS(), dir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		rel, _ := filepath.Rel(src, path)
-		target := filepath.Join(dest, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
+		if entry.IsDir() {
+			return dest.MkdirAll(path, 0755)
 		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(target, data, 0644)
+		return copyPolicyFile(src, dest, path)
 	})
+}
+
+func copyPolicyFile(src, dest *os.Root, path string) error {
+	info, err := src.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("refusing non-regular workspace configuration %s", path)
+	}
+	data, err := src.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if config.IsLocalPolicy(path) {
+		data, err = config.ReadTrustedFile(filepath.Join(src.Name(), path))
+		if err != nil {
+			return err
+		}
+	}
+	if err := dest.WriteFile(path, data, 0644); err != nil {
+		return err
+	}
+	if config.IsLocalPolicy(path) {
+		return config.TrustFile(filepath.Join(dest.Name(), path))
+	}
+	return nil
 }
 
 func excludeSensitiveFiles(destDir string) {

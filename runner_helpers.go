@@ -9,7 +9,6 @@ import (
 	"bws/internal/cli"
 	"bws/internal/config"
 	"bws/internal/profile"
-	"bws/internal/util"
 )
 
 type sandboxLaunch struct {
@@ -28,13 +27,9 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 	globalCfg, err := config.LoadFile(globalPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			_ = config.CreateDefault(globalPath)
-			examplePath := filepath.Join(filepath.Dir(globalPath), "example-config.jsonc")
-			_ = config.CreateExampleConfig(examplePath)
-			fmt.Printf("Created config file: %s\n", globalPath)
-			globalCfg, _ = config.LoadFile(globalPath)
-			if globalCfg == nil {
-				globalCfg = &config.Config{}
+			globalCfg, err = config.Parse([]byte(config.DefaultConfigTemplate), globalPath)
+			if err != nil {
+				return nil, err
 			}
 		} else {
 			return nil, fmt.Errorf("loading global config: %w", err)
@@ -47,7 +42,7 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[verbose] Loading local config: %s\n", localPath)
 		}
-		localCfg, err = config.LoadFile(localPath)
+		localCfg, err = config.LoadLocalFile(localPath)
 		if err != nil {
 			return nil, fmt.Errorf("loading local config: %w", err)
 		}
@@ -57,8 +52,8 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 
 	mergedCfg := config.Merge(globalCfg, localCfg)
 	currentDir, _ := os.Getwd()
-	if err := applyProfiles(mergedCfg, currentDir, verbose); err != nil && verbose {
-		fmt.Fprintf(os.Stderr, "[verbose] Applying profiles warning: %v\n", err)
+	if err := applyProfiles(mergedCfg, currentDir, verbose); err != nil {
+		return nil, fmt.Errorf("applying profiles: %w", err)
 	}
 
 	if verbose {
@@ -174,10 +169,7 @@ func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
 	for _, pName := range cfg.Profiles {
 		resolved, err := profile.ResolveProfile(pName, registry, ctx)
 		if err != nil {
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose] Warning: resolving profile %q: %v\n", pName, err)
-			}
-			continue
+			return fmt.Errorf("resolving profile %q: %w", pName, err)
 		}
 		for _, rName := range resolved.Profiles {
 			if !seenResolved[rName] {
@@ -202,40 +194,11 @@ func safetyChecks(sl *sandboxLaunch, force, verbose bool) (string, error) {
 		return "", fmt.Errorf("getting current directory: %w", err)
 	}
 
-	homeDir := util.HomeDir()
-	homeDirReal, _ := filepath.EvalSymlinks(homeDir)
-	currentDirReal, _ := filepath.EvalSymlinks(currentDir)
-
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] Current directory: %s\n", currentDir)
-		fmt.Fprintf(os.Stderr, "[verbose] Home directory: %s\n", homeDir)
 	}
-
-	if currentDirReal == "/" {
-		return "", fmt.Errorf("running the sandbox from / is blocked")
-	}
-	if currentDirReal == homeDirReal {
-		return "", fmt.Errorf("running the sandbox from ~/ is blocked")
-	}
-	homeBinDir := filepath.Join(homeDirReal, "bin")
-	if currentDirReal == homeBinDir {
-		return "", fmt.Errorf("running the sandbox from ~/bin/ is blocked")
-	}
-
-	fileLimit := 1000
-	if sl.cfg.MaxFileCount > 0 {
-		fileLimit = sl.cfg.MaxFileCount
-	}
-	if !force {
-		count := util.CountFiles(currentDir, fileLimit)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose] File count: %d (limit: %d)\n", count, fileLimit)
-		}
-		if count > fileLimit {
-			return "", fmt.Errorf("current directory contains more than %d files (found %d); use -f to override", fileLimit, count)
-		}
-	} else if verbose {
-		fmt.Fprintf(os.Stderr, "[verbose] File count check bypassed (-f)\n")
+	if err := config.ValidateWorkspace(currentDir, sl.cfg.MaxFileCount, force); err != nil {
+		return "", err
 	}
 
 	return currentDir, nil
@@ -310,7 +273,7 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, n
 
 	fmt.Fprintf(os.Stderr, "[bws] Auto-configured .bws/config.jsonc (%s detected)\n", summary)
 
-	localCfg, err := config.LoadFile(configPath)
+	localCfg, err := config.LoadLocalFile(configPath)
 	if err != nil {
 		return fmt.Errorf("loading auto-configured local config: %w", err)
 	}
@@ -318,9 +281,9 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, n
 	sl.localCfg = localCfg
 	sl.localPath = configPath
 	sl.cfg = config.Merge(sl.globalCfg, localCfg)
-	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
-	if err := applyProfiles(sl.cfg, currentDir, verbose); err != nil && verbose {
-		fmt.Fprintf(os.Stderr, "[verbose] Applying profiles warning: %v\n", err)
+	if err := applyProfiles(sl.cfg, currentDir, verbose); err != nil {
+		return fmt.Errorf("applying profiles: %w", err)
 	}
+	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
 	return nil
 }

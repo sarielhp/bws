@@ -110,6 +110,7 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 				DBus:       f.dbus,
 				NoDBus:     f.noDBus,
 				NoInit:     f.noInit,
+				Export:     exportAgentBundle,
 			})
 		},
 	}

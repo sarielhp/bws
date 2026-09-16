@@ -336,6 +336,10 @@ bws path list
 
 ## Configuration management & remote sync
 
+### `bws config trust`
+
+Approve the current contents of local workspace configuration and `.bws/profiles/` after reviewing them. Required for existing configurations, manual edits, and profiles received from another source. Approval is recorded outside the project; sandboxed code cannot approve host configuration for a later launch.
+
 ### `bws config show [-g | -l]`
 Display raw JSONC content of config file (aliases: `cat`, `view`).
 ```bash

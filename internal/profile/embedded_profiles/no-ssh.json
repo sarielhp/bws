@@ -1,6 +1,7 @@
 {
   "name": "no-ssh",
   "description": "Block all SSH access, configuration, and host keys",
+  "features": {"enable_ssh": false, "auto_repo_deploy_key": false},
   "mask": [
     "~/.ssh",
     "@@HOME@@/.ssh",
@@ -13,7 +14,7 @@
       "cmd": [
         "bash",
         "-c",
-        "! test -s ~/.ssh/config && ! test -s ~/.ssh/id_rsa"
+        "test -z \"${SSH_AUTH_SOCK:-}\" && ! test -s ~/.ssh/config && ! test -s ~/.ssh/id_rsa"
       ],
       "type": "smoke"
     }

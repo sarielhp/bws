@@ -20,6 +20,10 @@
 1. **Global user configuration** (`~/.config/bws/config.jsonc`): Base defaults applied to all sandboxes across your system.
 2. **Local workspace configuration** (`.bws/config.jsonc`): Workspace-specific overrides scoped to the current project repository.
 
+Existing local configuration and `.bws/profiles/` files require host approval with `bws config trust` after review. Approval is tied to each file's path and contents; changes invalidate it. `bws init` and configuration-writing commands approve the content they generate. See [workspace protection](security.md#automatic-bws-workspace-protection).
+
+When the global configuration is absent, launch and preview use embedded defaults in memory. Use `bws config reset -g` to write a global configuration explicitly.
+
 ### Merging semantics
 
 * **Maps & hashes** (`env`): Deep merged. Local keys override global keys.

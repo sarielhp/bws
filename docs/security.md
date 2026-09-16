@@ -89,9 +89,29 @@ Forge blocking is enabled by default in all sandboxes. It can be toggled via `fe
 
 ## Automatic `.bws/` workspace protection
 
-When `bws` launches inside a workspace, the local `.bws/` directory and `.bws.jsonc` file are **automatically masked by default** inside the sandbox:
-* Code running inside the bubble cannot inspect host sandbox configuration.
-* Untrusted build scripts or autonomous agents cannot modify `.bws/config.jsonc` to weaken sandbox rules on future host invocations.
+Existing workspace `.bws/` directories and `.bws.jsonc` files are masked inside the sandbox. Because a writable project can still acquire configuration in newly created subdirectories, masking is supplemented by host-side trust records.
+
+Local configuration and local profiles must match contents approved on the host. After reviewing an existing project configuration and its `.bws/profiles/` files, run:
+
+```bash
+bws config trust
+```
+
+Approval is specific to the file path and contents. Manual edits, changes made by an agent, and newly created files require another review and approval. `bws init` and configuration-writing commands record the contents they generate; editing an existing untrusted configuration with `config set` does not approve it. Trust records live in `~/.config/bws/trusted/`, which is masked in the sandbox. `plan` and `info` never create configuration or trust records.
+
+Missing profiles, malformed profile files, and missing or cyclic profile dependencies stop launch. A profile's `requires` entries must name installed profiles. The `no-ssh` profile disables agent forwarding and automatic deploy-key setup as well as masking SSH files; `secure-agent` includes that profile.
+
+## Skeleton and workspace boundaries
+
+Project skeletons are read beneath `.bw/skeleton/` using directory-confined filesystem operations. Links to regular files inside that tree can be copied; links escaping it, links to external skeleton directories, and special files are rejected. An external file needed by a tool can instead be explicitly granted with a read-only mount.
+
+Workspace discovery stops before `/`, the host home, and `~/bin/`. Launch safety checks count files in the discovered workspace root, including when invoked from a small subdirectory. `-f` bypasses the file-count limit but does not permit launching from a protected directory.
+
+## Git workflow export
+
+After an agent session, Git status, staging, commit, and bundle creation run inside a separate offline sandbox. It exposes the agent clone and system executables, with no host home, credentials, network, or host output directory. Hooks, fsmonitor, and commit signing are disabled for these commands; other executable Git settings remain confined by the sandbox.
+
+The resulting bundle is streamed to a private host file and fetched from that file. Host Git never reopens the agent clone's configuration to import its branch. Failed export preserves the clone for recovery instead of deleting uncommitted work.
 
 ---
 

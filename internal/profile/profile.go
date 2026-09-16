@@ -6,7 +6,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/tailscale/hujson"
 
 	"bws/internal/config"
 	"bws/internal/util"
@@ -104,21 +107,28 @@ func LoadRegistry(projectDir string) (map[string]*Profile, error) {
 
 	// 2. Global profiles (~/.config/bws/profiles)
 	globalDir := GlobalProfilesDir()
-	loadDirProfiles(globalDir, "global", registry)
+	if err := loadDirProfiles(globalDir, "global", registry); err != nil {
+		return nil, err
+	}
 
 	// 3. Local project profiles (.bws/profiles)
 	if projectDir != "" {
 		localDir := LocalProfilesDir(projectDir)
-		loadDirProfiles(localDir, "local", registry)
+		if err := loadDirProfiles(localDir, "local", registry); err != nil {
+			return nil, err
+		}
 	}
 
 	return registry, nil
 }
 
-func loadDirProfiles(dir, source string, registry map[string]*Profile) {
+func loadDirProfiles(dir, source string, registry map[string]*Profile) error {
 	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
 	if err != nil {
-		return
+		return err
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -128,24 +138,34 @@ func loadDirProfiles(dir, source string, registry map[string]*Profile) {
 		if strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".jsonc") {
 			path := filepath.Join(dir, name)
 			data, err := os.ReadFile(path)
+			if source == "local" && err == nil {
+				data, err = config.ReadTrustedFile(path)
+			}
 			if err != nil {
-				continue
+				return err
+			}
+			data, err = hujson.Standardize(data)
+			if err != nil {
+				return fmt.Errorf("profile %s: %w", path, err)
 			}
 			var p Profile
-			if err := json.Unmarshal(data, &p); err == nil && p.Name != "" {
-				p.Source = source
-				pCopy := p
-				registry[p.Name] = &pCopy
-				for _, alias := range p.Aliases {
-					registry[alias] = &pCopy
-				}
+			if err := json.Unmarshal(data, &p); err != nil {
+				return fmt.Errorf("profile %s: %w", path, err)
+			}
+			if p.Name == "" {
+				return fmt.Errorf("profile %s has no name", path)
+			}
+			p.Source = source
+			registry[p.Name] = &p
+			for _, alias := range p.Aliases {
+				registry[alias] = &p
 			}
 		}
 	}
+	return nil
 }
 
-// ResolveProfile resolves a profile and its full dependency tree without cycles.
-func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext) (*ResolvedProfile, error) {
+func dependencyOrder(name string, registry map[string]*Profile) ([]string, error) {
 	visited := make(map[string]bool)
 	inStack := make(map[string]bool)
 	var order []string
@@ -160,11 +180,7 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 		}
 		p, ok := registry[n]
 		if !ok {
-			if n == name {
-				return fmt.Errorf("profile %q not found in registry", n)
-			}
-			// External/system dependency without a separate profile; skip gracefully
-			return nil
+			return fmt.Errorf("profile %q not found in registry (required by %q)", n, name)
 		}
 		inStack[n] = true
 		for _, req := range p.Requires {
@@ -181,19 +197,20 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 	if err := visit(name); err != nil {
 		return nil, err
 	}
+	return order, nil
+}
 
+// ResolveProfile resolves a profile and all required dependencies, failing closed.
+func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext) (*ResolvedProfile, error) {
+	order, err := dependencyOrder(name, registry)
+	if err != nil {
+		return nil, err
+	}
 	res := &ResolvedProfile{
 		Name:     name,
 		Profiles: order,
 		Env:      make(map[string]string),
 	}
-
-	seenRW := make(map[string]bool)
-	seenRO := make(map[string]bool)
-	seenPath := make(map[string]bool)
-	seenPassEnv := make(map[string]bool)
-	seenMask := make(map[string]bool)
-	seenCopy := make(map[string]bool)
 
 	for _, pName := range order {
 		p := registry[pName]
@@ -207,78 +224,13 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 			res.Features = config.MergeFeatures(res.Features, p.Features)
 		}
 
-		for _, pt := range p.Path {
-			if !seenPath[pt] {
-				seenPath[pt] = true
-				res.Path = append(res.Path, pt)
-			}
+		if err := mergeProfileValues(res, p); err != nil {
+			return nil, err
 		}
-
-		for _, pe := range p.PassEnv {
-			if !seenPassEnv[pe] {
-				seenPassEnv[pe] = true
-				res.PassEnv = append(res.PassEnv, pe)
-			}
-		}
-
-		for _, m := range p.Mask {
-			if !seenMask[m] {
-				seenMask[m] = true
-				res.Mask = append(res.Mask, m)
-			}
-		}
-
-		for _, c := range p.Copy {
-			if !seenCopy[c] {
-				seenCopy[c] = true
-				res.Copy = append(res.Copy, c)
-			}
-		}
-
-		for k, v := range p.Env {
-			res.Env[k] = v
-		}
-
-		for _, b := range p.BindsRW {
-			key := strings.Join(b, "->")
-			if !seenRW[key] {
-				seenRW[key] = true
-				res.BindsRW = append(res.BindsRW, b)
-			}
-		}
-
-		for _, b := range p.BindsRO {
-			key := strings.Join(b, "->")
-			if !seenRO[key] {
-				seenRO[key] = true
-				res.BindsRO = append(res.BindsRO, b)
-			}
-		}
-
 		for _, r := range p.Rules {
 			if MatchRule(r, ctx) {
-				for _, pt := range r.Path {
-					if !seenPath[pt] {
-						seenPath[pt] = true
-						res.Path = append(res.Path, pt)
-					}
-				}
-				for k, v := range r.Env {
-					res.Env[k] = v
-				}
-				for _, b := range r.BindsRW {
-					key := strings.Join(b, "->")
-					if !seenRW[key] {
-						seenRW[key] = true
-						res.BindsRW = append(res.BindsRW, b)
-					}
-				}
-				for _, b := range r.BindsRO {
-					key := strings.Join(b, "->")
-					if !seenRO[key] {
-						seenRO[key] = true
-						res.BindsRO = append(res.BindsRO, b)
-					}
+				if err := mergeProfileValues(res, &Profile{Name: pName, Path: r.Path, Env: r.Env, BindsRW: r.BindsRW, BindsRO: r.BindsRO}); err != nil {
+					return nil, err
 				}
 			}
 		}
@@ -287,6 +239,40 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 	}
 
 	return res, nil
+}
+
+func appendUniqueStrings(dst *[]string, values []string) {
+	for _, value := range values {
+		if !slices.Contains(*dst, value) {
+			*dst = append(*dst, value)
+		}
+	}
+}
+
+func appendProfileBinds(dst *[][]string, values [][]string, name string) error {
+	for _, value := range values {
+		if len(value) != 2 || value[0] == "" || value[1] == "" {
+			return fmt.Errorf("profile %q requires [host, sandbox] bind pairs", name)
+		}
+		if !slices.ContainsFunc(*dst, func(b []string) bool { return slices.Equal(b, value) }) {
+			*dst = append(*dst, value)
+		}
+	}
+	return nil
+}
+
+func mergeProfileValues(res *ResolvedProfile, p *Profile) error {
+	appendUniqueStrings(&res.Path, p.Path)
+	appendUniqueStrings(&res.PassEnv, p.PassEnv)
+	appendUniqueStrings(&res.Mask, p.Mask)
+	appendUniqueStrings(&res.Copy, p.Copy)
+	for k, v := range p.Env {
+		res.Env[k] = v
+	}
+	if err := appendProfileBinds(&res.BindsRW, p.BindsRW, p.Name); err != nil {
+		return err
+	}
+	return appendProfileBinds(&res.BindsRO, p.BindsRO, p.Name)
 }
 
 // DetectProfiles checks workspace files against profile detection rules.

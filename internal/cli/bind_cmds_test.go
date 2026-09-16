@@ -11,6 +11,7 @@ import (
 
 func setupTestWorkspace(t *testing.T) (string, func()) {
 	t.Helper()
+	t.Setenv("HOME", t.TempDir())
 	oldWd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("failed to get wd: %v", err)

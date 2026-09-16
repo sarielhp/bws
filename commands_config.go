@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"bws/internal/cli"
+	"bws/internal/config"
 
 	"github.com/sarielhp/clihelp"
 	"github.com/sarielhp/clihelp/doc"
@@ -129,6 +131,23 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 
 func configSubcommands(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp.Command {
 	cmds := []clihelp.Command{configShowCmd(f, glValidator)}
+	cmds = append(cmds, clihelp.Command{
+		Name:        "trust",
+		Description: "Approve reviewed local configuration and profiles for this workspace",
+		UsageLine:   "bws config trust",
+		Args:        clihelp.NoArgs,
+		Run: func(ctx *clihelp.Context) error {
+			dir, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			if err := config.TrustWorkspace(dir); err != nil {
+				return err
+			}
+			fmt.Fprintln(ctx.Stdout, "Trusted local configuration and profiles for", dir)
+			return nil
+		},
+	})
 	cmds = append(cmds, configKeyCmds(f, glValidator)...)
 	cmds = append(cmds, configFileCmds(f, glValidator)...)
 	cmds = append(cmds, clihelp.CompletionCommand())

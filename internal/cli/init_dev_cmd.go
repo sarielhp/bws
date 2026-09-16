@@ -39,7 +39,10 @@ func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset
 		return fmt.Errorf("detecting workspace features: %w", err)
 	}
 
-	activeProfiles, extraRW, extraRO, extraPath, extraEnv := resolveInitProfiles(absDir, profiles)
+	activeProfiles, extraRW, extraRO, extraPath, extraEnv, err := resolveInitProfiles(absDir, profiles)
+	if err != nil {
+		return err
+	}
 
 	opts := config.InitDevOptions{
 		Features:     features,
@@ -75,8 +78,11 @@ func HandleInitDev(targetDir string, force, dryRun, noSSH, opencode bool, preset
 	return nil
 }
 
-func resolveInitProfiles(absDir string, profiles []string) ([]string, [][]string, [][]string, []string, map[string]string) {
-	registry, _ := profile.LoadRegistry(absDir)
+func resolveInitProfiles(absDir string, profiles []string) ([]string, [][]string, [][]string, []string, map[string]string, error) {
+	registry, err := profile.LoadRegistry(absDir)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
 	detectedProfiles := profile.DetectProfiles(absDir, registry)
 	activeProfileNames := make(map[string]bool)
 
@@ -99,16 +105,18 @@ func resolveInitProfiles(absDir string, profiles []string) ([]string, [][]string
 	var finalActiveProfiles []string
 	for pName := range activeProfileNames {
 		finalActiveProfiles = append(finalActiveProfiles, pName)
-		if resolved, err := profile.ResolveProfile(pName, registry, ctx); err == nil {
-			extraRW = append(extraRW, resolved.BindsRW...)
-			extraRO = append(extraRO, resolved.BindsRO...)
-			extraPath = append(extraPath, resolved.Path...)
-			for k, v := range resolved.Env {
-				extraEnv[k] = v
-			}
+		resolved, err := profile.ResolveProfile(pName, registry, ctx)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
+		}
+		extraRW = append(extraRW, resolved.BindsRW...)
+		extraRO = append(extraRO, resolved.BindsRO...)
+		extraPath = append(extraPath, resolved.Path...)
+		for k, v := range resolved.Env {
+			extraEnv[k] = v
 		}
 	}
-	return finalActiveProfiles, extraRW, extraRO, extraPath, extraEnv
+	return finalActiveProfiles, extraRW, extraRO, extraPath, extraEnv, nil
 }
 
 func writeConfigFile(configPath, jsonContent string, force bool) error {
@@ -124,7 +132,7 @@ func writeConfigFile(configPath, jsonContent string, force bool) error {
 		fmt.Printf("Backed up existing configuration to: %s\n", backupPath)
 	}
 
-	if err := os.WriteFile(configPath, []byte(jsonContent), 0644); err != nil {
+	if err := config.WriteTrustedFile(configPath, []byte(jsonContent)); err != nil {
 		return fmt.Errorf("writing configuration to %s: %w", configPath, err)
 	}
 	return nil

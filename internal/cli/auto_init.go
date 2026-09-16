@@ -31,7 +31,10 @@ func AutoConfigureWorkspace(targetDir string, noSSH bool) (string, string, error
 	}
 
 	summary := strings.Join(features.DetectedStacks(), ", ")
-	activeProfiles, extraRW, extraRO, extraPath, extraEnv := resolveInitProfiles(absDir, nil)
+	activeProfiles, extraRW, extraRO, extraPath, extraEnv, err := resolveInitProfiles(absDir, nil)
+	if err != nil {
+		return "", "", err
+	}
 
 	opts := config.InitDevOptions{
 		Features:     features,
@@ -55,7 +58,7 @@ func AutoConfigureWorkspace(targetDir string, noSSH bool) (string, string, error
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return "", "", fmt.Errorf("creating directory %s: %w", filepath.Dir(configPath), err)
 	}
-	if err := os.WriteFile(configPath, []byte(jsonContent), 0644); err != nil {
+	if err := config.WriteTrustedFile(configPath, []byte(jsonContent)); err != nil {
 		return "", "", fmt.Errorf("writing configuration to %s: %w", configPath, err)
 	}
 

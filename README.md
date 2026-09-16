@@ -111,6 +111,8 @@ bws init -n
 bws init --preset python
 ```
 
+For an existing configuration, review `.bws/config.jsonc` and local profiles, then run `bws config trust`. Manual changes require renewed approval; `bws init` records the configuration it generates.
+
 **Why is workspace initialization needed?**  
 `bws` creates a clean, isolated `$HOME` by default. Initializing your project generates `.bws/config.jsonc`, ensuring essential toolchain directories are mapped into the sandbox while keeping all personal host files private:
 * **Go**: Maps `~/.go` and `~/.cache/go-build` so `go build`, modules, and GOPATH function normally.

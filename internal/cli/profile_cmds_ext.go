@@ -34,17 +34,21 @@ func HandleProfileTest(name string, verbose bool) error {
 	globalPath := config.GlobalPath()
 	baseCfg, err := config.LoadFile(globalPath)
 	if err != nil {
-		baseCfg = &config.Config{
-			System: &config.SystemConfig{
-				ShareNet: boolPtr(true),
-			},
+		if !os.IsNotExist(err) {
+			return err
+		}
+		baseCfg, err = config.Parse([]byte(config.DefaultConfigTemplate), globalPath)
+		if err != nil {
+			return err
 		}
 	}
 	localPath := config.LocalPath()
 	if fi, err := os.Stat(localPath); err == nil && !fi.IsDir() {
-		if localCfg, err := config.LoadFile(localPath); err == nil {
-			baseCfg = config.Merge(baseCfg, localCfg)
+		localCfg, err := config.LoadLocalFile(localPath)
+		if err != nil {
+			return err
 		}
+		baseCfg = config.Merge(baseCfg, localCfg)
 	}
 
 	fmt.Printf("Testing profile %s in sandbox:\n", ColorProfile(name))
@@ -192,7 +196,7 @@ func HandleProfileFetch(name string, global, local bool) error {
 		if err == nil {
 			var p profile.Profile
 			if err := json.Unmarshal(data, &p); err == nil {
-				if err := os.WriteFile(targetFile, data, 0644); err == nil {
+				if err := config.WriteTrustedFile(targetFile, data); err == nil {
 					fmt.Printf("Fetched profile %s from GitHub -> %s\n", ColorProfile(cleanName), targetFile)
 					return nil
 				}

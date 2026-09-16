@@ -16,7 +16,21 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "failed to build bws binary for testing: %v\n", err)
 		os.Exit(1)
 	}
-	os.Exit(m.Run())
+	home, err := os.MkdirTemp("", "bws-tests-home-*")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := os.Setenv("HOME", home); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	if err := os.RemoveAll(home); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		code = 1
+	}
+	os.Exit(code)
 }
 
 func TestCLIDBusFlagsAndPlan(t *testing.T) {
