@@ -7,7 +7,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.46"
+var Version = "0.3.47"
 
 func buildApp() *clihelp.App {
 	f := &appFlags{}
