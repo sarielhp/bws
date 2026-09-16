@@ -132,7 +132,7 @@ dependency updates, and portability.
 
 The verification script formats, vets, tests, and builds. Optional long tests
 are available through `./tools/test_long`. See [AGENTS.md](AGENTS.md) for
-repository conventions and [the roadmap](to_do.md) for additional work.
+repository conventions and [the prioritized backlog](todo.md) for additional work.
 
 ## License
 

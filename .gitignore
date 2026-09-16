@@ -21,3 +21,6 @@
 # Editor/OS cruft
 *~
 .DS_Store
+# Review cycle artifacts
+reviews/archive/
+reviews/logs/

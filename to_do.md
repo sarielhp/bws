@@ -1,5 +1,8 @@
 # `bws` project roadmap & to-do list
 
+Historical roadmap: see [the prioritized backlog](todo.md) for current work.
+Some unchecked items below have already been implemented; retained for context.
+
 ---
 
 ## 1. AI agent & CLI tool capability profiles
