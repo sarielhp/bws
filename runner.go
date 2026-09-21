@@ -137,6 +137,11 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		return nil
 	}
 
+	if sl.cfg != nil && sl.cfg.System != nil && sl.cfg.System.NewSession != nil && !*sl.cfg.System.NewSession {
+		signal.Ignore(os.Interrupt)
+		defer signal.Reset(os.Interrupt)
+	}
+
 	cmd := exec.Command("bwrap", append(bwrapArgs, execArgs...)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -157,7 +162,7 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	return nil
 }
 
-func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, noInit bool) error {
+func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, noInit, tmuxFlag, noTmuxFlag bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
@@ -174,20 +179,42 @@ func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbu
 		return err
 	}
 
-	isDefaultSession := len(args) == 0
+	inHostTmux := util.IsInsideTmux()
+	directShell := noTmuxFlag || (inHostTmux && !tmuxFlag) || (len(args) > 0 && isShellName(args[0]))
+
+	isDefaultSession := len(args) == 0 && !directShell
 	cli.VerifyTools(isDefaultSession, false)
 	cli.VerifyBwrapUserns()
 
 	var execArgs []string
 	if len(args) == 0 {
-		sessionName := "bwrap-dev"
-		if sl.cfg.TmuxSessionName != "" {
-			sessionName = sl.cfg.TmuxSessionName
+		if directShell {
+			execArgs = resolveInteractiveShell(sl.cfg)
+		} else {
+			sessionName := "bwrap-dev"
+			if sl.cfg.TmuxSessionName != "" {
+				sessionName = sl.cfg.TmuxSessionName
+			}
+			execArgs = []string{"tmux", "-u", "new-session", "-A", "-s", sessionName, "/bin/bash", "-l"}
 		}
-		// Use login shell to ensure profile is sourced
-		execArgs = []string{"tmux", "-u", "new-session", "-A", "-s", sessionName, "/bin/bash", "-l"}
 	} else {
 		execArgs = args
+		if len(args) == 1 && isShellName(args[0]) {
+			execArgs = []string{args[0], "-l"}
+		}
+	}
+
+	if directShell {
+		if sl.cfg.System == nil {
+			sl.cfg.System = &config.SystemConfig{}
+		}
+		falseVal := false
+		sl.cfg.System.NewSession = &falseVal
+	}
+
+	if inHostTmux && directShell {
+		tmuxCleanup, _ := util.SetHostTmuxTitle()
+		defer tmuxCleanup()
 	}
 
 	return buildAndRun(sl, currentDir, false, execArgs, verbose)
@@ -296,7 +323,7 @@ func runSandboxCommand(name string, execArgs []string, force, verbose bool) erro
 	return nil
 }
 
-func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool, noInit ...bool) error {
+func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, noInit, tmuxFlag, noTmuxFlag bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
@@ -312,9 +339,26 @@ func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFl
 		return err
 	}
 
-	skipInit := len(noInit) > 0 && noInit[0]
-	if err := maybeAutoInit(sl, currentDir, force, skipInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose); err != nil {
+	if err := maybeAutoInit(sl, currentDir, force, noInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose); err != nil {
 		return err
 	}
+
+	inHostTmux := util.IsInsideTmux()
+	isShell := len(args) > 0 && isShellName(args[0])
+	directShell := noTmuxFlag || isShell || (inHostTmux && !tmuxFlag)
+
+	if directShell {
+		if sl.cfg.System == nil {
+			sl.cfg.System = &config.SystemConfig{}
+		}
+		falseVal := false
+		sl.cfg.System.NewSession = &falseVal
+	}
+
+	if inHostTmux && isShell {
+		tmuxCleanup, _ := util.SetHostTmuxTitle()
+		defer tmuxCleanup()
+	}
+
 	return buildAndRun(sl, currentDir, false, args, verbose)
 }

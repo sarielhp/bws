@@ -34,6 +34,8 @@ func buildApp() *clihelp.App {
 			clihelp.Bool(&f.dbus, "--dbus", false, "Enable filtered session D-Bus access via xdg-dbus-proxy"),
 			clihelp.Bool(&f.noDBus, "--no-dbus", false, "Disable session D-Bus access"),
 			clihelp.Bool(&f.noInit, "--no-init", false, "Skip auto-configuration of workspace when entering uninitialized directory"),
+			clihelp.Bool(&f.tmux, "--tmux", false, "Force launching an internal tmux session even when running inside host tmux"),
+			clihelp.Bool(&f.noTmux, "--no-tmux", false, "Launch direct interactive shell instead of internal tmux session"),
 			clihelp.Bool(&f.verbose, "-v, --verbose", false, "Print verbose debug information (config paths, bwrap args, etc.)"),
 		},
 		Commands: []clihelp.Command{
@@ -56,7 +58,7 @@ func buildApp() *clihelp.App {
 			docsCmd(f),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return runDefault(ctx.Args, f.force, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus, f.noInit)
+			return runDefault(ctx.Args, f.force, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus, f.noInit, f.tmux, f.noTmux)
 		},
 	}
 }

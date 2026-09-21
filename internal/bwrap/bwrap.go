@@ -35,12 +35,22 @@ func isExplicitInEnv(cfg *config.Config, key string) bool {
 }
 
 func addSystemAndNetArgs(cfg *config.Config, args *[]string, verbose bool) {
-	*args = append(*args, "--tmpfs", "/etc", "--unshare-ipc", "--unshare-pid", "--new-session")
+	*args = append(*args, "--tmpfs", "/etc", "--unshare-ipc", "--unshare-pid")
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs /etc\n")
 		fmt.Fprintf(os.Stderr, "[verbose]   --unshare-ipc\n")
 		fmt.Fprintf(os.Stderr, "[verbose]   --unshare-pid\n")
-		fmt.Fprintf(os.Stderr, "[verbose]   --new-session\n")
+	}
+
+	useNewSession := true
+	if cfg != nil && cfg.System != nil && cfg.System.NewSession != nil {
+		useNewSession = *cfg.System.NewSession
+	}
+	if useNewSession {
+		*args = append(*args, "--new-session")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose]   --new-session\n")
+		}
 	}
 
 	if config.FeatureEnabledDefault(cfg, func(f *config.FeaturesConfig) *bool { return f.NoNet }, false) ||

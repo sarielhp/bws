@@ -32,6 +32,24 @@ func TestBuildArgsDefaultIsolationFlags(t *testing.T) {
 	}
 }
 
+func TestBuildArgsOmitNewSession(t *testing.T) {
+	falseVal := false
+	cfg := &config.Config{
+		System: &config.SystemConfig{
+			NewSession: &falseVal,
+		},
+	}
+	sandboxDir := t.TempDir()
+	currentDir := t.TempDir()
+
+	args := BuildArgs(cfg, sandboxDir, currentDir, true, false)
+	for _, arg := range args {
+		if arg == "--new-session" {
+			t.Errorf("expected --new-session to be omitted when NewSession is false, got in args: %v", args)
+		}
+	}
+}
+
 func TestAddX11ArgsTightened(t *testing.T) {
 	t.Setenv("DISPLAY", ":0")
 	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")

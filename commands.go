@@ -28,6 +28,8 @@ type appFlags struct {
 	desc     string
 	basic    bool
 	yes      bool
+	tmux     bool
+	noTmux   bool
 }
 
 func initCmd(f *appFlags) clihelp.Command {

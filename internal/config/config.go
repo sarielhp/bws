@@ -18,6 +18,7 @@ type SystemConfig struct {
 	Clearenv   *bool   `json:"clearenv"`
 	UnshareUTS *bool   `json:"unshare_uts"`
 	Hostname   *string `json:"hostname"`
+	NewSession *bool   `json:"new_session,omitempty"`
 }
 
 type FeaturesConfig struct {

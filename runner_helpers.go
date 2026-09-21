@@ -8,6 +8,7 @@ import (
 	"bws/internal/cli"
 	"bws/internal/config"
 	"bws/internal/policy"
+	"bws/internal/util"
 )
 
 type sandboxLaunch struct {
@@ -117,4 +118,43 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, n
 	}
 	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
 	return nil
+}
+
+func isShellName(name string) bool {
+	base := filepath.Base(name)
+	switch base {
+	case "fish", "zsh", "bash", "sh", "csh", "tcsh", "dash":
+		return true
+	default:
+		return false
+	}
+}
+
+func resolveInteractiveShell(cfg *config.Config) []string {
+	if cfg != nil {
+		for _, p := range cfg.Profiles {
+			switch p {
+			case "fish":
+				if util.CommandExists("fish") {
+					return []string{"fish", "-l"}
+				}
+			case "zsh":
+				if util.CommandExists("zsh") {
+					return []string{"zsh", "-l"}
+				}
+			}
+		}
+	}
+
+	if hostShell := os.Getenv("SHELL"); hostShell != "" {
+		base := filepath.Base(hostShell)
+		if isShellName(base) && util.CommandExists(base) {
+			return []string{base, "-l"}
+		}
+	}
+
+	if util.CommandExists("bash") {
+		return []string{"/bin/bash", "-l"}
+	}
+	return []string{"/bin/sh", "-l"}
 }
