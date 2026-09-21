@@ -164,7 +164,12 @@ func HandleProfileNew(name string, global, local bool) error {
 	cwd, _ := os.Getwd()
 	fmt.Printf("Synthesizing profile for %q from Homebrew and Firejail...\n", name)
 
-	p, err := profile.GenerateProfile(name)
+	registry, err := profile.LoadRegistry(cwd)
+	if err != nil {
+		return err
+	}
+
+	p, err := profile.GenerateProfile(name, registry)
 	if err != nil {
 		return err
 	}

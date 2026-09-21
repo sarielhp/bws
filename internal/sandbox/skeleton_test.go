@@ -134,6 +134,7 @@ func TestDefaultTmuxSkeletonDirectives(t *testing.T) {
 }
 
 func TestStageHomePopulatesTmuxConf(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	cfg := &config.Config{}
 	workDir := t.TempDir()
 

@@ -21,7 +21,8 @@ type brewFormulaResponse struct {
 }
 
 // GenerateProfile fetches Homebrew and Firejail intelligence to create a new Profile.
-func GenerateProfile(name string) (*Profile, error) {
+// Unknown dependencies from Homebrew formulas that do not exist in the profile registry are excluded.
+func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error) {
 	cleanName := strings.ToLower(strings.TrimSpace(name))
 	if cleanName == "" {
 		return nil, fmt.Errorf("profile name cannot be empty")
@@ -31,25 +32,12 @@ func GenerateProfile(name string) (*Profile, error) {
 		Name: cleanName,
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
-
-	// 1. Query Homebrew Formula API
-	hbURL := fmt.Sprintf("https://formulae.brew.sh/api/formula/%s.json", cleanName)
-	if resp, err := client.Get(hbURL); err == nil && resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		var hb brewFormulaResponse
-		if err := json.Unmarshal(body, &hb); err == nil {
-			if hb.Desc != "" {
-				p.Description = hb.Desc
-			}
-			for _, dep := range hb.Dependencies {
-				if dep != "" && dep != cleanName {
-					p.Requires = append(p.Requires, dep)
-				}
-			}
-		}
+	if registry == nil {
+		registry, _ = LoadRegistry("")
 	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	fetchHomebrewFormula(client, cleanName, p, registry)
 
 	if p.Description == "" {
 		p.Description = fmt.Sprintf("%s toolchain and environment", cleanName)
@@ -79,6 +67,58 @@ func GenerateProfile(name string) (*Profile, error) {
 	}
 
 	return p, nil
+}
+
+func fetchHomebrewFormula(client *http.Client, cleanName string, p *Profile, registry map[string]*Profile) {
+	hbURL := fmt.Sprintf("https://formulae.brew.sh/api/formula/%s.json", cleanName)
+	resp, err := client.Get(hbURL)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	var hb brewFormulaResponse
+	if err := json.Unmarshal(body, &hb); err != nil {
+		return
+	}
+	if hb.Desc != "" {
+		p.Description = hb.Desc
+	}
+	p.Requires = filterValidDependencies(hb.Dependencies, cleanName, registry)
+}
+
+func filterValidDependencies(deps []string, selfName string, registry map[string]*Profile) []string {
+	if len(deps) == 0 || registry == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var valid []string
+	for _, raw := range deps {
+		dep := strings.TrimSpace(raw)
+		if dep == "" || dep == selfName {
+			continue
+		}
+		target := dep
+		p, ok := registry[target]
+		if !ok && strings.Contains(dep, "@") {
+			base := strings.Split(dep, "@")[0]
+			p, ok = registry[base]
+		}
+		if !ok || p == nil {
+			continue
+		}
+		canon := p.Name
+		if canon == "" || canon == selfName || seen[canon] {
+			continue
+		}
+		seen[canon] = true
+		valid = append(valid, canon)
+	}
+	return valid
 }
 
 func fetchFirejail(client *http.Client, cleanName string) ([]string, []string, []string) {
