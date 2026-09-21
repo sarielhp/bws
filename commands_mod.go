@@ -7,22 +7,26 @@ import (
 )
 
 func addCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+	var create bool
 	return clihelp.Command{
 		Name:             "add",
 		Aliases:          []string{"enable"},
 		Group:            "Current environment",
 		Description:      "Add one or more capability profiles to the current environment",
-		UsageLine:        "bws add <name...> [-g | -l]",
+		UsageLine:        "bws add <name...> [-g | -l] [-c | --create]",
 		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,
+		Options: []clihelp.Option{
+			clihelp.Bool(&create, "-c, --create", false, "Automatically synthesize and create the profile if it does not exist"),
+		},
 		Examples: []clihelp.Example{
 			{Line: "bws add python", Description: "Enable python profile in current workspace"},
 			{Line: "bws add python node rust", Description: "Enable multiple profiles at once"},
 			{Line: "bws add docker -g", Description: "Enable docker profile in global config"},
+			{Line: "bws add -c fish", Description: "Synthesize fish profile if missing and enable it"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			cli.HandleProfileAdd(ctx.Args, f.global, f.local)
-			return nil
+			return cli.HandleProfileAdd(ctx.Args, f.global, f.local, create)
 		},
 	}
 }

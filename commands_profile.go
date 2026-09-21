@@ -148,20 +148,24 @@ func profileTestCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.C
 }
 
 func profileAddCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+	var create bool
 	return clihelp.Command{
 		Name:             "add",
 		Aliases:          []string{"enable"},
 		Description:      "Add and enable capability profile(s) in local or global config",
-		UsageLine:        "bws profile add <name...> [-g | -l]",
+		UsageLine:        "bws profile add <name...> [-g | -l] [-c | --create]",
 		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,
+		Options: []clihelp.Option{
+			clihelp.Bool(&create, "-c, --create", false, "Automatically synthesize and create the profile if it does not exist"),
+		},
 		Examples: []clihelp.Example{
 			{Line: "bws profile add python", Description: "Enable python profile in local workspace"},
 			{Line: "bws profile add python node -g", Description: "Enable multiple profiles in global config"},
+			{Line: "bws profile add -c fish", Description: "Synthesize fish profile if missing and enable it"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			cli.HandleProfileAdd(ctx.Args, f.global, f.local)
-			return nil
+			return cli.HandleProfileAdd(ctx.Args, f.global, f.local, create)
 		},
 	}
 }
