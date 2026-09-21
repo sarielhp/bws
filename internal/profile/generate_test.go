@@ -109,3 +109,53 @@ func TestGenerateProfile(t *testing.T) {
 		t.Errorf("expected detect spec to be generated, got nil")
 	}
 }
+
+func TestIsToolProfile(t *testing.T) {
+	tests := []struct {
+		profile  *Profile
+		expected bool
+	}{
+		{profile: &Profile{Name: "git"}, expected: true},
+		{profile: &Profile{Name: "rust"}, expected: true},
+		{profile: &Profile{Name: "no-net"}, expected: false},
+		{profile: &Profile{Name: "no-sudo"}, expected: false},
+		{profile: &Profile{Name: "mask-sudo"}, expected: false},
+		{profile: &Profile{Name: "offline"}, expected: false},
+		{profile: &Profile{Name: "python-dev", Kind: "compound"}, expected: false},
+		{profile: nil, expected: false},
+	}
+	for _, tc := range tests {
+		got := IsToolProfile(tc.profile)
+		if got != tc.expected {
+			var name string
+			if tc.profile != nil {
+				name = tc.profile.Name
+			}
+			t.Errorf("IsToolProfile(%q) = %v; want %v", name, got, tc.expected)
+		}
+	}
+}
+
+func TestVerifyToolInstalled(t *testing.T) {
+	p := &Profile{
+		Name: "git",
+		Tests: []TestSpec{
+			{Cmd: []string{"git", "--version"}, Type: "version"},
+		},
+	}
+	path, err := VerifyToolInstalled("git", p)
+	if err != nil || path == "" {
+		t.Errorf("expected git to be verified as installed, got path=%q, err=%v", path, err)
+	}
+
+	pFake := &Profile{
+		Name: "mongishogi_nonexistent",
+		Tests: []TestSpec{
+			{Cmd: []string{"mongishogi_nonexistent", "--version"}, Type: "version"},
+		},
+	}
+	_, err = VerifyToolInstalled("mongishogi_nonexistent", pFake)
+	if err == nil {
+		t.Errorf("expected error for non-existent tool, got nil")
+	}
+}

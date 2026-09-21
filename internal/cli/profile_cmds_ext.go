@@ -168,7 +168,7 @@ func HandleProfileSearch(query string) error {
 }
 
 // HandleProfileFetch downloads a profile from GitHub repository or synthesizes it.
-func HandleProfileFetch(name string, global, local bool) error {
+func HandleProfileFetch(name string, global, local, force bool) error {
 	cleanName := strings.ToLower(strings.TrimSpace(name))
 	if cleanName == "" {
 		return fmt.Errorf("profile name cannot be empty")
@@ -206,7 +206,7 @@ func HandleProfileFetch(name string, global, local bool) error {
 
 	// Fall back to synthesis
 	fmt.Printf("Profile %s not found in remote catalog; attempting synthesis...\n", ColorProfile(cleanName))
-	return HandleProfileNew(cleanName, global, local)
+	return HandleProfileNew(cleanName, global, local, force)
 }
 
 // HandleProfileUpdate updates all locally installed global profiles from the remote repository.
@@ -223,7 +223,7 @@ func HandleProfileUpdate() error {
 			continue
 		}
 		pName := strings.TrimSuffix(e.Name(), ".json")
-		if err := HandleProfileFetch(pName, true, false); err == nil {
+		if err := HandleProfileFetch(pName, true, false, false); err == nil {
 			updated++
 		}
 	}

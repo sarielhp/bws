@@ -159,19 +159,44 @@ func printResolvedProfile(resolved *profile.ResolvedProfile) error {
 	return nil
 }
 
+// PrintSynthesisSource displays the source intelligence found for profile synthesis.
+func PrintSynthesisSource(name string, info profile.SynthesisInfo) {
+	if info.HomebrewFormula && info.FirejailProfile {
+		fmt.Printf("Synthesizing profile for %q from Homebrew and Firejail...\n", name)
+	} else if info.HomebrewFormula {
+		fmt.Printf("Synthesizing profile for %q from Homebrew formula...\n", name)
+	} else if info.FirejailProfile {
+		fmt.Printf("Synthesizing profile for %q from Firejail profile...\n", name)
+	} else {
+		fmt.Printf("No upstream recipes found in Homebrew or Firejail for %q.\n", name)
+	}
+}
+
 // HandleProfileNew generates a new profile by querying Homebrew and Firejail intelligence.
-func HandleProfileNew(name string, global, local bool) error {
+// Verifies that the tool is installed in the system ($PATH) before writing the profile unless force is true.
+func HandleProfileNew(name string, global, local, force bool) error {
 	cwd, _ := os.Getwd()
-	fmt.Printf("Synthesizing profile for %q from Homebrew and Firejail...\n", name)
 
 	registry, err := profile.LoadRegistry(cwd)
 	if err != nil {
 		return err
 	}
 
-	p, err := profile.GenerateProfile(name, registry)
+	p, info, err := profile.GenerateProfileDetailed(name, registry)
 	if err != nil {
 		return err
+	}
+
+	if !info.HomebrewFormula && !info.FirejailProfile && !force {
+		return fmt.Errorf("cannot synthesize profile for %q: not found in Homebrew formulae or Firejail profiles (use -f/--force to generate an empty skeleton)", name)
+	}
+
+	PrintSynthesisSource(name, info)
+
+	if binPath, err := profile.VerifyToolInstalled(name, p); err == nil {
+		fmt.Printf("  • Host binary:  %s\n", binPath)
+	} else {
+		fmt.Printf("  • Host binary:  not found in $PATH (profile created without local installation)\n")
 	}
 
 	var targetDir string

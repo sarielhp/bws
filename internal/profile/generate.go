@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,14 +20,21 @@ type brewFormulaResponse struct {
 	Name         string   `json:"name"`
 	Desc         string   `json:"desc"`
 	Dependencies []string `json:"dependencies"`
+	Aliases      []string `json:"aliases"`
+	Executables  []string `json:"executables"`
 }
 
-// GenerateProfile fetches Homebrew and Firejail intelligence to create a new Profile.
-// Unknown dependencies from Homebrew formulas that do not exist in the profile registry are excluded.
-func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error) {
+// SynthesisInfo records the provenance of intelligence sources used to synthesize a profile.
+type SynthesisInfo struct {
+	HomebrewFormula bool
+	FirejailProfile bool
+}
+
+// GenerateProfileDetailed fetches Homebrew and Firejail intelligence to create a new Profile, returning source info.
+func GenerateProfileDetailed(name string, registry map[string]*Profile) (*Profile, SynthesisInfo, error) {
 	cleanName := strings.ToLower(strings.TrimSpace(name))
 	if cleanName == "" {
-		return nil, fmt.Errorf("profile name cannot be empty")
+		return nil, SynthesisInfo{}, fmt.Errorf("profile name cannot be empty")
 	}
 
 	p := &Profile{
@@ -37,16 +46,19 @@ func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	fetchHomebrewFormula(client, cleanName, p, registry)
+	info := SynthesisInfo{
+		HomebrewFormula: fetchHomebrewFormula(client, cleanName, p, registry),
+	}
 
 	if p.Description == "" {
 		p.Description = fmt.Sprintf("%s toolchain and environment", cleanName)
 	}
 
-	fjWhitelists, fjReadOnlys, fjKeepVars := fetchFirejail(client, cleanName)
+	fjWhitelists, fjReadOnlys, fjKeepVars, fjFound := fetchFirejail(client, cleanName)
+	info.FirejailProfile = fjFound
 	populateGeneratedAccess(p, cleanName, fjWhitelists, fjReadOnlys, fjKeepVars)
 
-	// 5. Formulate Tests
+	// Formulate Tests
 	p.Tests = []TestSpec{
 		{
 			Name: fmt.Sprintf("%s binary version check", cleanName),
@@ -55,7 +67,7 @@ func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error
 		},
 	}
 
-	// 6. Formulate Detect
+	// Formulate Detect
 	p.Detect = &DetectSpec{
 		Files: []string{
 			fmt.Sprintf("%s.json", cleanName),
@@ -66,29 +78,91 @@ func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error
 		},
 	}
 
-	return p, nil
+	return p, info, nil
 }
 
-func fetchHomebrewFormula(client *http.Client, cleanName string, p *Profile, registry map[string]*Profile) {
+// GenerateProfile fetches Homebrew and Firejail intelligence to create a new Profile.
+func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error) {
+	p, _, err := GenerateProfileDetailed(name, registry)
+	return p, err
+}
+
+// IsToolProfile returns true if the profile represents an installed tool rather than
+// a pure policy, restriction, or compound profile.
+func IsToolProfile(p *Profile) bool {
+	if p == nil || p.Kind == "compound" {
+		return false
+	}
+	name := strings.ToLower(p.Name)
+	if strings.HasPrefix(name, "no-") || strings.HasPrefix(name, "mask-") || name == "offline" {
+		return false
+	}
+	return true
+}
+
+// VerifyToolInstalled checks if the tool or any of its associated binaries are installed on the host system ($PATH).
+// Returns the resolved path of the first executable found, or an error if none are installed.
+func VerifyToolInstalled(name string, p *Profile) (string, error) {
+	cleanName := strings.ToLower(strings.TrimSpace(name))
+	var candidates []string
+	if p != nil {
+		candidates = append(candidates, p.Aliases...)
+		for _, t := range p.Tests {
+			if len(t.Cmd) > 0 && t.Cmd[0] != "" {
+				bin := t.Cmd[0]
+				if bin != "bash" && bin != "sh" && bin != "zsh" {
+					candidates = append(candidates, bin)
+				}
+			}
+		}
+	}
+	candidates = append(candidates, cleanName)
+
+	seen := make(map[string]bool)
+	for _, bin := range candidates {
+		bin = strings.TrimSpace(bin)
+		if bin == "" || seen[bin] {
+			continue
+		}
+		seen[bin] = true
+		if path, err := exec.LookPath(bin); err == nil && path != "" {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("executable %q is not installed on host system ($PATH)", cleanName)
+}
+
+func fetchHomebrewFormula(client *http.Client, cleanName string, p *Profile, registry map[string]*Profile) bool {
 	hbURL := fmt.Sprintf("https://formulae.brew.sh/api/formula/%s.json", cleanName)
 	resp, err := client.Get(hbURL)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		return
+		return false
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return
+		return false
 	}
 	var hb brewFormulaResponse
 	if err := json.Unmarshal(body, &hb); err != nil {
-		return
+		return false
 	}
 	if hb.Desc != "" {
 		p.Description = hb.Desc
 	}
+	for _, a := range hb.Aliases {
+		if a != "" && a != cleanName && !slices.Contains(p.Aliases, a) {
+			p.Aliases = append(p.Aliases, a)
+		}
+	}
+	for _, e := range hb.Executables {
+		if e != "" && e != cleanName && !slices.Contains(p.Aliases, e) {
+			p.Aliases = append(p.Aliases, e)
+		}
+	}
 	p.Requires = filterValidDependencies(hb.Dependencies, cleanName, registry)
+	return true
 }
 
 func filterValidDependencies(deps []string, selfName string, registry map[string]*Profile) []string {
@@ -121,36 +195,38 @@ func filterValidDependencies(deps []string, selfName string, registry map[string
 	return valid
 }
 
-func fetchFirejail(client *http.Client, cleanName string) ([]string, []string, []string) {
+func fetchFirejail(client *http.Client, cleanName string) ([]string, []string, []string, bool) {
 	// 2. Query Firejail Profile Repository
 	fjURL := fmt.Sprintf("https://raw.githubusercontent.com/netblue30/firejail/master/etc/%s.profile", cleanName)
 	var fjWhitelists []string
 	var fjReadOnlys []string
 	var fjKeepVars []string
-	if resp, err := client.Get(fjURL); err == nil && resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		scanner := bufio.NewScanner(resp.Body)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if strings.HasPrefix(line, "#") || line == "" {
-				continue
-			}
-			if strings.HasPrefix(line, "whitelist ") {
-				path := strings.TrimSpace(strings.TrimPrefix(line, "whitelist "))
-				fjWhitelists = append(fjWhitelists, path)
-			} else if strings.HasPrefix(line, "read-only ") {
-				path := strings.TrimSpace(strings.TrimPrefix(line, "read-only "))
-				fjReadOnlys = append(fjReadOnlys, path)
-			} else if strings.HasPrefix(line, "keep-var ") {
-				varName := strings.TrimSpace(strings.TrimPrefix(line, "keep-var "))
-				for _, v := range strings.Fields(varName) {
-					fjKeepVars = append(fjKeepVars, v)
-				}
+	resp, err := client.Get(fjURL)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil, nil, nil, false
+	}
+	defer resp.Body.Close()
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "whitelist ") {
+			path := strings.TrimSpace(strings.TrimPrefix(line, "whitelist "))
+			fjWhitelists = append(fjWhitelists, path)
+		} else if strings.HasPrefix(line, "read-only ") {
+			path := strings.TrimSpace(strings.TrimPrefix(line, "read-only "))
+			fjReadOnlys = append(fjReadOnlys, path)
+		} else if strings.HasPrefix(line, "keep-var ") {
+			varName := strings.TrimSpace(strings.TrimPrefix(line, "keep-var "))
+			for _, v := range strings.Fields(varName) {
+				fjKeepVars = append(fjKeepVars, v)
 			}
 		}
 	}
 
-	return fjWhitelists, fjReadOnlys, fjKeepVars
+	return fjWhitelists, fjReadOnlys, fjKeepVars, true
 }
 
 func populateGeneratedAccess(p *Profile, cleanName string, fjWhitelists, fjReadOnlys, fjKeepVars []string) {

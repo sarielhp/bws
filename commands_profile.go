@@ -103,7 +103,7 @@ func profileGenerateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihe
 		Args:             clihelp.ExactArgs(1),
 		OptionsValidator: glValidator,
 		Run: func(ctx *clihelp.Context) error {
-			return cli.HandleProfileNew(ctx.Args[0], f.global, f.local)
+			return cli.HandleProfileNew(ctx.Args[0], f.global, f.local, f.force)
 		},
 	}
 }
@@ -117,7 +117,7 @@ func profileFetchCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.
 		Args:             clihelp.ExactArgs(1),
 		OptionsValidator: glValidator,
 		Run: func(ctx *clihelp.Context) error {
-			return cli.HandleProfileFetch(ctx.Args[0], f.global, f.local)
+			return cli.HandleProfileFetch(ctx.Args[0], f.global, f.local, f.force)
 		},
 	}
 }
@@ -165,7 +165,7 @@ func profileAddCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Co
 			{Line: "bws profile add -c fish", Description: "Synthesize fish profile if missing and enable it"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return cli.HandleProfileAdd(ctx.Args, f.global, f.local, create)
+			return cli.HandleProfileAdd(ctx.Args, f.global, f.local, create, f.force)
 		},
 	}
 }

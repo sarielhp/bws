@@ -26,7 +26,7 @@ func addCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 			{Line: "bws add -c fish", Description: "Synthesize fish profile if missing and enable it"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			return cli.HandleProfileAdd(ctx.Args, f.global, f.local, create)
+			return cli.HandleProfileAdd(ctx.Args, f.global, f.local, create, f.force)
 		},
 	}
 }
