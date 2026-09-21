@@ -16,20 +16,27 @@ func ensureProfileInRegistry(name string, global, local, create, force bool, cwd
 			return fmt.Errorf("profile %s not found in catalog.\n  • Run 'bws profile list' to see available profiles.\n  • Run 'bws add -c %s' to synthesize and add it.", ColorProfile(name), name)
 		}
 
-		// Verification that the tool is installed in the system before synthesizing and adding
-		if _, err := profile.VerifyToolInstalled(name, nil); err != nil && !force {
-			return fmt.Errorf("cannot add profile %q: tool is not installed on host system ($PATH).\nInstall %q first, or use -f/--force to add anyway", name, name)
-		}
-
+		// Synthesize in-memory first so aliases and test binaries are available for installation check
 		pNew, info, err := profile.GenerateProfileDetailed(name, reg)
 		if err != nil {
 			return fmt.Errorf("synthesizing profile %q: %w", name, err)
 		}
-		if !info.HomebrewFormula && !info.FirejailProfile && !force {
-			return fmt.Errorf("cannot synthesize profile for %q: not found in Homebrew formulae or Firejail profiles", name)
+
+		binPath, binErr := profile.VerifyToolInstalled(name, pNew)
+		hasHostBinary := binErr == nil
+
+		if !hasHostBinary && !force {
+			return fmt.Errorf("cannot add profile %q: tool is not installed on host system ($PATH).\nInstall %q first, or use -f/--force to add anyway", name, name)
+		}
+
+		if !info.HomebrewFormula && !info.FirejailProfile && !hasHostBinary && !force {
+			return fmt.Errorf("cannot synthesize profile for %q: not found in Homebrew formulae, Firejail profiles, or host $PATH", name)
 		}
 
 		PrintSynthesisSource(name, info)
+		if hasHostBinary {
+			_ = binPath
+		}
 
 		var targetDir string
 		if local && !global {

@@ -187,13 +187,16 @@ func HandleProfileNew(name string, global, local, force bool) error {
 		return err
 	}
 
-	if !info.HomebrewFormula && !info.FirejailProfile && !force {
-		return fmt.Errorf("cannot synthesize profile for %q: not found in Homebrew formulae or Firejail profiles (use -f/--force to generate an empty skeleton)", name)
+	binPath, binErr := profile.VerifyToolInstalled(name, p)
+	hasHostBinary := binErr == nil
+
+	if !info.HomebrewFormula && !info.FirejailProfile && !hasHostBinary && !force {
+		return fmt.Errorf("cannot synthesize profile for %q: not found in Homebrew formulae, Firejail profiles, or host $PATH (use -f/--force to generate an empty skeleton)", name)
 	}
 
 	PrintSynthesisSource(name, info)
 
-	if binPath, err := profile.VerifyToolInstalled(name, p); err == nil {
+	if hasHostBinary {
 		fmt.Printf("  • Host binary:  %s\n", binPath)
 	} else {
 		fmt.Printf("  • Host binary:  not found in $PATH (profile created without local installation)\n")

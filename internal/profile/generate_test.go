@@ -122,6 +122,7 @@ func TestIsToolProfile(t *testing.T) {
 		{profile: &Profile{Name: "mask-sudo"}, expected: false},
 		{profile: &Profile{Name: "offline"}, expected: false},
 		{profile: &Profile{Name: "python-dev", Kind: "compound"}, expected: false},
+		{profile: &Profile{Name: "custom-security", Kind: "policy"}, expected: false},
 		{profile: nil, expected: false},
 	}
 	for _, tc := range tests {
@@ -146,6 +147,15 @@ func TestVerifyToolInstalled(t *testing.T) {
 	path, err := VerifyToolInstalled("git", p)
 	if err != nil || path == "" {
 		t.Errorf("expected git to be verified as installed, got path=%q, err=%v", path, err)
+	}
+
+	pAlias := &Profile{
+		Name:    "fake_package",
+		Aliases: []string{"git"},
+	}
+	path, err = VerifyToolInstalled("fake_package", pAlias)
+	if err != nil || path == "" {
+		t.Errorf("expected alias git to be verified as installed, got path=%q, err=%v", path, err)
 	}
 
 	pFake := &Profile{

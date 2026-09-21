@@ -90,7 +90,7 @@ func GenerateProfile(name string, registry map[string]*Profile) (*Profile, error
 // IsToolProfile returns true if the profile represents an installed tool rather than
 // a pure policy, restriction, or compound profile.
 func IsToolProfile(p *Profile) bool {
-	if p == nil || p.Kind == "compound" {
+	if p == nil || p.Kind == "compound" || p.Kind == "policy" {
 		return false
 	}
 	name := strings.ToLower(p.Name)
@@ -103,7 +103,8 @@ func IsToolProfile(p *Profile) bool {
 // VerifyToolInstalled checks if the tool or any of its associated binaries are installed on the host system ($PATH).
 // Returns the resolved path of the first executable found, or an error if none are installed.
 func VerifyToolInstalled(name string, p *Profile) (string, error) {
-	cleanName := strings.ToLower(strings.TrimSpace(name))
+	rawName := strings.TrimSpace(name)
+	cleanName := strings.ToLower(rawName)
 	var candidates []string
 	if p != nil {
 		candidates = append(candidates, p.Aliases...)
@@ -116,7 +117,12 @@ func VerifyToolInstalled(name string, p *Profile) (string, error) {
 			}
 		}
 	}
-	candidates = append(candidates, cleanName)
+	if rawName != "" {
+		candidates = append(candidates, rawName)
+	}
+	if cleanName != "" && cleanName != rawName {
+		candidates = append(candidates, cleanName)
+	}
 
 	seen := make(map[string]bool)
 	for _, bin := range candidates {
