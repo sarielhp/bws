@@ -10,6 +10,6 @@
     "no-email",
     "no-secrets",
     "no-history",
-    "no-gh"
+    "no-forge"
   ]
 }

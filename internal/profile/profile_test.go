@@ -10,7 +10,7 @@ func TestLoadRegistry(t *testing.T) {
 		t.Fatalf("LoadRegistry failed: %v", err)
 	}
 
-	required := []string{"go", "python", "rust", "latex", "opencode", "oc", "emacs", "pandoc", "jq", "no-gh", "no-secrets"}
+	required := []string{"go", "python", "rust", "latex", "opencode", "oc", "emacs", "pandoc", "jq", "no-forge", "no-gh", "no-glab", "no-secrets"}
 	for _, name := range required {
 		if _, ok := reg[name]; !ok {
 			t.Errorf("expected embedded profile %q to be present", name)

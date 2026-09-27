@@ -51,7 +51,7 @@ When a profile is activated (via `"profiles": ["go-dev"]` in `~/.config/bws/conf
 | **`no-email`** | Local email stores | Thunderbird, Evolution, Mutt, Maildir |
 | **`no-chat`** | Messaging databases | Discord, Slack, Signal, Telegram |
 | **`no-secrets`** | Cloud provider & Git keys | `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.gnupg`, `~/.git-credentials`, `~/.netrc` |
-| **`no-gh`** | GitHub CLI & configs | `gh`, `~/.config/gh`, `~/.local/share/gh`, `~/.local/state/gh` |
+| **`no-forge`** | Git forge CLIs & tokens | `gh`, `glab`, `hub`, `tea`, `~/.config/gh`, `~/.config/glab-cli` (aliases: `no-gh`, `no-glab`) |
 | **`no-history`**| Command line logs | `.bash_history`, `.zsh_history`, `.python_history` |
 | **`offline`** | Network isolation | Blocks outbound internet and isolates loopback (host `127.0.0.1` unreachable) |
 | **`secure-agent`**| All of the above combined | Hardened environment for autonomous AI agents |
@@ -401,7 +401,7 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 ### `secure-agent`
 **Description**: Hardened AI agent environment with complete isolation from host secrets, browser data, and history
 
-**Requires**: `ai`, `no-sudo`, `no-ssh`, `no-browser`, `no-email`, `no-secrets`, `no-history`
+**Requires**: `ai`, `no-sudo`, `no-ssh`, `no-browser`, `no-email`, `no-secrets`, `no-history`, `no-forge`
 
 ---
 
@@ -501,22 +501,26 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 **Verification tests**:
 - `cloud, gpg, and git secrets are masked`: `bash -c ! test -s ~/.aws/credentials && ! test -s ~/.gnupg/secring.gpg && ! test -s ~/.git-credentials && ! test -s ~/.config/gh/hosts.yml`
 
-### `no-gh`
-**Description**: Mask GitHub CLI binary and configuration stores
+### `no-forge`
+**Description**: Mask Git forge CLIs (GitHub gh, GitLab glab, hub, tea) and credential stores
+
+**Aliases**: `no-gh`, `no-glab`
 
 **Masked / blocked paths**:
-- ⊘ `/usr/bin/gh`
-- ⊘ `/usr/local/bin/gh`
-- ⊘ `/bin/gh`
-- ⊘ `@@HOME@@/.local/bin/gh`
-- ⊘ `@@HOME@@/bin/gh`
-- ⊘ `~/.config/gh`
-- ⊘ `~/.local/share/gh`
-- ⊘ `~/.local/state/gh`
+- ⊘ `/usr/bin/gh`, `/usr/local/bin/gh`, `/bin/gh`, `@@HOME@@/.local/bin/gh`, `@@HOME@@/bin/gh`
+- ⊘ `/usr/bin/glab`, `/usr/local/bin/glab`, `/bin/glab`, `@@HOME@@/.local/bin/glab`, `@@HOME@@/bin/glab`
+- ⊘ `/usr/bin/hub`, `/usr/local/bin/hub`, `/bin/hub`
+- ⊘ `/usr/bin/tea`, `/usr/local/bin/tea`, `/bin/tea`
+- ⊘ `~/.config/gh`, `~/.local/share/gh`, `~/.local/state/gh`
+- ⊘ `~/.config/glab-cli`, `~/.local/share/glab-cli`, `~/.local/state/glab-cli`
+- ⊘ `~/.config/hub`, `~/.config/tea`
+- ⊘ `~/.git-credentials`, `~/.config/git/credentials`
+- ⊘ `~/.netrc`, `~/.config/netrc`
 
 **Verification tests**:
 - `gh binary execution blocked`: `bash -c ! gh --version 2>/dev/null`
-- `gh configuration masked`: `bash -c ! test -f ~/.config/gh/hosts.yml && ! test -f ~/.config/gh/config.yml`
+- `glab binary execution blocked`: `bash -c ! glab --version 2>/dev/null`
+- `forge credentials and configs masked`: `bash -c ! test -f ~/.config/gh/hosts.yml && ! test -f ~/.config/glab-cli/config.yml && ! test -s ~/.git-credentials`
 
 ### `no-ssh`
 **Description**: Block all SSH access, configuration, and host keys

@@ -1,0 +1,67 @@
+{
+  "name": "no-forge",
+  "aliases": [
+    "no-gh",
+    "no-glab"
+  ],
+  "description": "Mask Git forge CLIs (gh, glab, hub, tea) and credential stores",
+  "mask": [
+    "/usr/bin/gh",
+    "/usr/local/bin/gh",
+    "/bin/gh",
+    "@@HOME@@/.local/bin/gh",
+    "@@HOME@@/bin/gh",
+    "/usr/bin/glab",
+    "/usr/local/bin/glab",
+    "/bin/glab",
+    "@@HOME@@/.local/bin/glab",
+    "@@HOME@@/bin/glab",
+    "/usr/bin/hub",
+    "/usr/local/bin/hub",
+    "/bin/hub",
+    "/usr/bin/tea",
+    "/usr/local/bin/tea",
+    "/bin/tea",
+    "~/.config/gh",
+    "~/.local/share/gh",
+    "~/.local/state/gh",
+    "~/.config/glab-cli",
+    "~/.local/share/glab-cli",
+    "~/.local/state/glab-cli",
+    "~/.config/hub",
+    "~/.config/tea",
+    "~/.git-credentials",
+    "~/.config/git/credentials",
+    "~/.netrc",
+    "~/.config/netrc"
+  ],
+  "tests": [
+    {
+      "name": "gh binary execution blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! gh --version 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "glab binary execution blocked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! glab --version 2>/dev/null"
+      ],
+      "type": "smoke"
+    },
+    {
+      "name": "forge credentials and configs masked",
+      "cmd": [
+        "bash",
+        "-c",
+        "! test -f ~/.config/gh/hosts.yml && ! test -f ~/.config/glab-cli/config.yml && ! test -s ~/.git-credentials"
+      ],
+      "type": "smoke"
+    }
+  ]
+}
