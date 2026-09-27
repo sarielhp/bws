@@ -155,6 +155,42 @@ func promptCleanWorkspaceStacks(opts InitOptions) (string, []string, error) {
 		}
 	}
 
+	if IsInteractiveTTY(int(os.Stdin.Fd())) && !opts.DryRun {
+		stackName, names, err := interactiveCleanStacks(curated, userSaved)
+		if err == nil {
+			return stackName, names, nil
+		}
+		if !strings.Contains(err.Error(), "terminal dimensions too small") && !strings.Contains(err.Error(), "non-interactive") {
+			return "", nil, err
+		}
+	}
+	return fallbackCleanWorkspaceStacks(curated, userSaved, opts)
+}
+
+func interactiveCleanStacks(curated, userSaved []*stack.Stack) (string, []string, error) {
+	var choices []StackChoice
+	for _, s := range curated {
+		choices = append(choices, StackChoice{Stack: s, Badge: "Curated"})
+	}
+	for _, s := range userSaved {
+		choices = append(choices, StackChoice{Stack: s, Badge: "Saved"})
+	}
+	choices = append(choices, StackChoice{
+		Label:   "Basic (raw profiles)",
+		IsBasic: true,
+		Badge:   "Profiles",
+	})
+	idx, err := SelectStackInteractive("Select an environment stack for this clean workspace", choices)
+	if err != nil {
+		return "", nil, err
+	}
+	if choices[idx].IsBasic {
+		return "", nil, nil
+	}
+	return choices[idx].Stack.Name, nil, nil
+}
+
+func fallbackCleanWorkspaceStacks(curated, userSaved []*stack.Stack, opts InitOptions) (string, []string, error) {
 	ordered := append(append([]*stack.Stack{}, curated...), userSaved...)
 	fmt.Fprintln(os.Stderr, "Workspace is clean/empty. Available environment stacks:")
 	if len(curated) > 0 {
@@ -259,6 +295,48 @@ func promptRankedWorkspaceStacks(root string, evidence *detect.Evidence, opts In
 		return "", names, err
 	}
 
+	if IsInteractiveTTY(int(os.Stdin.Fd())) && !opts.DryRun {
+		stackName, names, err := interactiveRankedStacks(root, recommended, stacks)
+		if err == nil {
+			return stackName, names, nil
+		}
+		if !strings.Contains(err.Error(), "terminal dimensions too small") && !strings.Contains(err.Error(), "non-interactive") {
+			return "", nil, err
+		}
+	}
+	return fallbackRankedWorkspaceStacks(root, recommended, stacks, opts)
+}
+
+func interactiveRankedStacks(root string, recommended []rankedStack, all []*stack.Stack) (string, []string, error) {
+	var choices []StackChoice
+	seen := make(map[string]bool)
+	for _, r := range recommended {
+		seen[r.Stack.Name] = true
+		badge := "Matches " + strings.Join(r.Evidence, ", ")
+		choices = append(choices, StackChoice{Stack: r.Stack, Badge: badge})
+	}
+	for _, s := range all {
+		if !seen[s.Name] {
+			choices = append(choices, StackChoice{Stack: s, Badge: s.Category})
+		}
+	}
+	choices = append(choices, StackChoice{
+		Label:   "Basic (detected tool profiles)",
+		IsBasic: true,
+		Badge:   "Profiles",
+	})
+	idx, err := SelectStackInteractive("Recommended Stacks for this workspace", choices)
+	if err != nil {
+		return "", nil, err
+	}
+	if choices[idx].IsBasic {
+		names, err := basicProfiles(root)
+		return "", names, err
+	}
+	return choices[idx].Stack.Name, nil, nil
+}
+
+func fallbackRankedWorkspaceStacks(root string, recommended []rankedStack, stacks []*stack.Stack, opts InitOptions) (string, []string, error) {
 	fmt.Fprintln(os.Stderr, "Recommended Stacks for this workspace:")
 	for i, r := range recommended {
 		evidenceStr := strings.Join(r.Evidence, ", ")
