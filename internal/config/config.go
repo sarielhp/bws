@@ -123,6 +123,8 @@ func (b *BindEntry) UnmarshalJSON(data []byte) error {
 }
 
 type Config struct {
+	Stack            string                     `json:"stack,omitempty"`
+	ReviewedStack    *ProfileApproval           `json:"reviewed_stack,omitempty"`
 	ReviewedProfiles map[string]ProfileApproval `json:"reviewed_profiles,omitempty"`
 	System           *SystemConfig              `json:"system"`
 	SandboxPath      string                     `json:"sandbox_path"`

@@ -67,6 +67,11 @@ func mergeResolvedProfile(cfg *config.Config, resolved *profile.ResolvedProfile,
 }
 
 func ApplyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
+	if cfg.Stack != "" {
+		if err := ApplyStack(cfg, currentDir); err != nil {
+			return err
+		}
+	}
 	if len(cfg.Profiles) == 0 {
 		return nil
 	}

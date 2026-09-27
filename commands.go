@@ -1,7 +1,11 @@
 package main
 
 import (
+	"sort"
+	"strings"
+
 	"bws/internal/cli"
+	"bws/internal/stack"
 
 	"github.com/sarielhp/clihelp"
 )
@@ -22,6 +26,7 @@ type appFlags struct {
 	noDBus   bool
 	noInit   bool
 	opencode bool
+	stack    string
 	preset   string
 	profiles []string
 	docsDir  string
@@ -32,9 +37,27 @@ type appFlags struct {
 	noTmux   bool
 }
 
+func completeStacks(toComplete string) []string {
+	stacks, err := stack.List("")
+	if err != nil {
+		return nil
+	}
+	var matches []string
+	for _, s := range stacks {
+		if strings.HasPrefix(s.Name, toComplete) {
+			matches = append(matches, s.Name)
+		}
+	}
+	sort.Strings(matches)
+	return matches
+}
+
 func initCmd(f *appFlags) clihelp.Command {
 	profileOpt := clihelp.StringSlice(&f.profiles, "-p, --profile <name>", nil, "Explicitly include tool profile(s) (repeatable or comma-separated)")
 	profileOpt.Complete = completeProfiles
+
+	stackOpt := clihelp.String(&f.stack, "-s, --stack <name>", "", "Explicitly select an environment stack (e.g. go-agent, python-uv)")
+	stackOpt.Complete = completeStacks
 
 	presetOpt := clihelp.Enum(&f.preset, "--preset <stack>", []string{"", "go", "python", "rust", "node", "latex", "agent", "all"}, "", "Explicitly select a preset stack (go, python, rust, node, latex, agent, all)")
 
@@ -50,11 +73,13 @@ func initCmd(f *appFlags) clihelp.Command {
 			clihelp.Bool(&f.yes, "-y, --yes", false, "Confirm the explicitly selected initialization plan"),
 			clihelp.Bool(&f.dryRun, "-n, --dry-run", false, "Print generated configuration to stdout without writing to disk"),
 			clihelp.Bool(&f.opencode, "--opencode", false, "Force inclusion of OpenCode configuration directories"),
+			stackOpt,
 			presetOpt,
 			profileOpt,
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws init", Description: "Initialize .bws/config.jsonc in current directory"},
+			{Line: "bws init --stack go-agent", Description: "Initialize with Go agent persona stack"},
 			{Line: "bws init -p go-dev -n", Description: "Preview a selected profile without writing"},
 			{Line: "bws init --preset python", Description: "Initialize with Python/UV settings"},
 			{Line: "bws init -p node,git", Description: "Initialize with exactly these profile selections"},
@@ -64,7 +89,7 @@ func initCmd(f *appFlags) clihelp.Command {
 			if len(ctx.Args) > 0 {
 				targetDir = ctx.Args[0]
 			}
-			return cli.HandleInitOptions(cli.InitOptions{TargetDir: targetDir, Force: f.force, DryRun: f.dryRun, OpenCode: f.opencode, Preset: f.preset, Profiles: f.profiles, Basic: f.basic, Yes: f.yes, Flags: policyFlags(f)})
+			return cli.HandleInitOptions(cli.InitOptions{TargetDir: targetDir, Stack: f.stack, Force: f.force, DryRun: f.dryRun, OpenCode: f.opencode, Preset: f.preset, Profiles: f.profiles, Basic: f.basic, Yes: f.yes, Flags: policyFlags(f)})
 		},
 	}
 }

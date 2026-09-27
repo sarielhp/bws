@@ -20,6 +20,13 @@ func Merge(global, local *Config) *Config {
 	}
 	result := *global
 
+	if local.Stack != "" {
+		result.Stack = local.Stack
+	}
+	if local.ReviewedStack != nil {
+		v := *local.ReviewedStack
+		result.ReviewedStack = &v
+	}
 	if local.SandboxPath != "" {
 		result.SandboxPath = local.SandboxPath
 	}

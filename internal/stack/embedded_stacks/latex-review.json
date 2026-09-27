@@ -1,0 +1,14 @@
+{
+  "name": "latex-review",
+  "title": "LaTeX Manuscript Review",
+  "description": "LaTeX authoring, inspection, and compilation sandbox for manuscript reviews",
+  "category": "Document & Publishing",
+  "profiles": [
+    "latex-dev",
+    "no-history",
+    "no-secrets"
+  ],
+  "default_cmd": [
+    "bash"
+  ]
+}

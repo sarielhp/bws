@@ -1,0 +1,12 @@
+{
+  "name": "rust-dev",
+  "title": "Rust Development Persona",
+  "description": "Safe Rust developer environment with cargo, rustc, git, and editor",
+  "category": "Language & Runtime",
+  "profiles": [
+    "rust-dev"
+  ],
+  "default_cmd": [
+    "bash"
+  ]
+}

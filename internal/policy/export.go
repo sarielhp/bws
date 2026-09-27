@@ -78,7 +78,7 @@ func snapshot(c *config.Config, name, description, workspace string) *profile.Pr
 	p.Path, p.Mask, p.Copy = mapStrings(c.Path, normalize), mapStrings(c.Mask, normalize), mapStrings(c.Copy, normalize)
 	p.PassEnv = slices.Clone(c.PassEnv)
 	for k, v := range c.Env {
-		if !runtimeEnv(k) {
+		if !RuntimeEnv(k) {
 			p.Env[k] = normalize(v)
 		}
 	}

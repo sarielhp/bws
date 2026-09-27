@@ -1,0 +1,12 @@
+{
+  "name": "python-uv",
+  "title": "Python Fast Environment",
+  "description": "High-performance Python workspace with uv package manager, Python 3, Git, and editor",
+  "category": "Language & Runtime",
+  "profiles": [
+    "python-dev"
+  ],
+  "default_cmd": [
+    "bash"
+  ]
+}

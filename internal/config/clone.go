@@ -20,6 +20,10 @@ func Clone(c *Config) *Config {
 	r.Copy = slices.Clone(c.Copy)
 	r.BindsRW = slices.Clone(c.BindsRW)
 	r.BindsRO = slices.Clone(c.BindsRO)
+	if c.ReviewedStack != nil {
+		v := *c.ReviewedStack
+		r.ReviewedStack = &v
+	}
 	if c.System != nil {
 		v := *c.System
 		r.System = &v

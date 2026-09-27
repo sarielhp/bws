@@ -14,6 +14,7 @@ Profiles grant access to installed tools; they do not install or pin toolchains.
 - [Installation](#installation)
 - [Quick start](#quick-start)
 - [Reusable compound profiles](docs/compound_profiles.md)
+- [Environment stacks](docs/stacks.md)
 - [Configuration reference](docs/configuration.md)
 - [Command reference](docs/commands.md)
 - [Security boundaries](docs/security.md)

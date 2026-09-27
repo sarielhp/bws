@@ -10,6 +10,7 @@ Comprehensive reference for all commands and options in `bws`.
 * [Workspace initialization](#workspace-initialization)
 * [Environment status & plan](#environment-status--plan)
 * [Capability profile management](#capability-profile-management)
+* [Environment stacks management](#environment-stacks-management)
 * [Environment modifiers (mount, bin, copy, path)](#environment-modifiers-mount-bin-copy-path)
 * [Configuration management & remote sync](#configuration-management--remote-sync)
 
@@ -125,6 +126,7 @@ Inspect workspace markers, suggest compound profiles, and generate a reference-b
 
 | Option | Description |
 | :--- | :--- |
+| `-s`, `--stack <name>` | Explicitly select an environment stack (e.g. `go-agent`, `python-uv`) |
 | `-n`, `--dry-run` | Preview generated JSONC on stdout without creating `.bws/` |
 | `--preset <name>` | Force stack preset (`go`, `python`, `rust`, `node`, `latex`, `agent`, `all`) |
 | `-p`, `--profile <name>`| Explicit selections; do not add detected profiles |
@@ -133,6 +135,7 @@ Inspect workspace markers, suggest compound profiles, and generate a reference-b
 
 ```bash
 bws init                        # Suggest and select interactively
+bws init --stack go-agent       # Initialize with Go agent persona stack
 bws init -p go-dev -n            # Preview the selected configuration
 bws init --preset python        # Explicitly select Python stack
 bws init -p docker,pandoc       # Select these profiles explicitly
@@ -249,6 +252,55 @@ bws profile review go-agent --accept
 
 See [compound profiles](compound_profiles.md) for matching rules, save limitations,
 portability acknowledgments, dependency review, and noninteractive behavior.
+
+## Environment stacks management
+
+Manage, inspect, save, and update persona environment stacks. See [Environment stacks](stacks.md) for concepts, genesis invariants, and architecture.
+
+### `bws stack list [options]`
+List all registered seed stacks and user-saved stacks (alias: `ls`).
+
+```bash
+bws stack list                      # List all stacks grouped by source
+bws stack list -c runtime           # Filter stacks by category
+bws stack list --json               # Print JSON output
+```
+
+### `bws stack show <name>`
+Inspect full details, constituent profiles, features, environment variables, digest, and provenance for a stack (aliases: `info`, `view`).
+
+```bash
+bws stack show go-agent
+bws stack show latex-review
+```
+
+### `bws stack save <name> [options]`
+Save the current active workspace as a reusable user stack in `~/.config/bws/stacks/<name>.json` (alias: `snap`). Enforces the genesis invariant (must be run in an active workspace), strips machine-specific paths and secrets, runs profile smoke tests, and computes a cryptographic approval digest.
+
+| Option | Description |
+| :--- | :--- |
+| `-t`, `--title <text>` | Human-readable title for the stack |
+| `-d`, `--desc <text>` | Description of the stack persona |
+| `-f`, `--force` | Overwrite existing stack with the same name |
+| `--no-verify` | Skip automated smoke tests for constituent profiles |
+
+```bash
+bws stack save my-persona -t "My Custom Persona" -d "Custom dev environment"
+bws stack save my-persona --no-verify
+```
+
+### `bws stack update [options]`
+Pull upstream stack definition changes into the current workspace (aliases: `upgrade`, `pull`). Diffs workspace against upstream stack definition, displays permission changes, prompts for review, and applies atomically with a `.bak` backup.
+
+| Option | Description |
+| :--- | :--- |
+| `-n`, `--dry-run` | Preview upstream changes without applying |
+| `-y`, `--yes` | Confirm and apply updates without interactive prompt |
+
+```bash
+bws stack update --dry-run          # Preview upstream changes
+bws stack update                    # Review and apply upstream updates
+```
 
 ## Environment modifiers (mount, bin, copy, path)
 

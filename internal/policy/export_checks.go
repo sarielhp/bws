@@ -12,7 +12,8 @@ import (
 	"bws/internal/profile"
 )
 
-func runtimeEnv(key string) bool {
+// RuntimeEnv reports internal runtime variables injected by bws.
+func RuntimeEnv(key string) bool {
 	return strings.HasPrefix(key, "BWS_") || key == "SSH_AUTH_SOCK" || key == "DBUS_SESSION_BUS_ADDRESS"
 }
 

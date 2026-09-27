@@ -13,6 +13,7 @@ import (
 // InitOptions selects a project setup without inferring user intent from filenames.
 type InitOptions struct {
 	TargetDir string
+	Stack     string
 	Profiles  []string
 	Preset    string
 	OpenCode  bool
@@ -43,15 +44,22 @@ func HandleInitOptions(opts InitOptions) error {
 		fmt.Printf("Workspace already initialized: %s\nUnchanged. Use --force with an explicit selection to replace it.\n", root)
 		return nil
 	}
-	names, err := selectInitProfiles(root, opts)
+	selectedStack, names, err := selectInitStackAndProfiles(root, opts)
 	if err != nil {
 		return err
 	}
-	plan, err := BuildInitPlan(root, names, opts.Flags)
+	plan, err := BuildInitPlanWithStack(root, selectedStack, names, opts.Flags)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "Workspace: %s\nSelected profiles: %s\n", root, strings.Join(names, ", "))
+	if selectedStack != "" {
+		fmt.Fprintf(os.Stderr, "Workspace: %s\nSelected stack: %s\n", root, selectedStack)
+		if len(names) > 0 {
+			fmt.Fprintf(os.Stderr, "Additional profiles: %s\n", strings.Join(names, ", "))
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "Workspace: %s\nSelected profiles: %s\n", root, strings.Join(names, ", "))
+	}
 	PrintPolicySummary(os.Stderr, plan.Effective)
 	if opts.DryRun {
 		_, err = os.Stdout.Write(plan.Data)

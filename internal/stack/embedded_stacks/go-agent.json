@@ -1,0 +1,13 @@
+{
+  "name": "go-agent",
+  "title": "Go Agent Persona",
+  "description": "Hardened Go AI agent environment with Go compiler, Gopls, Git, and secure isolation",
+  "category": "Agents & Autonomous",
+  "profiles": [
+    "go-dev",
+    "secure-agent"
+  ],
+  "default_cmd": [
+    "bash"
+  ]
+}

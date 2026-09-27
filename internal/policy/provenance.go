@@ -18,7 +18,13 @@ type Origins map[string][]string
 func Explain(r *Resolution, registry map[string]*profile.Profile) (Origins, error) {
 	out := Origins{}
 	out.addConfig(r.Global, "global: "+r.GlobalPath, r.Workspace)
-	names := config.Merge(r.Global, r.Local).Profiles
+	merged := config.Merge(r.Global, r.Local)
+	if merged.Stack != "" {
+		if err := ApplyStack(merged, r.Workspace); err != nil {
+			return nil, err
+		}
+	}
+	names := merged.Profiles
 	seen := map[string]bool{}
 	for _, name := range names {
 		resolved, err := profile.ResolveProfile(name, registry, profile.DetectMatchContext())
