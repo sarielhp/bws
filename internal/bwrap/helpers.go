@@ -303,11 +303,8 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 
 	seen := make(map[string]bool)
 	for _, maskPath := range maskList {
-		expanded := resolveBindPath(maskPath, homeDir, currentDir)
-		if !filepath.IsAbs(expanded) {
-			continue
-		}
-		if seen[expanded] {
+		expanded := resolveMaskPath(maskPath, homeDir, currentDir)
+		if expanded == "" || seen[expanded] {
 			continue
 		}
 		seen[expanded] = true
@@ -356,4 +353,14 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 			}
 		}
 	}
+}
+
+// resolveMaskPath resolves a mask entry like a bind path and returns "" for
+// anything that is still not absolute, so it can never reach bwrap as a flag.
+func resolveMaskPath(p, homeDir, currentDir string) string {
+	resolved := resolveBindPath(p, homeDir, currentDir)
+	if !filepath.IsAbs(resolved) {
+		return ""
+	}
+	return resolved
 }
