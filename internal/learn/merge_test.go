@@ -1,6 +1,7 @@
 package learn
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -79,5 +80,25 @@ func TestApplyDelta(t *testing.T) {
 	}
 	if cfg.Features == nil || cfg.Features.EnableDBus == nil || !*cfg.Features.EnableDBus {
 		t.Errorf("expected enable_dbus = true in config")
+	}
+}
+
+func TestApplyDeltaReportsWriteErrors(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "config.jsonc")
+	if err := os.WriteFile(target, []byte(`{"binds_rw": []}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(dir, 0755)
+
+	res, err := ApplyDelta(target, &Delta{BindsRW: []string{"/work"}})
+	if err == nil {
+		t.Fatal("expected write error to be returned")
+	}
+	if res == nil || res.AddedRW != 0 {
+		t.Fatalf("failed write counted as success: %+v", res)
 	}
 }

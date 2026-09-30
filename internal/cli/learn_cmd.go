@@ -209,9 +209,9 @@ func handleProfileGeneration(res *learn.TraceResult, profileName string, global,
 }
 
 func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
-	mergeRes, err := learn.ApplyDelta(targetPath, delta)
-	if err != nil {
-		return fmt.Errorf("merging learned delta into %s: %w", targetPath, err)
+	mergeRes, mergeErr := learn.ApplyDelta(targetPath, delta)
+	if mergeRes == nil {
+		return fmt.Errorf("merging learned delta into %s: %w", targetPath, mergeErr)
 	}
 
 	label := "local"
@@ -219,7 +219,11 @@ func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
 		label = "global"
 	}
 
-	fmt.Printf("✓ Updated %s configuration (%s):\n", label, formatConfigDisplay(targetPath, global))
+	status := "✓ Updated"
+	if mergeErr != nil {
+		status = "✗ Partially updated"
+	}
+	fmt.Printf("%s %s configuration (%s):\n", status, label, formatConfigDisplay(targetPath, global))
 	if mergeRes.AddedRW > 0 {
 		fmt.Printf("  • Added %d read-write bind mounts\n", mergeRes.AddedRW)
 		for _, b := range delta.BindsRW {
@@ -249,6 +253,9 @@ func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
 	}
 	if !global {
 		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
+	if mergeErr != nil {
+		return fmt.Errorf("some changes were not written to %s: %w", targetPath, mergeErr)
 	}
 	return nil
 }

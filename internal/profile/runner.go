@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -129,8 +130,20 @@ func runProfileTest(test TestSpec, paths, bwrapArgs []string) TestResult {
 	result.Error = err
 	if err != nil {
 		result.Status = "failed"
+		if test.Optional && commandNotFound(err) {
+			result.Status = "skipped"
+			result.Error = nil
+		}
 	}
 	return result
+}
+
+// commandNotFound reports the shell exit status for a missing command. Tests
+// wrapped in "bash -c" pass the binary check on bash itself, so this is how an
+// optional test learns that the real binary is absent.
+func commandNotFound(err error) bool {
+	var exitErr *exec.ExitError
+	return errors.As(err, &exitErr) && exitErr.ExitCode() == 127
 }
 
 func isBinaryAvailable(bin string, extraPaths []string) bool {

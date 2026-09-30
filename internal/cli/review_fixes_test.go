@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"testing"
 
 	"bws/internal/config"
@@ -35,5 +36,13 @@ func TestMatchBinaryHostAmbiguousBasename(t *testing.T) {
 	got, err := matchBinaryHost(binds, "/home/u/bin/aa")
 	if err != nil || got != "/home/u/bin/aa" {
 		t.Fatalf("exact path: got %q, %v", got, err)
+	}
+}
+
+func TestEditorCommandSplitsArgs(t *testing.T) {
+	cmd := editorCommand("emacs -nw", "/tmp/c.jsonc")
+	want := []string{"emacs", "-nw", "/tmp/c.jsonc"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Fatalf("args = %v, want %v", cmd.Args, want)
 	}
 }

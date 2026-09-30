@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"bws/internal/config"
 	"bws/internal/sandbox"
@@ -108,7 +109,7 @@ func HandleConfigEdit(global, local bool) {
 		editor = "vi"
 	}
 
-	cmd := exec.Command(editor, path)
+	cmd := editorCommand(editor, path)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -257,4 +258,14 @@ func resetGlobalConfig(path string) error {
 		return err
 	}
 	return sandbox.EnsureGlobalSkeleton()
+}
+
+// editorCommand builds the editor invocation; $EDITOR may carry arguments,
+// e.g. "emacs -nw".
+func editorCommand(editor, path string) *exec.Cmd {
+	parts := strings.Fields(editor)
+	if len(parts) == 0 {
+		parts = []string{"vi"}
+	}
+	return exec.Command(parts[0], append(parts[1:], path)...)
 }

@@ -244,19 +244,7 @@ func promptTriage(r io.Reader, hostRepo, baseSHA, baseBranch, branchName string)
 			return
 
 		case "s", "squash", "squash-merge":
-			if err := runCmd(hostRepo, "git", "merge", "--squash", branchName); err != nil {
-				fmt.Fprintf(os.Stderr, "Squash merge failed: %v\n", err)
-				return
-			}
-			if err := runCmd(hostRepo, "git", "commit", "-m", fmt.Sprintf("bws(agent): squash changes from %s", branchName)); err != nil {
-				fmt.Fprintf(os.Stderr, "Squash commit failed: %v\n", err)
-				fmt.Printf("Changes remain staged; branch %q kept for recovery.\n", branchName)
-				return
-			}
-			if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not delete branch %q: %v\n", branchName, err)
-			}
-			fmt.Printf("Squash-merged %s into %s and committed changes.\n", branchName, baseBranch)
+			squashMerge(hostRepo, baseBranch, branchName)
 			return
 
 		case "k", "keep":
@@ -356,4 +344,22 @@ func exportAndFetch(hostRepo, cloneDir, branch string, export func(string, strin
 		return err
 	}
 	return fetchAgentBranch(hostRepo, bundle.Name(), branch)
+}
+
+// squashMerge squashes the agent branch onto the current branch and deletes
+// the branch only after the commit succeeds.
+func squashMerge(hostRepo, baseBranch, branchName string) {
+	if err := runCmd(hostRepo, "git", "merge", "--squash", branchName); err != nil {
+		fmt.Fprintf(os.Stderr, "Squash merge failed: %v\n", err)
+		return
+	}
+	if err := runCmd(hostRepo, "git", "commit", "-m", fmt.Sprintf("bws(agent): squash changes from %s", branchName)); err != nil {
+		fmt.Fprintf(os.Stderr, "Squash commit failed: %v\n", err)
+		fmt.Printf("Changes remain staged; branch %q kept for recovery.\n", branchName)
+		return
+	}
+	if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not delete branch %q: %v\n", branchName, err)
+	}
+	fmt.Printf("Squash-merged %s into %s and committed changes.\n", branchName, baseBranch)
 }
