@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"golang.org/x/sys/unix"
 )
@@ -121,14 +120,54 @@ func policyDirectory(dir string) (*os.Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	root, err := os.OpenRoot("/")
+	fi, err := os.Lstat(abs)
+	if err == nil {
+		if fi.Mode()&os.ModeSymlink != 0 || !fi.IsDir() {
+			return nil, fmt.Errorf("refusing symlink or non-directory policy parent %s", filepath.Base(abs))
+		}
+		return os.OpenRoot(abs)
+	}
+	if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	ancestor, parts, err := findExistingAncestor(abs)
 	if err != nil {
 		return nil, err
 	}
-	for _, part := range strings.Split(strings.TrimPrefix(abs, "/"), "/") {
-		if part == "" {
-			continue
+	root, err := os.OpenRoot(ancestor)
+	if err != nil {
+		return nil, err
+	}
+	return descendPolicyParts(root, parts)
+}
+
+func findExistingAncestor(abs string) (string, []string, error) {
+	curr := abs
+	var parts []string
+	for {
+		parent := filepath.Dir(curr)
+		if parent == curr {
+			return "", nil, fmt.Errorf("no existing ancestor for %s", abs)
 		}
+		parts = append([]string{filepath.Base(curr)}, parts...)
+		curr = parent
+
+		fi, err := os.Stat(curr)
+		if err == nil {
+			if !fi.IsDir() {
+				return "", nil, fmt.Errorf("refusing non-directory policy ancestor %s", filepath.Base(curr))
+			}
+			return curr, parts, nil
+		}
+		if !os.IsNotExist(err) {
+			return "", nil, err
+		}
+	}
+}
+
+func descendPolicyParts(root *os.Root, parts []string) (*os.Root, error) {
+	for _, part := range parts {
 		fi, err := root.Lstat(part)
 		if os.IsNotExist(err) {
 			err = root.Mkdir(part, 0755)

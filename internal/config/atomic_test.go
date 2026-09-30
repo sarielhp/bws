@@ -57,3 +57,43 @@ func TestAtomicPolicyRefusesSymlinks(t *testing.T) {
 		})
 	}
 }
+
+func TestAtomicPolicyAllowsSymlinkedAncestor(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	tmp := t.TempDir()
+	realBase := filepath.Join(tmp, "real", "nested", "workspace")
+	if err := os.MkdirAll(realBase, 0755); err != nil {
+		t.Fatal(err)
+	}
+	symlinkBase := filepath.Join(tmp, "shortcut")
+	if err := os.Symlink(filepath.Join(tmp, "real"), symlinkBase); err != nil {
+		t.Fatal(err)
+	}
+
+	wsViaSymlink := filepath.Join(symlinkBase, "nested", "workspace")
+	policyPath := filepath.Join(wsViaSymlink, ".bws", "config.jsonc")
+	data := []byte("{\"binds_rw\":[]}\n")
+	if err := AtomicPolicyWrite(policyPath, data, nil); err != nil {
+		t.Fatalf("failed to write policy through symlinked ancestor: %v", err)
+	}
+	got, err := ReadTrustedFile(policyPath)
+	if err != nil || string(got) != string(data) {
+		t.Fatalf("wrong trusted policy bytes: got %s, err %v", got, err)
+	}
+}
+
+func TestAtomicPolicyRefusesSymlinkedBwsDir(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ws, outside := t.TempDir(), t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(ws, ".bws")); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(ws, ".bws", "config.jsonc")
+	if err := AtomicPolicyWrite(target, []byte("{}"), nil); err == nil {
+		t.Fatal("expected error when .bws is a symlink, got nil")
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil || len(entries) != 0 {
+		t.Fatal("modified symlinked .bws target directory")
+	}
+}
