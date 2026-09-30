@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/sarielhp/clihelp"
@@ -304,6 +306,10 @@ func main() {
 
 	if err := app.Execute(normalizedArgs); err != nil {
 		app.PrintError(err)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
+			os.Exit(exitErr.ExitCode())
+		}
 		os.Exit(1)
 	}
 }

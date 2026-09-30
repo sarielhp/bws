@@ -88,7 +88,7 @@ func prependComment(filePath, comment string) {
 func processCopyPaths(copyList []string, sandboxDir string) {
 	home := util.HomeDir()
 	for _, pathStr := range copyList {
-		expanded := util.ExpandHome(pathStr)
+		expanded := filepath.Clean(util.ExpandHome(pathStr))
 		if expanded == home || strings.HasPrefix(expanded, home+"/.sandbox") {
 			fmt.Fprintf(os.Stderr, "Warning: Refusing to copy home directory or sandbox backing store: %s\n", expanded)
 			continue

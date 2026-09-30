@@ -165,6 +165,7 @@ func HandleCopyAdd(prog string, global, local bool) {
 		fmt.Fprintf(os.Stderr, "Error: Program path must be absolute.\n")
 		os.Exit(1)
 	}
+	prog = filepath.Clean(prog)
 	homeDir := util.HomeDir()
 	expanded := util.ExpandHome(prog)
 	if !strings.HasPrefix(expanded, homeDir+"/") || strings.HasPrefix(expanded, homeDir+"/.sandbox") {

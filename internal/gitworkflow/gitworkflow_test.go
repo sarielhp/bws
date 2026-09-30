@@ -1,8 +1,10 @@
 package gitworkflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -121,5 +123,48 @@ func TestCheckoutAgentBranchExistingAndNew(t *testing.T) {
 	// 2. Checkout new branch
 	if err := checkoutAgentBranch(hostRepo, cloneDir, "bws-agent-new"); err != nil {
 		t.Fatalf("checkoutAgentBranch new branch failed: %v", err)
+	}
+}
+
+func TestSquashKeepsBranchWhenCommitFails(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		if err := runCmd(repo, "git", args...); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	git("config", "user.email", "test@example.com")
+	git("config", "user.name", "Test User")
+	git("commit", "-q", "--allow-empty", "-m", "base")
+	git("checkout", "-q", "-b", "bws-agent-x")
+	if err := os.WriteFile(filepath.Join(repo, "f.txt"), []byte("work"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "f.txt")
+	git("commit", "-q", "-m", "agent work")
+	git("checkout", "-q", "main")
+
+	hook := filepath.Join(repo, ".git", "hooks", "pre-commit")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	promptTriage(strings.NewReader("s\n"), repo, "HEAD", "main", "bws-agent-x")
+
+	if err := runCmd(repo, "git", "rev-parse", "--verify", "refs/heads/bws-agent-x"); err != nil {
+		t.Fatalf("agent branch deleted after failed squash commit")
+	}
+}
+
+func TestSandboxResultWrapsExitError(t *testing.T) {
+	if sandboxResult(nil) != nil {
+		t.Fatal("nil error must stay nil")
+	}
+	err := exec.Command("sh", "-c", "exit 3").Run()
+	var exitErr *exec.ExitError
+	if !errors.As(sandboxResult(err), &exitErr) || exitErr.ExitCode() != 3 {
+		t.Fatalf("exit code not preserved: %v", sandboxResult(err))
 	}
 }

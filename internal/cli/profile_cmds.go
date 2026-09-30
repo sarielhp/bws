@@ -175,6 +175,9 @@ func PrintSynthesisSource(name string, info profile.SynthesisInfo) {
 // HandleProfileNew generates a new profile by querying Homebrew and Firejail intelligence.
 // Verifies that the tool is installed in the system ($PATH) before writing the profile unless force is true.
 func HandleProfileNew(name string, global, local, force bool) error {
+	if err := profile.ValidateName(name); err != nil {
+		return err
+	}
 	cwd, _ := os.Getwd()
 
 	registry, err := profile.LoadRegistry(cwd)

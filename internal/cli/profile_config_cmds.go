@@ -16,6 +16,9 @@ func ensureProfileInRegistry(name string, global, local, create, force bool, cwd
 			return fmt.Errorf("profile %s not found in catalog.\n  • Run 'bws profile list' to see available profiles.\n  • Run 'bws add -c %s' to synthesize and add it.", ColorProfile(name), name)
 		}
 
+		if err := profile.ValidateName(name); err != nil {
+			return err
+		}
 		// Synthesize in-memory first so aliases and test binaries are available for installation check
 		pNew, info, err := profile.GenerateProfileDetailed(name, reg)
 		if err != nil {

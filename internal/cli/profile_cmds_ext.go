@@ -173,6 +173,9 @@ func HandleProfileFetch(name string, global, local, force bool) error {
 	if cleanName == "" {
 		return fmt.Errorf("profile name cannot be empty")
 	}
+	if err := profile.ValidateName(cleanName); err != nil {
+		return err
+	}
 
 	var targetDir string
 	if local {

@@ -174,9 +174,9 @@ func precreateMountpoints(cfg *config.Config, stageDir, currentDir, home string)
 		p = strings.ReplaceAll(p, config.HomeToken, home)
 		p = util.ExpandHome(p)
 		if !filepath.IsAbs(p) && currentDir != "" {
-			p = filepath.Clean(filepath.Join(currentDir, p))
+			p = filepath.Join(currentDir, p)
 		}
-		return p
+		return filepath.Clean(p)
 	}
 
 	allEntries := append(append([]config.BindEntry{}, cfg.BindsRW...), cfg.BindsRO...)

@@ -168,6 +168,9 @@ func boolStatus(b bool, active, inactive func(...interface{}) string) string {
 
 func handleProfileGeneration(res *learn.TraceResult, profileName string, global, force, dryRun bool) error {
 	cleanName := strings.ToLower(strings.TrimSpace(profileName))
+	if err := profile.ValidateName(cleanName); err != nil {
+		return err
+	}
 	p := res.ToProfile(cleanName)
 
 	if dryRun {

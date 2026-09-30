@@ -248,8 +248,14 @@ func promptTriage(r io.Reader, hostRepo, baseSHA, baseBranch, branchName string)
 				fmt.Fprintf(os.Stderr, "Squash merge failed: %v\n", err)
 				return
 			}
-			_ = runCmd(hostRepo, "git", "commit", "-m", fmt.Sprintf("bws(agent): squash changes from %s", branchName))
-			_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
+			if err := runCmd(hostRepo, "git", "commit", "-m", fmt.Sprintf("bws(agent): squash changes from %s", branchName)); err != nil {
+				fmt.Fprintf(os.Stderr, "Squash commit failed: %v\n", err)
+				fmt.Printf("Changes remain staged; branch %q kept for recovery.\n", branchName)
+				return
+			}
+			if err := runCmd(hostRepo, "git", "branch", "-D", branchName); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not delete branch %q: %v\n", branchName, err)
+			}
 			fmt.Printf("Squash-merged %s into %s and committed changes.\n", branchName, baseBranch)
 			return
 
@@ -305,7 +311,7 @@ func Run(opts Options) error {
 	}
 	defer cleanupClone()
 
-	_ = runSandboxSession(tempDir, opts, branchName)
+	sandboxErr := runSandboxSession(tempDir, opts, branchName)
 
 	if err := exportAndFetch(hostRepo, tempDir, branchName, opts.Export); err != nil {
 		cancelCleanup()
@@ -319,12 +325,21 @@ func Run(opts Options) error {
 	if strings.TrimSpace(diffStat) == "" {
 		fmt.Printf("No changes between %s and %s.\n", baseBranch, branchName)
 		_ = runCmd(hostRepo, "git", "branch", "-D", branchName)
-		return nil
+		return sandboxResult(sandboxErr)
 	}
 
 	fmt.Printf("\nAgent changes on branch %s:\n\n%s\n", branchName, diffStat)
 	promptTriage(nil, hostRepo, baseSHA, baseBranch, branchName)
-	return nil
+	return sandboxResult(sandboxErr)
+}
+
+// sandboxResult reports a failed agent session after triage has run, so the
+// caller's exit status reflects the agent's exit status.
+func sandboxResult(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("sandbox session failed: %w", err)
 }
 
 func exportAndFetch(hostRepo, cloneDir, branch string, export func(string, string, io.Writer) error) error {
