@@ -3,6 +3,7 @@ package cli
 import (
 	"testing"
 
+	"bws/internal/config"
 	"bws/internal/learn"
 )
 
@@ -22,5 +23,17 @@ func TestProfileWritersRejectTraversalNames(t *testing.T) {
 	}
 	if err := ensureProfileInRegistry(bad, false, true, true, true, t.TempDir(), nil); err == nil {
 		t.Error("add -c accepted a traversal name")
+	}
+}
+
+func TestMatchBinaryHostAmbiguousBasename(t *testing.T) {
+	t.Setenv("HOME", "/home/u")
+	binds := []config.BindEntry{{Host: "./aa"}, {Host: "/home/u/bin/aa"}}
+	if _, err := matchBinaryHost(binds, "aa"); err == nil {
+		t.Fatal("ambiguous basename must be rejected")
+	}
+	got, err := matchBinaryHost(binds, "/home/u/bin/aa")
+	if err != nil || got != "/home/u/bin/aa" {
+		t.Fatalf("exact path: got %q, %v", got, err)
 	}
 }

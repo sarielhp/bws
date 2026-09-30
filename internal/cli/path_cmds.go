@@ -14,9 +14,7 @@ func HandlePathAdd(dir string, global, local bool) {
 		local = true
 	}
 	targetPath := configFilePath(global)
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		config.CreateDefault(targetPath)
-	}
+	ensureConfigFile(targetPath)
 
 	if !strings.HasPrefix(dir, "/") && !strings.HasPrefix(dir, "~/") {
 		fmt.Fprintf(os.Stderr, "Error: Directory path must be absolute or start with ~/.\n")

@@ -62,7 +62,7 @@ func trustContents(path string, data []byte) error {
 
 // WriteTrustedFile writes configuration produced by a host configuration command.
 func WriteTrustedFile(path string, data []byte) error {
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := atomicWriteFile(path, data); err != nil {
 		return err
 	}
 	if IsLocalPolicy(path) {

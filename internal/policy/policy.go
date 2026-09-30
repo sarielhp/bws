@@ -78,7 +78,7 @@ func Resolve(global, local *config.Config, root string) (*config.Config, error) 
 }
 
 func mergeLocalFeatures(resolved, local *config.FeaturesConfig) *config.FeaturesConfig {
-	merged := config.MergeFeatures(resolved, local)
+	merged := config.CloneFeatures(config.MergeFeatures(resolved, local))
 	if resolved == nil || merged == nil {
 		return merged
 	}

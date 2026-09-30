@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -86,9 +87,16 @@ func copyFile(src, dest string) error {
 	return os.WriteFile(dest, data, 0644)
 }
 
+// HomeDir returns the home directory from $HOME, falling back to the passwd
+// entry so an unset $HOME never yields a CWD-relative path.
 func HomeDir() string {
-	home, _ := os.UserHomeDir()
-	return home
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	if u, err := user.Current(); err == nil && filepath.IsAbs(u.HomeDir) {
+		return u.HomeDir
+	}
+	return "/"
 }
 
 func ExpandHome(path string) string {

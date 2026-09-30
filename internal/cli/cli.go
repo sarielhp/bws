@@ -157,9 +157,7 @@ func HandleCopyAdd(prog string, global, local bool) {
 	}
 	path := configFilePath(global)
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		config.CreateDefault(path)
-	}
+	ensureConfigFile(path)
 
 	if !strings.HasPrefix(prog, "/") {
 		fmt.Fprintf(os.Stderr, "Error: Program path must be absolute.\n")
@@ -235,9 +233,7 @@ func HandleCopyDel(prog string, global, local bool) {
 	}
 	path := configFilePath(global)
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		config.CreateDefault(path)
-	}
+	ensureConfigFile(path)
 
 	cfg, err := config.LoadFile(path)
 	if err != nil {
@@ -268,5 +264,17 @@ func HandleCopyDel(prog string, global, local bool) {
 	fmt.Printf("Removed '%s' from %s copy configuration (%s).\n", prog, label, formatConfigDisplay(path, global))
 	if !global {
 		PrintWorkspaceInfo(findWorkspaceForPath(path))
+	}
+}
+
+// ensureConfigFile creates a default config at path if none exists and exits
+// with an error if it cannot.
+func ensureConfigFile(path string) {
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		return
+	}
+	if err := config.CreateDefault(path); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating config %s: %v\n", path, err)
+		os.Exit(1)
 	}
 }

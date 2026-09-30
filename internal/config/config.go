@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"bws/internal/util"
+
 	"github.com/tailscale/hujson"
 )
 
@@ -204,7 +206,7 @@ func Parse(data []byte, path string) (*Config, error) {
 	if err := json.Unmarshal(standardized, &raw); err != nil {
 		return nil, fmt.Errorf("invalid JSON in %s: %w", path, err)
 	}
-	home, _ := os.UserHomeDir()
+	home := util.HomeDir()
 	raw = replaceHomeToken(raw, home).(map[string]interface{})
 	cfgBytes, err := json.Marshal(raw)
 	if err != nil {
@@ -218,7 +220,7 @@ func Parse(data []byte, path string) (*Config, error) {
 }
 
 func ConfigDir() string {
-	home, _ := os.UserHomeDir()
+	home := util.HomeDir()
 	return filepath.Join(home, ".config", "bws")
 }
 
@@ -232,7 +234,7 @@ func LocalPath() string {
 }
 
 func FindWorkspaceRoot(startDir string) (rootDir string, configPath string) {
-	home, _ := os.UserHomeDir()
+	home := util.HomeDir()
 	homeReal, _ := filepath.EvalSymlinks(home)
 
 	dir := filepath.Clean(startDir)
@@ -276,8 +278,9 @@ func CreateDefault(path string) error {
 }
 
 func CreateExampleConfig(path string) error {
-	dir := filepath.Dir(path)
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
 	return os.WriteFile(path, []byte(ExampleConfigContent), 0644)
 }
 
@@ -288,11 +291,9 @@ var DefaultConfigTemplate string
 var ExampleConfigContent string
 
 func generateDefaultConfig() string {
-	h := os.Getenv("HOME")
-	if h == "" {
-		h = "/home/" + os.Getenv("USER")
-	}
-	return strings.ReplaceAll(DefaultConfigTemplate, HomeToken, h)
+	// The token sits inside JSON strings, so substitute the escaped form.
+	quoted, _ := json.Marshal(util.HomeDir())
+	return strings.ReplaceAll(DefaultConfigTemplate, HomeToken, string(quoted[1:len(quoted)-1]))
 }
 
 // BlockGH returns true if gh binary and forge credentials should be blocked/masked.

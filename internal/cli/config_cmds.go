@@ -63,12 +63,15 @@ func HandleConfigReset(global, local bool) {
 	}
 
 	if global {
-		config.CreateDefault(path)
-		examplePath := filepath.Join(filepath.Dir(path), "example-config.jsonc")
-		config.CreateExampleConfig(examplePath)
-		sandbox.EnsureGlobalSkeleton()
+		if err := resetGlobalConfig(path); err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating %s config: %v\n", label, err)
+			os.Exit(1)
+		}
 	} else {
-		os.MkdirAll(filepath.Dir(path), 0755)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		if err := config.WriteTrustedFile(path, []byte(config.ExampleConfigContent)); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -138,7 +141,10 @@ func HandleConfigSet(key, value string, global, local bool) {
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if global {
-			config.CreateDefault(path)
+			if err := config.CreateDefault(path); err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating config: %v\n", err)
+				os.Exit(1)
+			}
 		} else {
 			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 				// explicitly ignored
@@ -240,4 +246,15 @@ func HandleConfigEditGlobal() {
 
 func HandleConfigEditLocal() {
 	HandleConfigEdit(false, true)
+}
+
+func resetGlobalConfig(path string) error {
+	if err := config.CreateDefault(path); err != nil {
+		return err
+	}
+	examplePath := filepath.Join(filepath.Dir(path), "example-config.jsonc")
+	if err := config.CreateExampleConfig(examplePath); err != nil {
+		return err
+	}
+	return sandbox.EnsureGlobalSkeleton()
 }

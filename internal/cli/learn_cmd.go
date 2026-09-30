@@ -10,6 +10,7 @@ import (
 	"bws/internal/config"
 	"bws/internal/learn"
 	"bws/internal/profile"
+	"bws/internal/util"
 
 	"github.com/fatih/color"
 )
@@ -25,7 +26,7 @@ func HandleLearn(targetCmd []string, dryRun bool, profileName string, global, fo
 	if realCwd, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = realCwd
 	}
-	homeDir, _ := os.UserHomeDir()
+	homeDir := util.HomeDir()
 
 	fmt.Printf("Learning command: %s\n", strings.Join(targetCmd, " "))
 	fmt.Println(strings.Repeat("=", 60))

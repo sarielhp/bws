@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/tailscale/hujson"
 )
@@ -137,8 +136,7 @@ func RemoveArrayElement(path, key, match string) error {
 				}
 				filtered := make([]hujson.ArrayElement, 0, len(arr.Elements))
 				for _, e := range arr.Elements {
-					packed := string(e.Pack())
-					if strings.Contains(packed, `"`+match+`"`) {
+					if elementHost(e.Value) == match {
 						continue
 					}
 					filtered = append(filtered, e)
@@ -169,8 +167,7 @@ func RemoveBindElement(path, key, hostPath string) (bool, error) {
 				}
 				filtered := make([]hujson.ArrayElement, 0, len(arr.Elements))
 				for _, e := range arr.Elements {
-					packed := string(e.Pack())
-					if strings.Contains(packed, `"`+hostPath+`"`) {
+					if elementHost(e.Value) == hostPath {
 						found = true
 						continue
 					}
@@ -195,4 +192,19 @@ func LoadFileWithHuJSON(path string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid JSON/JSONC in %s: %w", path, err)
 	}
 	return standardized, nil
+}
+
+// elementHost returns the host path of an array entry: the string itself, or
+// the first element of a [host, sandbox] pair. Other shapes yield "".
+func elementHost(v hujson.ValueTrimmed) string {
+	if arr, ok := v.(*hujson.Array); ok {
+		if len(arr.Elements) == 0 {
+			return ""
+		}
+		v = arr.Elements[0].Value
+	}
+	if lit, ok := v.(hujson.Literal); ok && lit.Kind() == '"' {
+		return lit.String()
+	}
+	return ""
 }

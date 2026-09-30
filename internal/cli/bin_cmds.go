@@ -16,12 +16,10 @@ func HandleBinAdd(hostPath string, global, local bool) {
 		local = true
 	}
 	targetPath := configFilePath(global)
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		config.CreateDefault(targetPath)
-	}
+	ensureConfigFile(targetPath)
 
 	expanded := resolveAndValidateHostBin(hostPath)
-	homeDir, _ := os.UserHomeDir()
+	homeDir := util.HomeDir()
 	binDir := filepath.Join(homeDir, "bin")
 	localBinDir := filepath.Join(homeDir, ".local", "bin")
 	baseName := filepath.Base(expanded)
@@ -89,16 +87,10 @@ func HandleBinDel(nameOrPath string, global, local bool) {
 		os.Exit(1)
 	}
 
-	var matchedHost string
-	targetExpanded := util.ExpandHome(nameOrPath)
-	for _, b := range cfg.BindsRO {
-		hostExpanded := util.ExpandHome(b.Host)
-		destExpanded := util.ExpandHome(b.Sandbox)
-		if b.Host == nameOrPath || hostExpanded == targetExpanded ||
-			filepath.Base(b.Host) == nameOrPath || filepath.Base(destExpanded) == nameOrPath {
-			matchedHost = b.Host
-			break
-		}
+	matchedHost, err := matchBinaryHost(cfg.BindsRO, nameOrPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	if matchedHost == "" {
@@ -128,7 +120,7 @@ func HandleBinList() {
 	localPath := config.LocalPath()
 	printed := false
 
-	homeDir, _ := os.UserHomeDir()
+	homeDir := util.HomeDir()
 	binDir := filepath.Join(homeDir, "bin")
 
 	for _, pair := range []struct {
@@ -204,4 +196,28 @@ func resolveAndValidateHostBin(hostPath string) string {
 		fmt.Fprintf(os.Stderr, "Warning: '%s' does not have execute permissions on host (consider running 'chmod +x %s').\n", expanded, expanded)
 	}
 	return expanded
+}
+
+// matchBinaryHost finds the bind for a binary. An exact host path match wins;
+// otherwise a basename must identify exactly one entry.
+func matchBinaryHost(binds []config.BindEntry, nameOrPath string) (string, error) {
+	targetExpanded := util.ExpandHome(nameOrPath)
+	for _, b := range binds {
+		if b.Host == nameOrPath || util.ExpandHome(b.Host) == targetExpanded {
+			return b.Host, nil
+		}
+	}
+	var matches []string
+	for _, b := range binds {
+		if filepath.Base(b.Host) == nameOrPath || filepath.Base(util.ExpandHome(b.Sandbox)) == nameOrPath {
+			matches = append(matches, b.Host)
+		}
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("%q matches several binaries (%s); give the full path", nameOrPath, strings.Join(matches, ", "))
+	}
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+	return "", nil
 }

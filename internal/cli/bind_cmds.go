@@ -272,7 +272,7 @@ func HandleBindList() {
 
 func utilExpandHome(path string) string {
 	if strings.HasPrefix(path, "~/") {
-		home, _ := os.UserHomeDir()
+		home := util.HomeDir()
 		return home + path[1:]
 	}
 	return path

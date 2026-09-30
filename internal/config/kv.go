@@ -33,11 +33,17 @@ var KnownKeyAliases = map[string]string{
 	"hostname":             "system.hostname",
 }
 
-// NormalizeKey expands shorthand aliases to full dotted paths.
+// NormalizeKey expands shorthand aliases to full dotted paths. Config keys are
+// matched case-insensitively, but names inside "env" keep their case because
+// environment variables are case-sensitive.
 func NormalizeKey(key string) string {
-	lower := strings.ToLower(strings.TrimSpace(key))
+	trimmed := strings.TrimSpace(key)
+	lower := strings.ToLower(trimmed)
 	if mapped, ok := KnownKeyAliases[lower]; ok {
 		return mapped
+	}
+	if head, rest, ok := strings.Cut(trimmed, "."); ok && strings.ToLower(head) == "env" {
+		return "env." + rest
 	}
 	return lower
 }
@@ -67,10 +73,12 @@ func SetConfigKV(path, key, rawValue string) error {
 		var parentObj *hujson.Object
 		for i := range obj.Members {
 			if string(obj.Members[i].Name.Value.(hujson.Literal)) == `"`+parentKey+`"` {
-				if po, ok := obj.Members[i].Value.Value.(*hujson.Object); ok {
-					parentObj = po
-					break
+				po, ok := obj.Members[i].Value.Value.(*hujson.Object)
+				if !ok {
+					return fmt.Errorf("key %q is not an object", parentKey)
 				}
+				parentObj = po
+				break
 			}
 		}
 
@@ -109,7 +117,7 @@ func GetConfigKV(path, key string) (string, error) {
 	if len(parts) == 1 {
 		for _, m := range obj.Members {
 			if string(m.Name.Value.(hujson.Literal)) == `"`+parts[0]+`"` {
-				return string(m.Value.Pack()), nil
+				return renderValue(m.Value), nil
 			}
 		}
 		return "", fmt.Errorf("key %q not found", key)
@@ -122,7 +130,7 @@ func GetConfigKV(path, key string) (string, error) {
 			if po, ok := m.Value.Value.(*hujson.Object); ok {
 				for _, cm := range po.Members {
 					if string(cm.Name.Value.(hujson.Literal)) == `"`+childKey+`"` {
-						return string(cm.Value.Pack()), nil
+						return renderValue(cm.Value), nil
 					}
 				}
 			}
@@ -209,4 +217,14 @@ func setInObject(obj *hujson.Object, key string, valNode hujson.Value) {
 		Name:  hujson.Value{Value: hujson.String(key)},
 		Value: valNode,
 	})
+}
+
+// renderValue formats a JSONC value for display: strings are unquoted and
+// surrounding whitespace and comments are dropped.
+func renderValue(v hujson.Value) string {
+	if lit, ok := v.Value.(hujson.Literal); ok && lit.Kind() == '"' {
+		return lit.String()
+	}
+	v.BeforeExtra, v.AfterExtra = nil, nil
+	return string(v.Pack())
 }
