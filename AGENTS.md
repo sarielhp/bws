@@ -50,7 +50,7 @@ bws/
 - **JSONC support** — use the built-in JSONC loader in `internal/config/`. No additional dependencies.
 
 ## Configuration merging
-- **Global + local config**: load both, deep-merge hashes, replace arrays. Implemented in `internal/config/merge.go` with unit tests.
+- **Global + local config**: load both, deep-merge hashes, union arrays (deduplicated, global entries first). A local config can add list entries but never remove global ones; this is what keeps global `mask` entries in force. Binds are merged per list and keyed by host path, so a local entry replaces a global entry with the same host in the same list. Implemented in `internal/config/merge.go` with unit tests.
 - **`@@HOME@@` token**: replace at load time.
 
 ## Error handling

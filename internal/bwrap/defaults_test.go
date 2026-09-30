@@ -51,3 +51,29 @@ func TestSandboxTmpArgsNeverPredictable(t *testing.T) {
 		t.Fatalf("real run used the fixed fallback path: %v", args)
 	}
 }
+
+func TestMaskAppliedAfterLocalRWBind(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	secret := filepath.Join(home, ".ssh")
+	if err := os.Mkdir(secret, 0700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		BindsRW: []config.BindEntry{{Host: secret}},
+		Mask:    []string{secret},
+	}
+	args := BuildArgs(cfg, "", t.TempDir(), true, false)
+	bind, mask := -1, -1
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "--bind" && args[i+1] == secret {
+			bind = i
+		}
+		if args[i] == "--tmpfs" && args[i+1] == secret {
+			mask = i
+		}
+	}
+	if bind < 0 || mask < bind {
+		t.Fatalf("mask must follow the RW bind (bind=%d mask=%d)", bind, mask)
+	}
+}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -363,5 +364,14 @@ func TestMergeSystemKeepsLocalNewSession(t *testing.T) {
 	result := Merge(global, local)
 	if result.System.NewSession == nil || *result.System.NewSession {
 		t.Fatalf("local new_session=false was dropped by mergeSystem")
+	}
+}
+
+func TestLocalConfigCannotDropGlobalMask(t *testing.T) {
+	global := &Config{Mask: []string{"@@HOME@@/.ssh"}}
+	for _, local := range []*Config{{Mask: []string{}}, {Mask: []string{"@@HOME@@/.aws"}}} {
+		if !slices.Contains(Merge(global, local).Mask, "@@HOME@@/.ssh") {
+			t.Fatalf("global mask dropped by local mask %v", local.Mask)
+		}
 	}
 }

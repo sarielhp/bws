@@ -27,7 +27,9 @@ When the global configuration is absent, launch and preview use embedded default
 ### Merging semantics
 
 * **Maps & hashes** (`env`): Deep merged. Local keys override global keys.
-* **Lists & arrays** (`profiles`, `mask`, `pass_env`, `path`, `binds_rw`, `binds_ro`): Merged and deduplicated while preserving declaration order.
+* **Lists & arrays** (`profiles`, `mask`, `pass_env`, `path`, `copy`, `binds_rw`, `binds_ro`): Merged and deduplicated while preserving declaration order. A local configuration can add entries but cannot remove global ones; an empty local list leaves the global list unchanged.
+* **Binds**: Within `binds_rw` or `binds_ro`, a local entry with the same host path replaces the global entry. The two lists are merged separately, so a local `binds_rw` entry for a path the global configuration binds read-only makes that path writable.
+* **Masks**: Global `mask` entries always apply. Masks are mounted after all binds, so no local bind can expose a masked path.
 * **Tokens**: `@@HOME@@` identifies the user's home directory. `@@WORKSPACE@@` identifies the selected workspace root in path-bearing declarations.
 * **Compound profile environment**: Explicit compound settings override global environment defaults; explicit project environment settings take precedence over those.
 * **Restrictive features**: Local defaults cannot re-enable a capability disabled by the resolved profiles, or remove offline/history restrictions.
