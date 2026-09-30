@@ -303,8 +303,10 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 
 	seen := make(map[string]bool)
 	for _, maskPath := range maskList {
-		expanded := util.ExpandHome(maskPath)
-		expanded = strings.ReplaceAll(expanded, config.HomeToken, homeDir)
+		expanded := resolveBindPath(maskPath, homeDir, currentDir)
+		if !filepath.IsAbs(expanded) {
+			continue
+		}
 		if seen[expanded] {
 			continue
 		}

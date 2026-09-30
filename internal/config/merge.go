@@ -136,6 +136,9 @@ func mergeSystem(global, local *SystemConfig) *SystemConfig {
 	if local.Hostname != nil {
 		r.Hostname = local.Hostname
 	}
+	if local.NewSession != nil {
+		r.NewSession = local.NewSession
+	}
 	return &r
 }
 

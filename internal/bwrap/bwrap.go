@@ -66,13 +66,15 @@ func addSystemAndNetArgs(cfg *config.Config, args *[]string, verbose bool) {
 		}
 	}
 
-	if cfg.System != nil {
-		if config.GetBool(cfg, func(c *config.Config) *bool { return c.System.Clearenv }, false) {
-			*args = append(*args, "--clearenv")
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --clearenv\n")
-			}
+	// Clearing the environment is the default; only an explicit
+	// "clearenv": false lets host variables through.
+	if cfg == nil || cfg.System == nil || cfg.System.Clearenv == nil || *cfg.System.Clearenv {
+		*args = append(*args, "--clearenv")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose]   --clearenv\n")
 		}
+	}
+	if cfg != nil && cfg.System != nil {
 		if config.GetBool(cfg, func(c *config.Config) *bool { return c.System.UnshareUTS }, false) {
 			*args = append(*args, "--unshare-uts")
 			if verbose {
@@ -265,13 +267,7 @@ func addNetworkMounts(sandboxDir string, args *[]string) {
 }
 
 func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *[]string, dryRun, verbose bool) {
-	hostTmp := "/tmp/bws/SANDBOX_TMP"
-	if !dryRun {
-		os.MkdirAll("/tmp/bws", 0755)
-		if tmp, err := os.MkdirTemp("/tmp/bws", "sandbox_"); err == nil {
-			hostTmp = tmp
-		}
-	}
+	tmpArgs := sandboxTmpArgs(dryRun)
 
 	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
 	mountTarget := currentDir
@@ -279,8 +275,8 @@ func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *
 		mountTarget = wsRoot
 	}
 
+	*args = append(*args, tmpArgs...)
 	*args = append(*args,
-		"--bind", hostTmp, "/tmp",
 		"--proc", "/proc",
 		"--dev", "/dev",
 		"--ro-bind-try", "/sys", "/sys",
@@ -296,7 +292,7 @@ func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *
 	)
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "[verbose]   --bind %s /tmp\n", hostTmp)
+		fmt.Fprintf(os.Stderr, "[verbose]   %s\n", strings.Join(tmpArgs, " "))
 		fmt.Fprintf(os.Stderr, "[verbose]   --proc /proc\n")
 		fmt.Fprintf(os.Stderr, "[verbose]   --dev /dev\n")
 		fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /sys /sys\n")
@@ -338,4 +334,21 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	addMaskArgs(&args, cfg, homeDir, currentDir, verbose)
 
 	return args
+}
+
+// sandboxTmpArgs returns the mount for the sandbox /tmp. It prefers a private
+// host directory under /tmp/bws; if that cannot be created (for example because
+// another user owns /tmp/bws) it falls back to an ephemeral tmpfs rather than a
+// predictable shared path.
+func sandboxTmpArgs(dryRun bool) []string {
+	if dryRun {
+		return []string{"--bind", "/tmp/bws/SANDBOX_TMP", "/tmp"}
+	}
+	if err := os.MkdirAll("/tmp/bws", 0755); err == nil {
+		if tmp, err := os.MkdirTemp("/tmp/bws", "sandbox_"); err == nil {
+			return []string{"--bind", tmp, "/tmp"}
+		}
+	}
+	fmt.Fprintf(os.Stderr, "Warning: cannot create a private directory under /tmp/bws; using a tmpfs for /tmp\n")
+	return []string{"--tmpfs", "/tmp"}
 }

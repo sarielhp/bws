@@ -356,3 +356,12 @@ func TestBlockGHFeatureAndMerge(t *testing.T) {
 		t.Error("expected local true to override global false in MergeFeatures")
 	}
 }
+
+func TestMergeSystemKeepsLocalNewSession(t *testing.T) {
+	global := &Config{System: &SystemConfig{NewSession: boolPtr(true)}}
+	local := &Config{System: &SystemConfig{NewSession: boolPtr(false)}}
+	result := Merge(global, local)
+	if result.System.NewSession == nil || *result.System.NewSession {
+		t.Fatalf("local new_session=false was dropped by mergeSystem")
+	}
+}
