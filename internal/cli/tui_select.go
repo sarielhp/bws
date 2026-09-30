@@ -45,7 +45,7 @@ func SelectStackInteractive(title string, items []StackChoice) (int, error) {
 	}
 
 	termWidth, termHeight, err := term.GetSize(stderrFd)
-	if err != nil || termHeight < 11 || termWidth < 40 {
+	if err != nil || termHeight < 6 || termWidth < 25 {
 		return -1, fmt.Errorf("terminal dimensions too small for interactive selector")
 	}
 
@@ -59,19 +59,23 @@ func SelectStackInteractive(title string, items []StackChoice) (int, error) {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
-	return runSelectorLoop(title, items, termWidth)
+	return runSelectorLoop(title, items, termWidth, termHeight)
 }
 
-func runSelectorLoop(title string, items []StackChoice, termWidth int) (int, error) {
+func runSelectorLoop(title string, items []StackChoice, termWidth, termHeight int) (int, error) {
 	selected := 0
 	linesRendered := 0
 	out := os.Stderr
+	stderrFd := int(out.Fd())
 
 	for {
+		if w, h, err := term.GetSize(stderrFd); err == nil && w > 0 && h > 0 {
+			termWidth, termHeight = w, h
+		}
 		if linesRendered > 0 {
 			fmt.Fprintf(out, "\x1b[%dA", linesRendered)
 		}
-		linesRendered = renderStackSelector(out, title, items, selected, termWidth)
+		linesRendered = renderStackSelector(out, title, items, selected, termWidth, termHeight)
 
 		action, jumpIdx, err := readSelectorKey(os.Stdin)
 		if err != nil {
@@ -85,7 +89,7 @@ func runSelectorLoop(title string, items []StackChoice, termWidth int) (int, err
 			return -1, fmt.Errorf("cancelled; no changes written")
 		case actSelect:
 			clearSelector(out, linesRendered)
-			printSelectionConfirmation(out, items[selected])
+			printSelectionConfirmation(out, items[selected], termWidth)
 			return selected, nil
 		case actUp:
 			selected = (selected - 1 + len(items)) % len(items)
@@ -99,15 +103,22 @@ func runSelectorLoop(title string, items []StackChoice, termWidth int) (int, err
 	}
 }
 
-func printSelectionConfirmation(w io.Writer, item StackChoice) {
+func printSelectionConfirmation(w io.Writer, item StackChoice, termWidth int) {
 	check := color.New(color.FgHiGreen, color.Bold).Sprint("✓")
+	var line string
 	if item.Stack != nil {
 		name := color.New(color.FgHiCyan, color.Bold).Sprint(item.Stack.Name)
-		fmt.Fprintf(w, "%s Selected stack: %s (%s)\n", check, name, item.Stack.Title)
+		if termWidth >= 60 && item.Stack.Title != "" {
+			line = fmt.Sprintf("%s Selected stack: %s (%s)", check, name, item.Stack.Title)
+		} else {
+			line = fmt.Sprintf("%s Selected stack: %s", check, name)
+		}
 	} else {
 		lbl := color.New(color.FgHiCyan, color.Bold).Sprint(item.Label)
-		fmt.Fprintf(w, "%s Selected: %s\n", check, lbl)
+		line = fmt.Sprintf("%s Selected: %s", check, lbl)
 	}
+	maxWidth := max(10, termWidth-1)
+	fmt.Fprintf(w, "%s\n", truncateANSI(line, maxWidth))
 }
 
 func clearSelector(w io.Writer, lines int) {

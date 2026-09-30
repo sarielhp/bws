@@ -3,31 +3,121 @@ package cli
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"bws/internal/stack"
 
 	"github.com/fatih/color"
+	"github.com/mattn/go-runewidth"
 )
 
-func renderStackSelector(w io.Writer, title string, items []StackChoice, selected int, termWidth int) int {
+var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+func stripANSI(s string) string {
+	return ansiEscapeRegex.ReplaceAllString(s, "")
+}
+
+func visualWidth(s string) int {
+	return runewidth.StringWidth(stripANSI(s))
+}
+
+func truncateANSI(s string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	if visualWidth(s) <= maxWidth {
+		return s
+	}
+
+	limit := maxWidth - 1
+	var b strings.Builder
+	curWidth := 0
+	inEsc := false
+
+	for _, r := range s {
+		if r == 0x1b {
+			inEsc = true
+			b.WriteRune(r)
+			continue
+		}
+		if inEsc {
+			b.WriteRune(r)
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEsc = false
+			}
+			continue
+		}
+		rw := runewidth.RuneWidth(r)
+		if curWidth+rw > limit {
+			break
+		}
+		b.WriteRune(r)
+		curWidth += rw
+	}
+	b.WriteString("…\x1b[0m")
+	return b.String()
+}
+
+func renderStackSelector(w io.Writer, title string, items []StackChoice, selected int, termWidth, termHeight int) int {
+	maxWidth := max(10, termWidth-1)
+	if termHeight <= 0 {
+		termHeight = 24
+	}
+
 	var lines []string
 
-	header := color.New(color.FgWhite, color.Bold).Sprint(title)
-	hint := color.New(color.FgHiBlack).Sprint(" (↑/↓ or j/k to navigate, Enter to select, Esc to cancel):")
-	lines = append(lines, header+hint)
+	headerTitle := title
+	if termWidth < 50 && strings.HasPrefix(title, "Recommended Stacks") {
+		headerTitle = "Recommended Stacks"
+	}
+	lines = append(lines, renderHeaderLine(headerTitle, termWidth))
 
 	for i, item := range items {
 		lines = append(lines, renderItemLine(item, i, i == selected, termWidth))
 	}
 
-	details := renderDetailPane(items[selected], termWidth)
-	lines = append(lines, details...)
+	availRows := termHeight - len(lines) - 1
+	if availRows >= 3 && termWidth >= 35 {
+		details := renderDetailPane(items[selected], termWidth)
+		if len(details) > availRows {
+			details = trimDetailPane(details, availRows)
+		}
+		lines = append(lines, details...)
+	}
 
 	for _, line := range lines {
-		fmt.Fprintf(w, "\r\x1b[2K%s\n", line)
+		fmt.Fprintf(w, "\r\x1b[2K%s\n", truncateANSI(line, maxWidth))
 	}
 	return len(lines)
+}
+
+func trimDetailPane(details []string, maxRows int) []string {
+	if len(details) <= maxRows || maxRows < 2 {
+		return details[:min(len(details), maxRows)]
+	}
+	trimmed := append([]string{}, details[:maxRows-1]...)
+	trimmed = append(trimmed, details[len(details)-1])
+	return trimmed
+}
+
+func renderHeaderLine(title string, termWidth int) string {
+	header := color.New(color.FgWhite, color.Bold).Sprint(title)
+	var hintText string
+	switch {
+	case termWidth >= 96:
+		hintText = " (↑/↓ or j/k to navigate, Enter to select, Esc to cancel):"
+	case termWidth >= 75:
+		hintText = " (↑/↓ to navigate, Enter to select, Esc):"
+	case termWidth >= 55:
+		hintText = " (↑/↓, Enter to select, Esc):"
+	case termWidth >= 40:
+		hintText = " (↑/↓, Enter):"
+	default:
+		hintText = ":"
+	}
+	hint := color.New(color.FgHiBlack).Sprint(hintText)
+	return header + hint
 }
 
 func renderItemLine(item StackChoice, idx int, isSelected bool, termWidth int) string {
@@ -44,40 +134,61 @@ func renderItemLine(item StackChoice, idx int, isSelected bool, termWidth int) s
 		cat = fmt.Sprintf("[%s]", item.Stack.Category)
 	}
 
+	nameWidth := 16
+	if termWidth < 60 {
+		nameWidth = 14
+	}
+	if termWidth < 45 {
+		nameWidth = 12
+	}
+
 	var formattedName string
 	if isSelected {
-		formattedName = color.New(color.FgHiWhite, color.Bold).Sprintf("%-16s", name)
+		formattedName = color.New(color.FgHiWhite, color.Bold).Sprintf("%-*s", nameWidth, name)
 	} else {
-		formattedName = color.New(color.FgWhite).Sprintf("%-16s", name)
+		formattedName = color.New(color.FgWhite).Sprintf("%-*s", nameWidth, name)
 	}
 
-	catFormatted := color.New(color.FgHiBlack).Sprintf("%-23s", cat)
 	badgeFormatted := ""
 	if item.Badge != "" {
-		badgeFormatted = " " + color.New(color.FgHiGreen, color.Bold).Sprintf("(%s)", item.Badge)
+		badgeFormatted = color.New(color.FgHiGreen, color.Bold).Sprintf("(%s)", item.Badge)
 	}
 
-	line := indicator + numStr + formattedName + " " + catFormatted + badgeFormatted
-	return line
+	catFormatted := ""
+	if cat != "" && termWidth >= 65 {
+		catFormatted = color.New(color.FgHiBlack).Sprintf("%-23s", cat)
+	}
+
+	var parts []string
+	parts = append(parts, indicator+numStr+formattedName)
+	if catFormatted != "" {
+		parts = append(parts, catFormatted)
+	}
+	if badgeFormatted != "" {
+		parts = append(parts, badgeFormatted)
+	}
+
+	return strings.Join(parts, " ")
 }
 
 func renderDetailPane(item StackChoice, termWidth int) []string {
-	sepLen := termWidth - 2
-	if sepLen < 40 {
-		sepLen = 76
-	} else if sepLen > 80 {
-		sepLen = 80
-	}
-
+	sepLen := max(10, min(80, termWidth-2))
 	sepLine := color.New(color.FgCyan).Sprint(strings.Repeat("─", sepLen))
-	paneHeader := color.New(color.FgCyan).Sprint("─── Stack Details ") +
-		color.New(color.FgCyan).Sprint(strings.Repeat("─", max(0, sepLen-18)))
+
+	paneHeader := "─── Stack Details "
+	if sepLen < 22 {
+		paneHeader = "─── Details "
+	}
+	if sepLen > visualWidth(paneHeader) {
+		paneHeader += strings.Repeat("─", sepLen-visualWidth(paneHeader))
+	}
+	paneHeaderFormatted := color.New(color.FgCyan).Sprint(paneHeader)
 
 	lbl := color.New(color.FgYellow, color.Bold).SprintFunc()
 	dim := color.New(color.FgHiBlack).SprintFunc()
 
 	var pane []string
-	pane = append(pane, paneHeader)
+	pane = append(pane, paneHeaderFormatted)
 
 	if item.Stack == nil {
 		pane = append(pane, fmt.Sprintf("  %s %s", lbl("Selection:  "), item.Label))
@@ -92,8 +203,18 @@ func renderDetailPane(item StackChoice, termWidth int) []string {
 		title = stk.Name
 	}
 
-	pane = append(pane, fmt.Sprintf("  %s %s %s", lbl("Stack:      "), color.New(color.FgHiWhite, color.Bold).Sprint(title), dim(fmt.Sprintf("(%s)", stk.Name))))
-	pane = append(pane, fmt.Sprintf("  %s %s %s", lbl("Category:   "), stk.Category, dim(fmt.Sprintf("[source: %s]", stk.Source))))
+	if termWidth >= 60 {
+		pane = append(pane, fmt.Sprintf("  %s %s %s", lbl("Stack:      "), color.New(color.FgHiWhite, color.Bold).Sprint(title), dim(fmt.Sprintf("(%s)", stk.Name))))
+	} else {
+		pane = append(pane, fmt.Sprintf("  %s %s", lbl("Stack:      "), color.New(color.FgHiWhite, color.Bold).Sprint(title)))
+	}
+
+	if termWidth >= 55 {
+		pane = append(pane, fmt.Sprintf("  %s %s %s", lbl("Category:   "), stk.Category, dim(fmt.Sprintf("[source: %s]", stk.Source))))
+	} else {
+		pane = append(pane, fmt.Sprintf("  %s %s", lbl("Category:   "), stk.Category))
+	}
+
 	pane = append(pane, fmt.Sprintf("  %s %s", lbl("Description:"), stk.Description))
 
 	if len(stk.Profiles) > 0 {
