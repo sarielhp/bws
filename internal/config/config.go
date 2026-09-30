@@ -140,9 +140,11 @@ type Config struct {
 	Path             []string                   `json:"path"`
 	BindsRW          []BindEntry                `json:"binds_rw"`
 	BindsRO          []BindEntry                `json:"binds_ro"`
-	Profiles         []string                   `json:"profiles,omitempty"`
-	Mask             []string                   `json:"mask,omitempty"`
-	Copy             []string                   `json:"copy"`
+	// RejectedBinds lists local read-write binds dropped by Merge; see RestrictRW.
+	RejectedBinds []string `json:"-"`
+	Profiles      []string `json:"profiles,omitempty"`
+	Mask          []string `json:"mask,omitempty"`
+	Copy          []string `json:"copy"`
 }
 
 // EffectiveMaxFileCount returns the workspace file count limit.

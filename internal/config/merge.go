@@ -1,5 +1,7 @@
 package config
 
+import "slices"
+
 func boolPtrVal(b *bool) bool {
 	if b != nil {
 		return *b
@@ -13,6 +15,7 @@ func Merge(global, local *Config) *Config {
 		return &Config{}
 	}
 	if global == nil {
+		local.BindsRW, local.RejectedBinds = RestrictRW(nil, local.BindsRW)
 		return local
 	}
 	if local == nil {
@@ -58,7 +61,9 @@ func Merge(global, local *Config) *Config {
 
 	result.PassEnv = mergeStringSlices(global.PassEnv, local.PassEnv)
 	result.Path = mergeStringSlices(global.Path, local.Path)
-	result.BindsRW = mergeBindEntries(global.BindsRW, local.BindsRW)
+	localRW, rejected := RestrictRW(global.BindsRO, local.BindsRW)
+	result.RejectedBinds = append(slices.Clone(global.RejectedBinds), rejected...)
+	result.BindsRW = mergeBindEntries(global.BindsRW, localRW)
 	result.BindsRO = mergeBindEntries(global.BindsRO, local.BindsRO)
 	result.Profiles = mergeStringSlices(global.Profiles, local.Profiles)
 	result.Mask = mergeStringSlices(global.Mask, local.Mask)

@@ -61,9 +61,11 @@ func LoadSources(dir string) (*Resolution, error) {
 // Resolve combines trusted configuration with profiles without mutating inputs.
 func Resolve(global, local *config.Config, root string) (*config.Config, error) {
 	cfg := config.Merge(global, local)
+	baseRW := len(cfg.BindsRW)
 	if err := ApplyProfiles(cfg, root, false); err != nil {
 		return nil, err
 	}
+	restrictProfileRW(cfg, global, baseRW)
 	if local != nil {
 		cfg.Features = mergeLocalFeatures(cfg.Features, local.Features)
 		if cfg.Env == nil {
@@ -107,4 +109,19 @@ func mergeLocalFeatures(resolved, local *config.FeaturesConfig) *config.Features
 		}
 	}
 	return merged
+}
+
+// restrictProfileRW applies the local read-write rules to binds that profiles
+// appended after index baseRW, since a workspace can select those profiles.
+func restrictProfileRW(cfg, global *config.Config, baseRW int) {
+	if baseRW > len(cfg.BindsRW) {
+		return
+	}
+	var globalRO []config.BindEntry
+	if global != nil {
+		globalRO = global.BindsRO
+	}
+	kept, rejected := config.RestrictRW(globalRO, cfg.BindsRW[baseRW:])
+	cfg.BindsRW = append(cfg.BindsRW[:baseRW:baseRW], kept...)
+	cfg.RejectedBinds = append(cfg.RejectedBinds, rejected...)
 }

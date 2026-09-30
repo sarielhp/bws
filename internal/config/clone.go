@@ -20,6 +20,7 @@ func Clone(c *Config) *Config {
 	r.Copy = slices.Clone(c.Copy)
 	r.BindsRW = slices.Clone(c.BindsRW)
 	r.BindsRO = slices.Clone(c.BindsRO)
+	r.RejectedBinds = slices.Clone(c.RejectedBinds)
 	r.ReviewedStack = clonePtr(c.ReviewedStack)
 	r.MaxFileCount = clonePtr(c.MaxFileCount)
 	if c.System != nil {

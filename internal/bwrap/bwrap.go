@@ -318,6 +318,9 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] Building bwrap argument list...\n")
 	}
+	for _, r := range cfg.RejectedBinds {
+		fmt.Fprintf(os.Stderr, "[bws] Warning: ignoring local read-write bind %s\n", r)
+	}
 
 	addSystemAndNetArgs(cfg, &args, verbose)
 	addStandardMounts(cfg, sandboxDir, currentDir, &args, dryRun, verbose)

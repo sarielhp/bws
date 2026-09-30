@@ -168,3 +168,30 @@ func TestRestrictiveProfilesSurviveOldInitDefaults(t *testing.T) {
 		t.Fatal("lost network restriction")
 	}
 }
+
+func TestProfileRWBindsAreRestricted(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	root := t.TempDir()
+	dir := filepath.Join(root, ".bws", "profiles")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"name": "wide", "binds_rw": [["/usr", "/usr"], ["/opt/ok", "/opt/ok"]]}`
+	if err := config.WriteTrustedFile(filepath.Join(dir, "wide.json"), []byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Resolve(&config.Config{}, &config.Config{Profiles: []string{"wide"}}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hosts []string
+	for _, b := range cfg.BindsRW {
+		hosts = append(hosts, b.Host)
+	}
+	if strings.Contains(strings.Join(hosts, " "), "/usr") || len(cfg.RejectedBinds) != 1 {
+		t.Fatalf("profile RW bind on /usr not rejected: rw=%v rejected=%v", hosts, cfg.RejectedBinds)
+	}
+	if !strings.Contains(strings.Join(hosts, " "), "/opt/ok") {
+		t.Fatalf("allowed profile bind dropped: %v", hosts)
+	}
+}

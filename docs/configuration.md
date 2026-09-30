@@ -28,7 +28,8 @@ When the global configuration is absent, launch and preview use embedded default
 
 * **Maps & hashes** (`env`): Deep merged. Local keys override global keys.
 * **Lists & arrays** (`profiles`, `mask`, `pass_env`, `path`, `copy`, `binds_rw`, `binds_ro`): Merged and deduplicated while preserving declaration order. A local configuration can add entries but cannot remove global ones; an empty local list leaves the global list unchanged.
-* **Binds**: Within `binds_rw` or `binds_ro`, a local entry with the same host path replaces the global entry. The two lists are merged separately, so a local `binds_rw` entry for a path the global configuration binds read-only makes that path writable.
+* **Binds**: Within `binds_rw` or `binds_ro`, a local entry with the same host path replaces the global entry.
+* **Read-write limits**: Read-write binds from the local configuration or from profiles are dropped, with a warning, when the host path is a path the global configuration binds read-only, or lies under a system directory (`/usr`, `/bin`, `/sbin`, `/lib*`, `/etc`) or is `/`. Symlinks are resolved first. A subpath of a global read-only directory is allowed: with `~/.local` read-only globally, a project may bind `~/.local/share/app` read-write but not `~/.local`. The global configuration itself is not restricted.
 * **Masks**: Global `mask` entries always apply. Masks are mounted after all binds, so no local bind can expose a masked path.
 * **Tokens**: `@@HOME@@` identifies the user's home directory. `@@WORKSPACE@@` identifies the selected workspace root in path-bearing declarations.
 * **Compound profile environment**: Explicit compound settings override global environment defaults; explicit project environment settings take precedence over those.
