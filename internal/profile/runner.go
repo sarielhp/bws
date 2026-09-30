@@ -35,7 +35,7 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 	testCfg := profileTestConfig(cfg, resolved)
 	root, _ := config.FindWorkspaceRoot(currentDir)
 	config.ExpandWorkspace(testCfg, root)
-	if err := config.ValidateWorkspace(currentDir, testCfg.MaxFileCount, false); err != nil {
+	if err := config.ValidateWorkspace(currentDir, testCfg.EffectiveMaxFileCount(), false); err != nil {
 		return nil, err
 	}
 

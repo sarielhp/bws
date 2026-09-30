@@ -30,9 +30,10 @@ func HandleStatusShort() error {
 	}
 	mergedCfg := config.Merge(globalCfg, localCfg)
 
+	root, _ := config.FindWorkspaceRoot(cwd)
 	if len(mergedCfg.Profiles) == 0 {
 		fmt.Println("No capability profiles configured for the current workspace (using default base sandbox).")
-		fmt.Printf("\nWorkspace: %s\n", cwd)
+		fmt.Printf("\n%s\n", FormatWorkspaceHeader(root))
 		fmt.Println("\nRun 'bws status all' to display full sandbox execution plan and mounts.")
 		fmt.Println("Run 'bws status --help' for command options.")
 		return nil
@@ -60,9 +61,22 @@ func HandleStatusShort() error {
 		}
 	}
 
-	dim := color.New(color.FgHiBlack).SprintFunc()
 	termWidth := getTerminalWidth()
+	printInstalledProfiles(resolvedList, registry, termWidth)
 
+	dim := color.New(color.FgHiBlack).SprintFunc()
+	configInfo := "(global)"
+	if _, err := os.Stat(localPath); err == nil {
+		configInfo = "(.bws/config.jsonc)"
+	}
+	fmt.Printf("\n%s %s\n", FormatWorkspaceHeader(root), dim(configInfo))
+	fmt.Println("\nRun 'bws status all' to display full sandbox execution plan and mounts.")
+	fmt.Println("Run 'bws status --help' for command options.")
+	return nil
+}
+
+func printInstalledProfiles(resolvedList []string, registry map[string]*profile.Profile, termWidth int) {
+	dim := color.New(color.FgHiBlack).SprintFunc()
 	fmt.Println("Installed profiles (in order of application):")
 	for i, pName := range resolvedList {
 		p := registry[pName]
@@ -92,13 +106,4 @@ func HandleStatusShort() error {
 
 		fmt.Printf("%s%s\n", prefix, wrappedDesc)
 	}
-
-	configInfo := "(global)"
-	if _, err := os.Stat(localPath); err == nil {
-		configInfo = "(.bws/config.jsonc)"
-	}
-	fmt.Printf("\nWorkspace: %s %s\n", cwd, dim(configInfo))
-	fmt.Println("\nRun 'bws status all' to display full sandbox execution plan and mounts.")
-	fmt.Println("Run 'bws status --help' for command options.")
-	return nil
 }

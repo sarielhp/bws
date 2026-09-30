@@ -20,29 +20,7 @@ func HandleBinAdd(hostPath string, global, local bool) {
 		config.CreateDefault(targetPath)
 	}
 
-	expanded := utilExpandHome(hostPath)
-	if !strings.HasPrefix(expanded, "/") {
-		abs, err := filepath.Abs(expanded)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Invalid path '%s': %v\n", hostPath, err)
-			os.Exit(1)
-		}
-		expanded = abs
-	}
-
-	fi, err := os.Stat(expanded)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: File '%s' does not exist.\n", expanded)
-		os.Exit(1)
-	}
-	if fi.IsDir() {
-		fmt.Fprintf(os.Stderr, "Error: '%s' is a directory. Use 'bws mount add' to mount directories.\n", expanded)
-		os.Exit(1)
-	}
-	if fi.Mode().Perm()&0111 == 0 {
-		fmt.Fprintf(os.Stderr, "Warning: '%s' does not have execute permissions on host (consider running 'chmod +x %s').\n", expanded, expanded)
-	}
-
+	expanded := resolveAndValidateHostBin(hostPath)
 	homeDir, _ := os.UserHomeDir()
 	binDir := filepath.Join(homeDir, "bin")
 	localBinDir := filepath.Join(homeDir, ".local", "bin")
@@ -90,6 +68,9 @@ func HandleBinAdd(hostPath string, global, local bool) {
 		fmt.Printf(" -> '%s'", sandboxPath)
 	}
 	fmt.Printf(" as read-only binary to %s configuration (%s).\n", label, formatConfigDisplay(targetPath, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 }
 
 // HandleBinDel removes an exposed binary from the configuration.
@@ -136,6 +117,9 @@ func HandleBinDel(nameOrPath string, global, local bool) {
 		label = "global"
 	}
 	fmt.Printf("Removed binary '%s' from %s configuration (%s).\n", matchedHost, label, formatConfigDisplay(targetPath, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 }
 
 // HandleBinList lists all exposed binaries in the configuration.
@@ -194,4 +178,30 @@ func HandleBinList() {
 	if !printed {
 		fmt.Println("No binaries configured.")
 	}
+}
+
+func resolveAndValidateHostBin(hostPath string) string {
+	expanded := utilExpandHome(hostPath)
+	if !strings.HasPrefix(expanded, "/") {
+		abs, err := filepath.Abs(expanded)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Invalid path '%s': %v\n", hostPath, err)
+			os.Exit(1)
+		}
+		expanded = abs
+	}
+
+	fi, err := os.Stat(expanded)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: File '%s' does not exist.\n", expanded)
+		os.Exit(1)
+	}
+	if fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "Error: '%s' is a directory. Use 'bws mount add' to mount directories.\n", expanded)
+		os.Exit(1)
+	}
+	if fi.Mode().Perm()&0111 == 0 {
+		fmt.Fprintf(os.Stderr, "Warning: '%s' does not have execute permissions on host (consider running 'chmod +x %s').\n", expanded, expanded)
+	}
+	return expanded
 }

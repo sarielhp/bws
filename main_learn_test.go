@@ -39,6 +39,16 @@ func TestLearnHelp(t *testing.T) {
 	}
 }
 
+func cleanLearnEnv() []string {
+	var env []string
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "PATH=") && !strings.HasPrefix(e, "LD_LIBRARY_PATH=") && !strings.HasPrefix(e, "LD_PRELOAD=") {
+			env = append(env, e)
+		}
+	}
+	return append(env, "PATH=/usr/bin:/bin")
+}
+
 func TestLearnDryRun(t *testing.T) {
 	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
 		t.Skip("binary not built, skipping")
@@ -47,6 +57,7 @@ func TestLearnDryRun(t *testing.T) {
 	tempDir := t.TempDir()
 	cmd := exec.Command(bwPath, "learn", "-n", "--", "echo", "hello learn")
 	cmd.Dir = tempDir
+	cmd.Env = cleanLearnEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("bws learn -n failed: %v\n%s", err, string(output))
@@ -75,6 +86,7 @@ func TestLearnDryRunVerbose(t *testing.T) {
 	tempDir := t.TempDir()
 	cmd := exec.Command(bwPath, "learn", "-v", "-n", "--", "echo", "hello learn")
 	cmd.Dir = tempDir
+	cmd.Env = cleanLearnEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("bws learn -v -n failed: %v\n%s", err, string(output))
@@ -167,6 +179,7 @@ func TestLearnIdempotentSubsequentRuns(t *testing.T) {
 	// Initial run
 	cmd1 := exec.Command(bwPath, "learn", "--", "echo", "idempotent test")
 	cmd1.Dir = tempDir
+	cmd1.Env = cleanLearnEnv()
 	output1, err := cmd1.CombinedOutput()
 	if err != nil {
 		t.Fatalf("initial bws learn failed: %v\n%s", err, string(output1))
@@ -179,6 +192,7 @@ func TestLearnIdempotentSubsequentRuns(t *testing.T) {
 	// Subsequent run should be quiet and idempotent
 	cmd2 := exec.Command(bwPath, "learn", "--", "echo", "idempotent test")
 	cmd2.Dir = tempDir
+	cmd2.Env = cleanLearnEnv()
 	output2, err := cmd2.CombinedOutput()
 	if err != nil {
 		t.Fatalf("subsequent bws learn failed: %v\n%s", err, string(output2))

@@ -130,7 +130,8 @@ type Config struct {
 	SandboxPath      string                     `json:"sandbox_path"`
 	ModelsJSONPath   string                     `json:"models_json_path"`
 	TmuxSessionName  string                     `json:"tmux_session_name"`
-	MaxFileCount     int                        `json:"max_file_count"`
+	MaxFileCount     *int                       `json:"max_file_count,omitempty"`
+	NoFileLimit      bool                       `json:"no_file_limit,omitempty"`
 	Features         *FeaturesConfig            `json:"features"`
 	Env              map[string]string          `json:"env"`
 	PassEnv          []string                   `json:"pass_env,omitempty"`
@@ -140,6 +141,24 @@ type Config struct {
 	Profiles         []string                   `json:"profiles,omitempty"`
 	Mask             []string                   `json:"mask,omitempty"`
 	Copy             []string                   `json:"copy"`
+}
+
+// EffectiveMaxFileCount returns the workspace file count limit.
+// A return value < 0 indicates file count safety checking is disabled/suppressed.
+func (c *Config) EffectiveMaxFileCount() int {
+	if c == nil {
+		return 1000
+	}
+	if c.NoFileLimit {
+		return -1
+	}
+	if c.MaxFileCount == nil {
+		return 1000
+	}
+	if *c.MaxFileCount <= 0 {
+		return -1
+	}
+	return *c.MaxFileCount
 }
 
 // ProfileApproval records reviewed profile identity without importing the resolver.

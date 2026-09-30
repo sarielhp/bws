@@ -61,8 +61,11 @@ func unsupportedSettings(c *config.Config) []string {
 	if c.TmuxSessionName != "" && c.TmuxSessionName != "bwrap-dev" {
 		fields = append(fields, "tmux_session_name")
 	}
-	if c.MaxFileCount != 0 && c.MaxFileCount != 1000 {
+	if c.MaxFileCount != nil && *c.MaxFileCount != 1000 {
 		fields = append(fields, "max_file_count")
+	}
+	if c.NoFileLimit {
+		fields = append(fields, "no_file_limit")
 	}
 	if c.Features != nil && c.Features.AutoInit != "" {
 		fields = append(fields, "features.auto_init")

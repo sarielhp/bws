@@ -12,6 +12,7 @@ import (
 	"bws/internal/cli"
 	"bws/internal/config"
 	"bws/internal/dbus"
+	"bws/internal/policy"
 	"bws/internal/proxy"
 	"bws/internal/sandbox"
 	"bws/internal/util"
@@ -162,20 +163,20 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	return nil
 }
 
-func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, noInit, tmuxFlag, noTmuxFlag bool) error {
+func runDefault(args []string, force, verbose bool, flags policy.Flags, noInit, tmuxFlag, noTmuxFlag bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+	applyFlags(sl.cfg, flags)
 
 	currentDir, err := safetyChecks(sl, force, verbose)
 	if err != nil {
 		return err
 	}
 
-	if err := maybeAutoInit(sl, currentDir, force, noInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose); err != nil {
+	if err := maybeAutoInit(sl, currentDir, force, noInit, flags, verbose); err != nil {
 		return err
 	}
 
@@ -220,20 +221,20 @@ func runDefault(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbu
 	return buildAndRun(sl, currentDir, false, execArgs, verbose)
 }
 
-func runStatus(showAll, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool) error {
+func runStatus(showAll, verbose bool, flags policy.Flags) error {
 	if showAll {
-		return runConf(verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+		return runConf(verbose, flags)
 	}
 	return cli.HandleStatusShort()
 }
 
-func runConf(verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus bool) error {
+func runConf(verbose bool, flags policy.Flags) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+	applyFlags(sl.cfg, flags)
 
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -323,13 +324,13 @@ func runSandboxCommand(name string, execArgs []string, force, verbose bool) erro
 	return nil
 }
 
-func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, noInit, tmuxFlag, noTmuxFlag bool) error {
+func runExec(args []string, force, verbose bool, flags policy.Flags, noInit, tmuxFlag, noTmuxFlag bool) error {
 	sl, err := loadConfigs(verbose)
 	if err != nil {
 		return err
 	}
 
-	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+	applyFlags(sl.cfg, flags)
 
 	cli.VerifyTools(false, false)
 	cli.VerifyBwrapUserns()
@@ -339,7 +340,7 @@ func runExec(args []string, force, verbose, noSSH, noNet, proxy, noProxy, dbusFl
 		return err
 	}
 
-	if err := maybeAutoInit(sl, currentDir, force, noInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose); err != nil {
+	if err := maybeAutoInit(sl, currentDir, force, noInit, flags, verbose); err != nil {
 		return err
 	}
 

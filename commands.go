@@ -11,30 +11,32 @@ import (
 )
 
 type appFlags struct {
-	force    bool
-	global   bool
-	local    bool
-	ro       bool
-	rw       bool
-	verbose  bool
-	dryRun   bool
-	noSSH    bool
-	noNet    bool
-	proxy    bool
-	noProxy  bool
-	dbus     bool
-	noDBus   bool
-	noInit   bool
-	opencode bool
-	stack    string
-	preset   string
-	profiles []string
-	docsDir  string
-	desc     string
-	basic    bool
-	yes      bool
-	tmux     bool
-	noTmux   bool
+	force        bool
+	global       bool
+	local        bool
+	ro           bool
+	rw           bool
+	verbose      bool
+	dryRun       bool
+	noSSH        bool
+	noNet        bool
+	proxy        bool
+	noProxy      bool
+	dbus         bool
+	noDBus       bool
+	noInit       bool
+	opencode     bool
+	stack        string
+	preset       string
+	profiles     []string
+	docsDir      string
+	desc         string
+	basic        bool
+	yes          bool
+	tmux         bool
+	noTmux       bool
+	noFileLimit  bool
+	maxFileCount int
 }
 
 func completeStacks(toComplete string) []string {
@@ -108,7 +110,7 @@ func statusCmd(f *appFlags) clihelp.Command {
 		},
 		Run: func(ctx *clihelp.Context) error {
 			showAll := len(ctx.Args) > 0 && (ctx.Args[0] == "all" || ctx.Args[0] == "-a" || ctx.Args[0] == "--all")
-			return runStatus(showAll, f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus)
+			return runStatus(showAll, f.verbose, policyFlags(f))
 		},
 	}
 }
@@ -121,7 +123,7 @@ func planCmd(f *appFlags) clihelp.Command {
 		UsageLine:   "bws plan",
 		Args:        clihelp.NoArgs,
 		Run: func(ctx *clihelp.Context) error {
-			return runConf(f.verbose, f.noSSH, f.noNet, f.proxy, f.noProxy, f.dbus, f.noDBus)
+			return runConf(f.verbose, policyFlags(f))
 		},
 	}
 }

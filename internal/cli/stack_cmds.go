@@ -219,6 +219,7 @@ func HandleStackSave(name, title, desc string, force, noVerify bool) error {
 	}
 	fmt.Printf("Saved stack %q to %s\n  Profiles:        %s\n  Verified Digest: %s\n",
 		name, targetPath, strings.Join(profiles, ", "), digest[:12])
+	PrintWorkspaceInfo(root)
 	return nil
 }
 
@@ -334,14 +335,7 @@ func HandleStackUpdate(dryRun, yes bool) error {
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Stack: %s (%s)\n", upstream.Name, upstream.Title)
-	if currentDigest != "" {
-		fmt.Fprintf(os.Stderr, "Current approved digest:  %s\n", currentDigest)
-	} else {
-		fmt.Fprintf(os.Stderr, "Current approved digest:  (unapproved)\n")
-	}
-	fmt.Fprintf(os.Stderr, "Upstream approved digest: %s\n", upstreamDigest)
-	fmt.Fprintf(os.Stderr, "Base profiles:            %s\n", strings.Join(upstream.Profiles, ", "))
+	printStackUpdateDetails(upstream, currentDigest, upstreamDigest)
 
 	if dryRun {
 		fmt.Println("[dry-run] Stack update available. Run 'bws stack update' to apply.")
@@ -376,5 +370,17 @@ func HandleStackUpdate(dryRun, yes bool) error {
 		return fmt.Errorf("writing updated config: %w", err)
 	}
 	fmt.Printf("Successfully updated stack %q in %s (%s)\n", upstream.Name, localPath, upstreamDigest[:12])
+	PrintWorkspaceInfo(root)
 	return nil
+}
+
+func printStackUpdateDetails(upstream *stack.Stack, currentDigest, upstreamDigest string) {
+	fmt.Fprintf(os.Stderr, "Stack: %s (%s)\n", upstream.Name, upstream.Title)
+	if currentDigest != "" {
+		fmt.Fprintf(os.Stderr, "Current approved digest:  %s\n", currentDigest)
+	} else {
+		fmt.Fprintf(os.Stderr, "Current approved digest:  (unapproved)\n")
+	}
+	fmt.Fprintf(os.Stderr, "Upstream approved digest: %s\n", upstreamDigest)
+	fmt.Fprintf(os.Stderr, "Base profiles:            %s\n", strings.Join(upstream.Profiles, ", "))
 }

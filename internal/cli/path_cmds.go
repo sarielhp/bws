@@ -49,6 +49,9 @@ func HandlePathAdd(dir string, global, local bool) {
 		label = "local"
 	}
 	fmt.Printf("Added '%s' to %s PATH configuration (%s).\n", dir, label, formatConfigDisplay(targetPath, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 }
 
 // HandlePathDel removes a directory from the PATH array in the config
@@ -90,7 +93,10 @@ func HandlePathDel(dir string, global, local bool) {
 	if !global {
 		label = "local"
 	}
-	fmt.Printf("Removed '%s' from %s PATH configuration.\n", dir, label)
+	fmt.Printf("Removed '%s' from %s PATH configuration (%s).\n", dir, label, formatConfigDisplay(targetPath, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 }
 
 // HandlePathList lists combined paths from global and local configs with [g] and [l] indicators

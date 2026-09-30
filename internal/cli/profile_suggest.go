@@ -49,7 +49,7 @@ func HandleProfileSuggest(dir string, jsonOutput, compound bool) error {
 	if jsonOutput {
 		return writeJSON(os.Stdout, report)
 	}
-	fmt.Printf("Workspace: %s\n", report.Workspace)
+	fmt.Println(FormatWorkspaceHeader(report.Workspace))
 	if len(report.Suggestions) == 0 {
 		fmt.Println("No matching profiles. Use 'bws init --profile <name>' to choose explicitly.")
 		return nil

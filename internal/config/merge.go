@@ -36,8 +36,14 @@ func Merge(global, local *Config) *Config {
 	if local.TmuxSessionName != "" {
 		result.TmuxSessionName = local.TmuxSessionName
 	}
-	if local.MaxFileCount != 0 {
+	if local.NoFileLimit {
+		result.NoFileLimit = true
+	}
+	if local.MaxFileCount != nil {
 		result.MaxFileCount = local.MaxFileCount
+		if *local.MaxFileCount > 0 && !local.NoFileLimit {
+			result.NoFileLimit = false
+		}
 	}
 
 	result.System = mergeSystem(global.System, local.System)

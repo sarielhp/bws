@@ -27,12 +27,15 @@ func ValidateWorkspace(dir string, limit int, force bool) error {
 		}
 	}
 	root, _ := FindWorkspaceRoot(dir)
-	if limit <= 0 {
+	if limit < 0 {
+		return nil
+	}
+	if limit == 0 {
 		limit = 1000
 	}
 	if !force {
 		if count := util.CountFiles(root, limit); count > limit {
-			return fmt.Errorf("workspace directory contains more than %d files (found %d); use -f to override", limit, count)
+			return fmt.Errorf("workspace directory %s contains more than %d files (found %d); use -f to override", root, limit, count)
 		}
 	}
 	return nil

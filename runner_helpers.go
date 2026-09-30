@@ -47,21 +47,21 @@ func safetyChecks(sl *sandboxLaunch, force, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] Current directory: %s\n", currentDir)
 	}
-	if err := config.ValidateWorkspace(currentDir, sl.cfg.MaxFileCount, force); err != nil {
+	if err := config.ValidateWorkspace(currentDir, sl.cfg.EffectiveMaxFileCount(), force); err != nil {
 		return "", err
 	}
 
 	return currentDir, nil
 }
 
-func applyFlags(cfg *config.Config, noSSH, noNet, proxy, noProxy, dbus, noDBus bool) {
+func applyFlags(cfg *config.Config, flags policy.Flags) {
 	if cfg == nil {
 		return
 	}
-	policy.Flags{NoSSH: noSSH, NoNet: noNet, Proxy: proxy, NoProxy: noProxy, DBus: dbus, NoDBus: noDBus}.Apply(cfg)
+	flags.Apply(cfg)
 }
 
-func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus, verbose bool) error {
+func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit bool, flags policy.Flags, verbose bool) error {
 	if sl.localCfg != nil {
 		return nil
 	}
@@ -83,7 +83,7 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, n
 		if !cli.IsInteractiveTTY(int(os.Stdin.Fd())) {
 			return nil
 		}
-		if err := cli.HandleInitOptions(cli.InitOptions{TargetDir: currentDir, Flags: policy.Flags{NoSSH: noSSH, NoNet: noNet, Proxy: proxy, NoProxy: noProxy, DBus: dbusFlag, NoDBus: noDBus}}); err != nil {
+		if err := cli.HandleInitOptions(cli.InitOptions{TargetDir: currentDir, Flags: flags}); err != nil {
 			return err
 		}
 		resolved, err := loadConfigs(verbose)
@@ -91,11 +91,11 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, n
 			return err
 		}
 		*sl = *resolved
-		applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+		applyFlags(sl.cfg, flags)
 		return nil
 	}
 
-	configPath, summary, err := cli.AutoConfigureWorkspace(currentDir, noSSH)
+	configPath, summary, err := cli.AutoConfigureWorkspace(currentDir, flags.NoSSH)
 	if err != nil {
 		return fmt.Errorf("auto-configuring workspace: %w", err)
 	}
@@ -116,7 +116,7 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit, noSSH, n
 	if err != nil {
 		return fmt.Errorf("applying profiles: %w", err)
 	}
-	applyFlags(sl.cfg, noSSH, noNet, proxy, noProxy, dbusFlag, noDBus)
+	applyFlags(sl.cfg, flags)
 	return nil
 }
 

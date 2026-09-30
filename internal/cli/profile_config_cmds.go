@@ -135,6 +135,9 @@ func HandleProfileAdd(names []string, global, local, create, force bool) error {
 	for _, name := range refreshed {
 		fmt.Printf("Profile %s is active in %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
 	}
+	if !global && (len(added) > 0 || len(refreshed) > 0) {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 	return nil
 }
 
@@ -195,5 +198,8 @@ func HandleProfileDel(names []string, global, local bool) {
 
 	for _, name := range removed {
 		fmt.Printf("Removed profile %s from %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
+	}
+	if !global && len(removed) > 0 {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
 	}
 }

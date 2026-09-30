@@ -4,12 +4,14 @@ import "bws/internal/config"
 
 // Flags are explicit launch or export overrides applied after profile resolution.
 type Flags struct {
-	NoSSH   bool
-	NoNet   bool
-	Proxy   bool
-	NoProxy bool
-	DBus    bool
-	NoDBus  bool
+	NoSSH        bool
+	NoNet        bool
+	Proxy        bool
+	NoProxy      bool
+	DBus         bool
+	NoDBus       bool
+	NoFileLimit  bool
+	MaxFileCount int
 }
 
 // Apply updates only settings explicitly requested by flags.
@@ -33,5 +35,12 @@ func (f Flags) Apply(cfg *config.Config) {
 		cfg.Features.EnableDBus = &no
 	} else if f.DBus {
 		cfg.Features.EnableDBus = &yes
+	}
+	if f.NoFileLimit {
+		cfg.NoFileLimit = true
+	}
+	if f.MaxFileCount != 0 {
+		count := f.MaxFileCount
+		cfg.MaxFileCount = &count
 	}
 }

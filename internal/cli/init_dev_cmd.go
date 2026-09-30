@@ -41,7 +41,7 @@ func HandleInitOptions(opts InitOptions) error {
 		return err
 	}
 	if before != nil && !opts.Force {
-		fmt.Printf("Workspace already initialized: %s\nUnchanged. Use --force with an explicit selection to replace it.\n", root)
+		fmt.Printf("Workspace already initialized: %s\nUnchanged. Use --force with an explicit selection to replace it.\n", FormatWorkspace(root))
 		return nil
 	}
 	selectedStack, names, err := selectInitStackAndProfiles(root, opts)
@@ -53,12 +53,12 @@ func HandleInitOptions(opts InitOptions) error {
 		return err
 	}
 	if selectedStack != "" {
-		fmt.Fprintf(os.Stderr, "Workspace: %s\nSelected stack: %s\n", root, selectedStack)
+		fmt.Fprintf(os.Stderr, "%s\nSelected stack: %s\n", FormatWorkspaceHeader(root), selectedStack)
 		if len(names) > 0 {
 			fmt.Fprintf(os.Stderr, "Additional profiles: %s\n", strings.Join(names, ", "))
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "Workspace: %s\nSelected profiles: %s\n", root, strings.Join(names, ", "))
+		fmt.Fprintf(os.Stderr, "%s\nSelected profiles: %s\n", FormatWorkspaceHeader(root), strings.Join(names, ", "))
 	}
 	PrintPolicySummary(os.Stderr, plan.Effective)
 	if opts.DryRun {
@@ -86,6 +86,7 @@ func HandleInitOptions(opts InitOptions) error {
 		return err
 	}
 	fmt.Printf("Initialized development sandbox configuration: %s\n", path)
+	PrintWorkspaceInfo(root)
 	return nil
 }
 

@@ -193,6 +193,9 @@ func HandleCopyAdd(prog string, global, local bool) {
 		label = "local"
 	}
 	fmt.Printf("Added '%s' to %s copy configuration (%s).\n", prog, label, formatConfigDisplay(path, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(path))
+	}
 }
 
 func HandleCopyList() {
@@ -261,5 +264,8 @@ func HandleCopyDel(prog string, global, local bool) {
 	if !global {
 		label = "local"
 	}
-	fmt.Printf("Removed '%s' from %s copy configuration.\n", prog, label)
+	fmt.Printf("Removed '%s' from %s copy configuration (%s).\n", prog, label, formatConfigDisplay(path, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(path))
+	}
 }

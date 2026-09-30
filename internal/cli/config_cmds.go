@@ -76,6 +76,9 @@ func HandleConfigReset(global, local bool) {
 	}
 
 	fmt.Printf("Created clean %s config: %s\n", label, path)
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(path))
+	}
 }
 
 // HandleConfigEdit opens the target config file in $EDITOR.
@@ -153,6 +156,9 @@ func HandleConfigSet(key, value string, global, local bool) {
 	}
 
 	fmt.Printf("Set %s in %s configuration (%s) = %s\n", key, label, formatConfigDisplay(path, global), value)
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(path))
+	}
 }
 
 // HandleConfigGet reads a configuration key value from target config.
@@ -202,6 +208,9 @@ func HandleConfigUnset(key string, global, local bool) {
 	}
 
 	fmt.Printf("Unset %s from %s configuration (%s)\n", key, label, formatConfigDisplay(path, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(path))
+	}
 }
 
 // HandleConfigPush copies global configuration & theme files to a remote host via SCP.

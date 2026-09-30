@@ -243,6 +243,9 @@ func handleLiveMerge(targetPath string, delta *learn.Delta, global bool) error {
 	if len(mergeRes.EnabledFeatures) > 0 {
 		fmt.Printf("  • Enabled features: %s\n", strings.Join(mergeRes.EnabledFeatures, ", "))
 	}
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 	return nil
 }
 

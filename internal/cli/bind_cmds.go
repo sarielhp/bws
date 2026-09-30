@@ -144,6 +144,9 @@ func runBindAdd(hostPath, sandboxPath string, rw, global, local bool) error {
 		fmt.Printf(" -> '%s'", sandboxPath)
 	}
 	fmt.Printf(" to %s configuration (%s).\n", label, formatConfigDisplay(targetPath, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 	return nil
 }
 
@@ -197,6 +200,9 @@ func runBindDel(hostPath string, global, local bool) error {
 		label = "local"
 	}
 	fmt.Printf("Removed bind mount '%s' from %s configuration (%s).\n", matchedPath, label, formatConfigDisplay(targetPath, global))
+	if !global {
+		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
+	}
 	return nil
 }
 

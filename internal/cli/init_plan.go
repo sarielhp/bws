@@ -77,12 +77,16 @@ func BuildInitPlanWithStack(root string, stackName string, names []string, flags
 		Profiles      []string                          `json:"profiles,omitempty"`
 		Reviewed      map[string]config.ProfileApproval `json:"reviewed_profiles,omitempty"`
 		Features      *config.FeaturesConfig            `json:"features,omitempty"`
+		MaxFileCount  *int                              `json:"max_file_count,omitempty"`
+		NoFileLimit   bool                              `json:"no_file_limit,omitempty"`
 	}{
 		Stack:         stackName,
 		ReviewedStack: approval,
 		Profiles:      names,
 		Reviewed:      pins,
 		Features:      cfg.Features,
+		MaxFileCount:  cfg.MaxFileCount,
+		NoFileLimit:   cfg.NoFileLimit,
 	}, "", "  ")
 	if err != nil {
 		return nil, err

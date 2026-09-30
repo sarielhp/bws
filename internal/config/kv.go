@@ -11,6 +11,11 @@ import (
 
 // KnownKeyAliases maps shorthand names to their nested paths.
 var KnownKeyAliases = map[string]string{
+	"no_file_limit":        "no_file_limit",
+	"disable_file_limit":   "no_file_limit",
+	"file_limit":           "max_file_count",
+	"max_files":            "max_file_count",
+	"max_file_count":       "max_file_count",
 	"enable_proxy":         "features.enable_proxy",
 	"enable_ssh":           "features.enable_ssh",
 	"enable_x11":           "features.enable_x11",

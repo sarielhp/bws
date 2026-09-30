@@ -8,7 +8,16 @@ import (
 )
 
 func policyFlags(f *appFlags) policy.Flags {
-	return policy.Flags{NoSSH: f.noSSH, NoNet: f.noNet, Proxy: f.proxy, NoProxy: f.noProxy, DBus: f.dbus, NoDBus: f.noDBus}
+	return policy.Flags{
+		NoSSH:        f.noSSH,
+		NoNet:        f.noNet,
+		Proxy:        f.proxy,
+		NoProxy:      f.noProxy,
+		DBus:         f.dbus,
+		NoDBus:       f.noDBus,
+		NoFileLimit:  f.noFileLimit,
+		MaxFileCount: f.maxFileCount,
+	}
 }
 
 func profileSaveCmd(f *appFlags, validator clihelp.OptionsValidator, compose bool) clihelp.Command {

@@ -6,6 +6,7 @@ import (
 
 func boolPtr(b bool) *bool    { return &b }
 func strPtr(s string) *string { return &s }
+func intPtr(i int) *int       { return &i }
 
 func TestMergeNilLocal(t *testing.T) {
 	global := &Config{SandboxPath: "/home/user/.sandbox"}
@@ -35,12 +36,12 @@ func TestMergeScalarOverride(t *testing.T) {
 		SandboxPath:     "/home/user/.sandbox",
 		ModelsJSONPath:  "~/info/llm/models.json",
 		TmuxSessionName: "bwrap-dev",
-		MaxFileCount:    1000,
+		MaxFileCount:    intPtr(1000),
 	}
 	local := &Config{
 		SandboxPath:     "/home/user/.sandbox/custom",
 		TmuxSessionName: "custom-session",
-		MaxFileCount:    500,
+		MaxFileCount:    intPtr(500),
 	}
 	result := Merge(global, local)
 	if result.SandboxPath != "/home/user/.sandbox/custom" {
@@ -49,8 +50,8 @@ func TestMergeScalarOverride(t *testing.T) {
 	if result.TmuxSessionName != "custom-session" {
 		t.Errorf("expected TmuxSessionName %q, got %q", "custom-session", result.TmuxSessionName)
 	}
-	if result.MaxFileCount != 500 {
-		t.Errorf("expected MaxFileCount 500, got %d", result.MaxFileCount)
+	if result.MaxFileCount == nil || *result.MaxFileCount != 500 {
+		t.Errorf("expected MaxFileCount 500, got %v", result.MaxFileCount)
 	}
 	if result.ModelsJSONPath != "~/info/llm/models.json" {
 		t.Errorf("expected ModelsJSONPath preserved as %q, got %q", "~/info/llm/models.json", result.ModelsJSONPath)
@@ -249,7 +250,7 @@ func TestMergeNilSystem(t *testing.T) {
 func TestMergeEmptyLocal(t *testing.T) {
 	global := &Config{
 		SandboxPath:  "/home/user/.sandbox",
-		MaxFileCount: 1000,
+		MaxFileCount: intPtr(1000),
 		System: &SystemConfig{
 			ShareNet: boolPtr(true),
 		},
@@ -264,8 +265,8 @@ func TestMergeEmptyLocal(t *testing.T) {
 	if result.SandboxPath != "/home/user/.sandbox" {
 		t.Errorf("expected SandboxPath preserved, got %q", result.SandboxPath)
 	}
-	if result.MaxFileCount != 1000 {
-		t.Errorf("expected MaxFileCount preserved, got %d", result.MaxFileCount)
+	if result.MaxFileCount == nil || *result.MaxFileCount != 1000 {
+		t.Errorf("expected MaxFileCount preserved, got %v", result.MaxFileCount)
 	}
 	if *result.System.ShareNet != true {
 		t.Errorf("expected ShareNet preserved")
@@ -278,6 +279,50 @@ func TestMergeEmptyLocal(t *testing.T) {
 	}
 	if len(result.Path) != 1 || result.Path[0] != "/usr/bin" {
 		t.Errorf("expected Path preserved")
+	}
+}
+
+func TestMergeNoFileLimit(t *testing.T) {
+	global := &Config{MaxFileCount: intPtr(1000)}
+	local := &Config{NoFileLimit: true}
+	res := Merge(global, local)
+	if !res.NoFileLimit {
+		t.Errorf("expected NoFileLimit to be true")
+	}
+	if res.EffectiveMaxFileCount() != -1 {
+		t.Errorf("expected EffectiveMaxFileCount to be -1, got %d", res.EffectiveMaxFileCount())
+	}
+}
+
+func TestEffectiveMaxFileCount(t *testing.T) {
+	var c *Config
+	if c.EffectiveMaxFileCount() != 1000 {
+		t.Errorf("expected nil config default 1000")
+	}
+
+	c = &Config{}
+	if c.EffectiveMaxFileCount() != 1000 {
+		t.Errorf("expected unset config default 1000")
+	}
+
+	c = &Config{NoFileLimit: true}
+	if c.EffectiveMaxFileCount() != -1 {
+		t.Errorf("expected NoFileLimit -1")
+	}
+
+	c = &Config{MaxFileCount: intPtr(0)}
+	if c.EffectiveMaxFileCount() != -1 {
+		t.Errorf("expected 0 to return -1 (suppressed)")
+	}
+
+	c = &Config{MaxFileCount: intPtr(-1)}
+	if c.EffectiveMaxFileCount() != -1 {
+		t.Errorf("expected -1 to return -1 (suppressed)")
+	}
+
+	c = &Config{MaxFileCount: intPtr(25000)}
+	if c.EffectiveMaxFileCount() != 25000 {
+		t.Errorf("expected 25000")
 	}
 }
 
