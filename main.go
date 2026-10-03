@@ -11,6 +11,45 @@ import (
 
 var Version = "0.3.64"
 
+// rootPersistentOptions is the set of flags available to every command,
+// organised into help-page groups.
+func rootPersistentOptions(f *appFlags) []clihelp.Option {
+	return []clihelp.Option{
+		clihelp.Group("Configuration scope",
+			clihelp.Bool(&f.global, "-g, --global", false, "Target the global config file")),
+		clihelp.Group("Configuration scope",
+			clihelp.Bool(&f.local, "-l, --local", false, "Target the local workspace config file")),
+		clihelp.Group("Configuration scope",
+			clihelp.Bool(&f.force, "-f, --force", false, "Bypass the file count safety check / force overwrite")),
+		clihelp.Group("Sandbox policy",
+			clihelp.Bool(&f.noSSH, "--no-ssh", false, "Disable SSH agent forwarding and Git SSH")),
+		clihelp.Group("Sandbox policy",
+			clihelp.Bool(&f.noNet, "-N, --no-net, --offline", false, "Block all network access")),
+		clihelp.Group("Sandbox policy",
+			clihelp.Bool(&f.proxy, "--proxy", false, "Tunnel sandbox traffic through a host proxy")),
+		clihelp.Group("Sandbox policy",
+			clihelp.Bool(&f.noProxy, "--no-proxy", false, "Disable the in-process host proxy")),
+		clihelp.Group("Sandbox policy",
+			clihelp.Bool(&f.dbus, "--dbus", false, "Enable filtered session D-Bus access")),
+		clihelp.Group("Sandbox policy",
+			clihelp.Bool(&f.noDBus, "--no-dbus", false, "Disable session D-Bus access")),
+		clihelp.Group("Safety limits",
+			clihelp.Bool(&f.noInit, "--no-init", false, "Skip workspace auto-configuration")),
+		clihelp.Group("Safety limits",
+			clihelp.Bool(&f.noFileLimit, "--no-file-limit", false, "Disable the file count safety check")),
+		clihelp.Group("Safety limits",
+			clihelp.Int(&f.maxFileCount, "--max-file-count <N>", 0, "Override the file count limit (-1 disables)")),
+		clihelp.Group("Terminal & output",
+			clihelp.Bool(&f.tmux, "--tmux", false, "Force an internal tmux session")),
+		clihelp.Group("Terminal & output",
+			clihelp.Bool(&f.noTmux, "--no-tmux", false, "Use a direct shell, not internal tmux")),
+		clihelp.Group("Terminal & output",
+			clihelp.Bool(&f.verbose, "-v, --verbose", false, "Print verbose debug information")),
+		clihelp.Group("Terminal & output",
+			clihelp.Bool(&f.noColor, "--no-color", false, "Disable ANSI color output")),
+	}
+}
+
 func buildApp() *clihelp.App {
 	f := &appFlags{}
 	glValidator := clihelp.MutuallyExclusive("global", "local")
@@ -36,40 +75,7 @@ func buildApp() *clihelp.App {
 		// Subcommand pages point at 'help flags' instead of re-listing every
 		// global flag.
 		OmitGlobalFlagsInCommands: true,
-		PersistentOptions: []clihelp.Option{
-			clihelp.Group("Configuration scope",
-				clihelp.Bool(&f.global, "-g, --global", false, "Target the global config file")),
-			clihelp.Group("Configuration scope",
-				clihelp.Bool(&f.local, "-l, --local", false, "Target the local workspace config file")),
-			clihelp.Group("Configuration scope",
-				clihelp.Bool(&f.force, "-f, --force", false, "Bypass the file count safety check / force overwrite")),
-			clihelp.Group("Sandbox policy",
-				clihelp.Bool(&f.noSSH, "--no-ssh", false, "Disable SSH agent forwarding and Git SSH")),
-			clihelp.Group("Sandbox policy",
-				clihelp.Bool(&f.noNet, "-N, --no-net, --offline", false, "Block all network access")),
-			clihelp.Group("Sandbox policy",
-				clihelp.Bool(&f.proxy, "--proxy", false, "Tunnel sandbox traffic through a host proxy")),
-			clihelp.Group("Sandbox policy",
-				clihelp.Bool(&f.noProxy, "--no-proxy", false, "Disable the in-process host proxy")),
-			clihelp.Group("Sandbox policy",
-				clihelp.Bool(&f.dbus, "--dbus", false, "Enable filtered session D-Bus access")),
-			clihelp.Group("Sandbox policy",
-				clihelp.Bool(&f.noDBus, "--no-dbus", false, "Disable session D-Bus access")),
-			clihelp.Group("Safety limits",
-				clihelp.Bool(&f.noInit, "--no-init", false, "Skip workspace auto-configuration")),
-			clihelp.Group("Safety limits",
-				clihelp.Bool(&f.noFileLimit, "--no-file-limit", false, "Disable the file count safety check")),
-			clihelp.Group("Safety limits",
-				clihelp.Int(&f.maxFileCount, "--max-file-count <N>", 0, "Override the file count limit (-1 disables)")),
-			clihelp.Group("Terminal & output",
-				clihelp.Bool(&f.tmux, "--tmux", false, "Force an internal tmux session")),
-			clihelp.Group("Terminal & output",
-				clihelp.Bool(&f.noTmux, "--no-tmux", false, "Use a direct shell, not internal tmux")),
-			clihelp.Group("Terminal & output",
-				clihelp.Bool(&f.verbose, "-v, --verbose", false, "Print verbose debug information")),
-			clihelp.Group("Terminal & output",
-				clihelp.Bool(&f.noColor, "--no-color", false, "Disable ANSI color output")),
-		},
+		PersistentOptions:         rootPersistentOptions(f),
 		Commands: []clihelp.Command{
 			initCmd(f),
 			statusCmd(f),
