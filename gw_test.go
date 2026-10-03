@@ -41,77 +41,76 @@ func TestGwListAndPruneCLI(t *testing.T) {
 	res.AssertNoError(t)
 }
 
-func TestGwIntegrationInRepo(t *testing.T) {
+// gwFixtureInits a git repository with one merged agent branch and one
+// unmerged agent branch, returning its path. It skips when git is unavailable.
+func gwFixtureInits(t *testing.T) string {
+	t.Helper()
 	tmpDir := t.TempDir()
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
+	git := func(args ...string) {
+		_ = exec.Command("git", append([]string{"-C", tmpDir}, args...)...).Run()
+	}
+	if err := exec.Command("git", "init", tmpDir).Run(); err != nil {
 		t.Skip("git init failed, skipping integration test")
 	}
-	_ = exec.Command("git", "-C", tmpDir, "config", "user.email", "agent@example.com").Run()
-	_ = exec.Command("git", "-C", tmpDir, "config", "user.name", "Agent").Run()
-	_ = exec.Command("git", "-C", tmpDir, "config", "commit.gpgsign", "false").Run()
+	git("config", "user.email", "agent@example.com")
+	git("config", "user.name", "Agent")
+	git("config", "commit.gpgsign", "false")
 
 	_ = os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("test"), 0644)
-	_ = exec.Command("git", "-C", tmpDir, "add", "README.md").Run()
-	_ = exec.Command("git", "-C", tmpDir, "commit", "-m", "init").Run()
+	git("add", "README.md")
+	git("commit", "-m", "init")
 
-	// Create merged and unmerged agent branches
-	_ = exec.Command("git", "-C", tmpDir, "checkout", "-b", "bws-agent-branch1").Run()
+	// A branch that will be merged into main.
+	git("checkout", "-b", "bws-agent-branch1")
 	_ = os.WriteFile(filepath.Join(tmpDir, "f1.txt"), []byte("f1"), 0644)
-	_ = exec.Command("git", "-C", tmpDir, "add", "f1.txt").Run()
-	_ = exec.Command("git", "-C", tmpDir, "commit", "-m", "feat1").Run()
+	git("add", "f1.txt")
+	git("commit", "-m", "feat1")
+	git("checkout", "master")
+	git("checkout", "main")
+	git("merge", "bws-agent-branch1")
 
-	_ = exec.Command("git", "-C", tmpDir, "checkout", "master").Run()
-	_ = exec.Command("git", "-C", tmpDir, "checkout", "main").Run()
-	_ = exec.Command("git", "-C", tmpDir, "merge", "bws-agent-branch1").Run()
-
-	_ = exec.Command("git", "-C", tmpDir, "checkout", "-b", "bws-agent-branch2").Run()
+	// A branch left unmerged.
+	git("checkout", "-b", "bws-agent-branch2")
 	_ = os.WriteFile(filepath.Join(tmpDir, "f2.txt"), []byte("f2"), 0644)
-	_ = exec.Command("git", "-C", tmpDir, "add", "f2.txt").Run()
-	_ = exec.Command("git", "-C", tmpDir, "commit", "-m", "feat2").Run()
+	git("add", "f2.txt")
+	git("commit", "-m", "feat2")
+	git("checkout", "master")
+	git("checkout", "main")
+	return tmpDir
+}
 
-	_ = exec.Command("git", "-C", tmpDir, "checkout", "master").Run()
-	_ = exec.Command("git", "-C", tmpDir, "checkout", "main").Run()
+// gwRun runs the bws binary in dir and returns combined output, failing the
+// test if the command errors.
+func gwRun(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(bwPath, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("bws %s failed: %v\n%s", strings.Join(args, " "), err, string(out))
+	}
+	return string(out)
+}
 
+func TestGwIntegrationInRepo(t *testing.T) {
+	tmpDir := gwFixtureInits(t)
 	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
 		t.Skip("bws binary not built, skipping")
 	}
 
-	// Test bws gw list
-	listCmd := exec.Command(bwPath, "gw", "list")
-	listCmd.Dir = tmpDir
-	out, err := listCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws gw list failed: %v\n%s", err, string(out))
-	}
-	if !strings.Contains(string(out), "bws-agent-branch1") || !strings.Contains(string(out), "bws-agent-branch2") {
-		t.Errorf("expected branch1 and branch2 in list output, got:\n%s", string(out))
+	out := gwRun(t, tmpDir, "gw", "list")
+	if !strings.Contains(out, "bws-agent-branch1") || !strings.Contains(out, "bws-agent-branch2") {
+		t.Errorf("expected branch1 and branch2 in list output, got:\n%s", out)
 	}
 
-	// Test bws gw prune -n (dry run)
-	pruneDryCmd := exec.Command(bwPath, "gw", "prune", "-n")
-	pruneDryCmd.Dir = tmpDir
-	out, err = pruneDryCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws gw prune -n failed: %v\n%s", err, string(out))
-	}
-	if !strings.Contains(string(out), "bws-agent-branch1") {
-		t.Errorf("expected branch1 in prune dry run, got:\n%s", string(out))
+	if out := gwRun(t, tmpDir, "gw", "prune", "-n"); !strings.Contains(out, "bws-agent-branch1") {
+		t.Errorf("expected branch1 in prune dry run, got:\n%s", out)
 	}
 
-	// Test bws gw prune (real run)
-	pruneCmd := exec.Command(bwPath, "gw", "prune")
-	pruneCmd.Dir = tmpDir
-	out, err = pruneCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws gw prune failed: %v\n%s", err, string(out))
-	}
-	if !strings.Contains(string(out), "bws-agent-branch1") {
-		t.Errorf("expected branch1 pruned, got:\n%s", string(out))
+	if out := gwRun(t, tmpDir, "gw", "prune"); !strings.Contains(out, "bws-agent-branch1") {
+		t.Errorf("expected branch1 pruned, got:\n%s", out)
 	}
 
-	// Verify branch1 was deleted and branch2 remained
 	branchesOut, _ := exec.Command("git", "-C", tmpDir, "branch").CombinedOutput()
 	if strings.Contains(string(branchesOut), "bws-agent-branch1") {
 		t.Errorf("bws-agent-branch1 should have been deleted")
@@ -120,14 +119,7 @@ func TestGwIntegrationInRepo(t *testing.T) {
 		t.Errorf("bws-agent-branch2 should be preserved")
 	}
 
-	// Test bws gw prune -a (prune all including unmerged)
-	pruneAllCmd := exec.Command(bwPath, "gw", "prune", "-a")
-	pruneAllCmd.Dir = tmpDir
-	out, err = pruneAllCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws gw prune -a failed: %v\n%s", err, string(out))
-	}
-	if !strings.Contains(string(out), "bws-agent-branch2") {
-		t.Errorf("expected branch2 pruned with -a, got:\n%s", string(out))
+	if out := gwRun(t, tmpDir, "gw", "prune", "-a"); !strings.Contains(out, "bws-agent-branch2") {
+		t.Errorf("expected branch2 pruned with -a, got:\n%s", out)
 	}
 }

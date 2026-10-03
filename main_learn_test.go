@@ -19,7 +19,7 @@ func TestLearnHelp(t *testing.T) {
 		t.Fatalf("bws learn --help failed: %v\n%s", err, string(output))
 	}
 	outStr := string(output)
-	if !strings.Contains(outStr, "Learn required mounts") {
+	if !strings.Contains(outStr, "Learn the required mounts") {
 		t.Errorf("expected command description in learn --help, got:\n%s", outStr)
 	}
 	if !strings.Contains(outStr, "--dry-run") || !strings.Contains(outStr, "--profile") {
@@ -161,7 +161,7 @@ func TestLearnNoArgsShowsUsageWithExamples(t *testing.T) {
 	if !strings.Contains(outStr, "Usage:") || !strings.Contains(outStr, "bws learn") {
 		t.Errorf("expected usage message in bws learn (no args), got:\n%s", outStr)
 	}
-	if !strings.Contains(outStr, "Learn required mounts") {
+	if !strings.Contains(outStr, "Learn the required mounts") {
 		t.Errorf("expected command description in bws learn (no args), got:\n%s", outStr)
 	}
 	if !strings.Contains(outStr, "Examples:") || !strings.Contains(outStr, "bws learn") {

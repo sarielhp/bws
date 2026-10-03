@@ -10,13 +10,17 @@ func binCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
 		Name:        "bin",
 		Group:       "Current environment",
-		Description: "Manage individual host executables or scripts exposed inside the sandbox",
-		UsageLine:   "bws bin add|rm|list [args...]",
+		Description: "Manage host executables exposed in the sandbox",
+		LongDescription: "Manage individual host executables or scripts exposed inside the sandbox " +
+			"on PATH, without mounting the whole host binary directory.",
+		UsageLine: "bws bin add|rm|list [args...]",
 		Subcommands: []clihelp.Command{
 			{
-				Name:             "add",
-				Aliases:          []string{"enable"},
-				Description:      "Expose an executable or script inside the sandbox as read-only on PATH",
+				Name:        "add",
+				Aliases:     []string{"enable"},
+				Description: "Expose an executable in the sandbox PATH",
+				LongDescription: "Expose a host executable or script inside the sandbox as a read-only entry " +
+					"on PATH. Use -g for global config, or the default local workspace config.",
 				UsageLine:        "bws bin add <host-path> [-g | -l]",
 				Args:             clihelp.ExactArgs(1),
 				OptionsValidator: glValidator,

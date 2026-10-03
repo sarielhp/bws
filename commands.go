@@ -55,26 +55,28 @@ func completeStacks(toComplete string) []string {
 }
 
 func initCmd(f *appFlags) clihelp.Command {
-	profileOpt := clihelp.StringSlice(&f.profiles, "-p, --profile <name>", nil, "Explicitly include tool profile(s) (repeatable or comma-separated)")
+	profileOpt := clihelp.StringSlice(&f.profiles, "-p, --profile <name>", nil, "Include tool profile(s) (repeatable)")
 	profileOpt.Complete = completeProfiles
 
-	stackOpt := clihelp.String(&f.stack, "-s, --stack <name>", "", "Explicitly select an environment stack (e.g. go-agent, python-uv)")
+	stackOpt := clihelp.String(&f.stack, "-s, --stack <name>", "", "Select an environment stack by name")
 	stackOpt.Complete = completeStacks
 
-	presetOpt := clihelp.Enum(&f.preset, "--preset <stack>", []string{"", "go", "python", "rust", "node", "latex", "agent", "all"}, "", "Explicitly select a preset stack (go, python, rust, node, latex, agent, all)")
+	presetOpt := clihelp.Enum(&f.preset, "--preset <stack>", []string{"", "go", "python", "rust", "node", "latex", "agent", "all"}, "", "Select a preset stack")
 
 	return clihelp.Command{
 		Name:        "init",
 		Aliases:     []string{"setup", "init-dev"},
 		Group:       "Current environment",
-		Description: "Select profiles and initialize a reviewed .bws/config.jsonc configuration",
-		UsageLine:   "bws init [options] [target-dir]",
-		Args:        clihelp.RangeArgs(0, 1),
+		Description: "Initialize a reviewed workspace configuration",
+		LongDescription: "Select profiles and initialize a reviewed .bws/config.jsonc configuration. " +
+			"bws inspects the workspace, proposes detected stacks and profiles, and writes a local config only after review.",
+		UsageLine: "bws init [options] [target-dir]",
+		Args:      clihelp.RangeArgs(0, 1),
 		Options: []clihelp.Option{
-			clihelp.Bool(&f.basic, "--basic", false, "Explicitly select detected embedded tool profiles"),
-			clihelp.Bool(&f.yes, "-y, --yes", false, "Confirm the explicitly selected initialization plan"),
-			clihelp.Bool(&f.dryRun, "-n, --dry-run", false, "Print generated configuration to stdout without writing to disk"),
-			clihelp.Bool(&f.opencode, "--opencode", false, "Force inclusion of OpenCode configuration directories"),
+			clihelp.Bool(&f.basic, "--basic", false, "Select detected embedded tool profiles"),
+			clihelp.Bool(&f.yes, "-y, --yes", false, "Confirm the selected initialization plan"),
+			clihelp.Bool(&f.dryRun, "-n, --dry-run", false, "Print config to stdout without writing"),
+			clihelp.Bool(&f.opencode, "--opencode", false, "Force inclusion of OpenCode config dirs"),
 			stackOpt,
 			presetOpt,
 			profileOpt,
@@ -101,9 +103,11 @@ func statusCmd(f *appFlags) clihelp.Command {
 		Name:        "status",
 		Aliases:     []string{"info", "current"},
 		Group:       "Current environment",
-		Description: "Show active sandbox environment status and installed profiles",
-		UsageLine:   "bws status [all]",
-		Args:        clihelp.RangeArgs(0, 1),
+		Description: "Show environment status and installed profiles",
+		LongDescription: "Show active sandbox environment status and installed profiles. " +
+			"With 'all', print the complete execution plan, mounts, and environment variables.",
+		UsageLine: "bws status [all]",
+		Args:      clihelp.RangeArgs(0, 1),
 		Examples: []clihelp.Example{
 			{Line: "bws status", Description: "Show installed profiles and workspace status"},
 			{Line: "bws status all", Description: "Show complete execution plan, mounts, and environment"},
@@ -119,9 +123,11 @@ func planCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "plan",
 		Group:       "Current environment",
-		Description: "Show complete resolved sandbox execution plan, mounts, and variables",
-		UsageLine:   "bws plan",
-		Args:        clihelp.NoArgs,
+		Description: "Show the resolved sandbox execution plan",
+		LongDescription: "Show the complete resolved sandbox execution plan: mounts, environment variables, " +
+			"and the assembled bwrap invocation, without launching the sandbox.",
+		UsageLine: "bws plan",
+		Args:      clihelp.NoArgs,
 		Run: func(ctx *clihelp.Context) error {
 			return runConf(f.verbose, policyFlags(f))
 		},
@@ -132,9 +138,11 @@ func doctorCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "doctor",
 		Group:       "Current environment",
-		Description: "Inspect and validate sandbox environment, configuration, mounts, and prerequisites",
-		UsageLine:   "bws doctor",
-		Args:        clihelp.NoArgs,
+		Description: "Validate environment and prerequisites",
+		LongDescription: "Inspect and validate the sandbox environment, configuration, mounts, and external " +
+			"prerequisites such as bwrap, the SSH agent, and required host tools.",
+		UsageLine: "bws doctor",
+		Args:      clihelp.NoArgs,
 		Run: func(ctx *clihelp.Context) error {
 			return cli.HandleDoctor(f.verbose)
 		},

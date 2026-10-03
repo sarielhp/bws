@@ -15,14 +15,16 @@ func learnCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 	var lf learnFlags
 
 	return clihelp.Command{
-		Name:             "learn",
-		Group:            "Execution & testing",
-		Description:      "Learn required mounts, binary PATH, and features dynamically from a command",
+		Name:        "learn",
+		Group:       "Execution & testing",
+		Description: "Discover requirements from a command",
+		LongDescription: "Learn the required mounts, binary PATH entries, and features dynamically by " +
+			"tracing a command, then merge or save what was discovered.",
 		UsageLine:        "bws learn [options] [--] <command> [args...]",
 		OptionsValidator: glValidator,
 		Options: []clihelp.Option{
 			clihelp.Bool(&lf.dryRun, "-n, --dry-run", false, "Preview newly discovered additions/deltas without saving"),
-			clihelp.String(&lf.profileName, "-p, --profile <name>", "", "Save discovered configuration as a reusable capability profile"),
+			clihelp.String(&lf.profileName, "-p, --profile <name>", "", "Save discovery as a capability profile"),
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws learn -p myproject bash", Description: "Trace entire interactive shell session and save as capability profile"},

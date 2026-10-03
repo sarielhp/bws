@@ -68,9 +68,11 @@ func profileSearchCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp
 	return clihelp.Command{
 		Name:        "search",
 		Aliases:     []string{"find"},
-		Description: "Search sandbox profiles, host executables, and Homebrew formulae",
-		UsageLine:   "bws profile search <query>",
-		Args:        clihelp.ExactArgs(1),
+		Description: "Search profiles and host packages",
+		LongDescription: "Search sandbox profiles, host executables, and Homebrew formulae for a query " +
+			"and list matching capabilities.",
+		UsageLine: "bws profile search <query>",
+		Args:      clihelp.ExactArgs(1),
 		Examples: []clihelp.Example{
 			{Line: "bws profile search python", Description: "Find all Python-related profiles"},
 			{Line: "bws profile search secret", Description: "Find hardening profiles for secrets"},
@@ -85,9 +87,11 @@ func profileShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.C
 	return clihelp.Command{
 		Name:        "show",
 		Aliases:     []string{"info", "view", "cat"},
-		Description: "Show details, mounts, environment, and smoke tests for a profile",
-		UsageLine:   "bws profile show <name>",
-		Args:        clihelp.ExactArgs(1),
+		Description: "Show a profile's details and mounts",
+		LongDescription: "Show the details of a profile: declared mounts, environment variables, " +
+			"and its smoke tests.",
+		UsageLine: "bws profile show <name>",
+		Args:      clihelp.ExactArgs(1),
 		Run: func(ctx *clihelp.Context) error {
 			return cli.HandleProfileShow(ctx.Args[0])
 		},
@@ -96,9 +100,11 @@ func profileShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.C
 
 func profileGenerateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
-		Name:             "generate",
-		Aliases:          []string{"create", "new", "gen", "synthesize"},
-		Description:      "Synthesize a profile from Homebrew and Firejail intelligence",
+		Name:        "generate",
+		Aliases:     []string{"create", "new", "gen", "synthesize"},
+		Description: "Synthesize a profile from host intelligence",
+		LongDescription: "Synthesize a profile from Homebrew and Firejail intelligence, deriving mounts, " +
+			"PATH entries, and environment from the named tool's host installation.",
 		UsageLine:        "bws profile generate <name> [-g | -l]",
 		Args:             clihelp.ExactArgs(1),
 		OptionsValidator: glValidator,
@@ -126,9 +132,11 @@ func profileUpdateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp
 	return clihelp.Command{
 		Name:        "update",
 		Aliases:     []string{"sync"},
-		Description: "Update all installed global profiles from the remote repository",
-		UsageLine:   "bws profile update",
-		Args:        clihelp.NoArgs,
+		Description: "Update installed profiles from remote",
+		LongDescription: "Update all installed global profiles from the remote repository, fetching any " +
+			"profiles whose definition has changed upstream.",
+		UsageLine: "bws profile update",
+		Args:      clihelp.NoArgs,
 		Run: func(ctx *clihelp.Context) error {
 			return cli.HandleProfileUpdate()
 		},
@@ -138,9 +146,11 @@ func profileUpdateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp
 func profileTestCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
 		Name:        "test",
-		Description: "Run all verification and smoke tests for a profile inside sandbox",
-		UsageLine:   "bws profile test <name>",
-		Args:        clihelp.ExactArgs(1),
+		Description: "Run a profile's verification tests",
+		LongDescription: "Run all verification and smoke tests declared by a profile inside a sandbox and " +
+			"report each result.",
+		UsageLine: "bws profile test <name>",
+		Args:      clihelp.ExactArgs(1),
 		Run: func(ctx *clihelp.Context) error {
 			return cli.HandleProfileTest(ctx.Args[0], f.verbose)
 		},
@@ -150,14 +160,16 @@ func profileTestCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.C
 func profileAddCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 	var create bool
 	return clihelp.Command{
-		Name:             "add",
-		Aliases:          []string{"enable"},
-		Description:      "Add and enable capability profile(s) in local or global config",
+		Name:        "add",
+		Aliases:     []string{"enable"},
+		Description: "Enable capability profile(s)",
+		LongDescription: "Add and enable one or more capability profiles in the local or global config. " +
+			"Use -c to synthesize a profile that does not yet exist.",
 		UsageLine:        "bws profile add <name...> [-g | -l] [-c | --create]",
 		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,
 		Options: []clihelp.Option{
-			clihelp.Bool(&create, "-c, --create", false, "Automatically synthesize and create the profile if it does not exist"),
+			clihelp.Bool(&create, "-c, --create", false, "Synthesize the profile if it does not exist"),
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws profile add python", Description: "Enable python profile in local workspace"},
@@ -174,7 +186,8 @@ func profileDelCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Co
 	return clihelp.Command{
 		Name:             "del",
 		Aliases:          []string{"rm", "remove", "disable"},
-		Description:      "Remove and disable capability profile(s) from local or global config",
+		Description:      "Disable capability profile(s)",
+		LongDescription:  "Remove and disable one or more capability profiles from the local or global config.",
 		UsageLine:        "bws profile rm <name...> [-g | -l]",
 		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,

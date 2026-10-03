@@ -10,8 +10,10 @@ func stackCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "stack",
 		Group:       "Profile catalog",
-		Description: "Inspect, compose, save, and update persona environment stacks",
-		UsageLine:   "bws stack <subcommand>",
+		Description: "Inspect, save, and update environment stacks",
+		LongDescription: "Inspect, compose, save, and update persona environment stacks: named, reusable " +
+			"bundles of profiles and workspace configuration.",
+		UsageLine: "bws stack <subcommand>",
 		Subcommands: []clihelp.Command{
 			stackListCmd(),
 			stackShowCmd(),
@@ -69,9 +71,11 @@ func stackSaveCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "save",
 		Aliases:     []string{"snap"},
-		Description: "Save the active workspace as a reusable user stack (genesis invariant)",
-		UsageLine:   "bws stack save <name> [options]",
-		Args:        clihelp.ExactArgs(1),
+		Description: "Save the active workspace as a stack",
+		LongDescription: "Save the active workspace as a reusable user stack, preserving the current " +
+			"profiles and configuration as a genesis invariant.",
+		UsageLine: "bws stack save <name> [options]",
+		Args:      clihelp.ExactArgs(1),
 		Options: []clihelp.Option{
 			clihelp.String(&title, "-t, --title <text>", "", "Human-readable title for the stack"),
 			clihelp.String(&desc, "-d, --desc <text>", "", "Description of the stack persona"),
@@ -93,9 +97,11 @@ func stackUpdateCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "update",
 		Aliases:     []string{"upgrade", "pull"},
-		Description: "Pull upstream stack definition changes into current workspace",
-		UsageLine:   "bws stack update [options]",
-		Args:        clihelp.NoArgs,
+		Description: "Pull upstream stack changes into workspace",
+		LongDescription: "Pull upstream stack definition changes into the current workspace after " +
+			"reviewing the diff.",
+		UsageLine: "bws stack update [options]",
+		Args:      clihelp.NoArgs,
 		Options: []clihelp.Option{
 			clihelp.Bool(&dryRun, "-n, --dry-run", false, "Preview upstream changes without applying"),
 			clihelp.Bool(&yes, "-y, --yes", false, "Confirm and apply upstream changes without prompt"),
