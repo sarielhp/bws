@@ -9,7 +9,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.66"
+var Version = "0.3.67"
 
 // rootPersistentOptions is the set of flags available to every command,
 // organised into help-page groups.
