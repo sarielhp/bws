@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
 	"bws/internal/cli"
 	"bws/internal/config"
@@ -29,10 +31,14 @@ func configShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Co
 func configKeyCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp.Command {
 	return []clihelp.Command{
 		{
-			Name:             "set",
-			Description:      "Set a configuration key value",
-			UsageLine:        "bws config set <key> <value> [-g | -l]",
-			Args:             clihelp.ExactArgs(2),
+			Name:        "set",
+			Description: "Set a configuration key value",
+			UsageLine:   "bws config set <key> <value> [-g | -l]",
+			Args:        clihelp.ExactArgs(2),
+			Parameters: []clihelp.Param{
+				{Name: "key", Description: "Configuration key, e.g. enable_proxy"},
+				{Name: "value", Description: "New value for the key"},
+			},
 			OptionsValidator: glValidator,
 			Examples: []clihelp.Example{
 				{Line: "bws config set enable_proxy true", Description: "Enable proxy in local workspace config"},
@@ -45,10 +51,13 @@ func configKeyCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp.
 			},
 		},
 		{
-			Name:             "get",
-			Description:      "Read a configuration key value",
-			UsageLine:        "bws config get <key> [-g | -l]",
-			Args:             clihelp.ExactArgs(1),
+			Name:        "get",
+			Description: "Read a configuration key value",
+			UsageLine:   "bws config get <key> [-g | -l]",
+			Args:        clihelp.ExactArgs(1),
+			Parameters: []clihelp.Param{
+				{Name: "key", Description: "Configuration key to read"},
+			},
 			OptionsValidator: glValidator,
 			Examples: []clihelp.Example{
 				{Line: "bws config get enable_proxy", Description: "Get proxy setting from local config"},
@@ -120,6 +129,9 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 			Description: "Copy config and themes to a remote host",
 			UsageLine:   "bws config push <user@host:>",
 			Args:        clihelp.ExactArgs(1),
+			Parameters: []clihelp.Param{
+				{Name: "user@host:", Description: "SCP destination directory"},
+			},
 			Examples: []clihelp.Example{
 				{Line: "bws config push user@server:", Description: "Copy config and themes to remote host"},
 			},
@@ -191,8 +203,12 @@ func docsCmd(f *appFlags) clihelp.Command {
 		UsageLine:   "bws docs [options]",
 		Options: []clihelp.Option{
 			clihelp.String(&f.docsDir, "-d, --dir PATH", "docs/clihelp", "Output directory for markdown pages"),
+			clihelp.String(&f.docsMan, "--man PATH", "", "Write the roff manual page to PATH"),
 		},
 		Run: func(ctx *clihelp.Context) error {
+			if f.docsMan != "" {
+				return writeManPage(ctx.App, f.docsMan, ctx.Stdout)
+			}
 			changed, err := doc.RenderMarkdown(ctx.App, doc.MarkdownOptions{Dir: f.docsDir})
 			if err != nil {
 				return fmt.Errorf("rendering markdown docs: %w", err)
@@ -205,4 +221,24 @@ func docsCmd(f *appFlags) clihelp.Command {
 			return nil
 		},
 	}
+}
+
+// writeManPage renders the exhaustive roff manual to path, creating parent
+// directories as needed, and reports where it went to status.
+func writeManPage(app *clihelp.App, path string, status io.Writer) error {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating man page directory: %w", err)
+		}
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("creating man page: %w", err)
+	}
+	defer file.Close()
+	if err := clihelp.GenManPage(app, file); err != nil {
+		return fmt.Errorf("rendering man page: %w", err)
+	}
+	fmt.Fprintf(status, "Wrote manual page to %s\n", path)
+	return nil
 }

@@ -20,7 +20,11 @@ func learnCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 		Description: "Discover requirements from a command",
 		LongDescription: "Learn the required mounts, binary PATH entries, and features dynamically by " +
 			"tracing a command, then merge or save what was discovered.",
-		UsageLine:        "bws learn [options] [--] <command> [args...]",
+		UsageLine: "bws learn [options] [--] <command> [args...]",
+		Parameters: []clihelp.Param{
+			{Name: "command", Description: "Program whose requirements are traced"},
+			{Name: "args...", Description: "Arguments passed to the program", Variadic: true},
+		},
 		OptionsValidator: glValidator,
 		Options: []clihelp.Option{
 			clihelp.Bool(&lf.dryRun, "-n, --dry-run", false, "Preview newly discovered additions/deltas without saving"),

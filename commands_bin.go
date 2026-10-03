@@ -21,8 +21,11 @@ func binCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 				Description: "Expose an executable in the sandbox PATH",
 				LongDescription: "Expose a host executable or script inside the sandbox as a read-only entry " +
 					"on PATH. Use -g for global config, or the default local workspace config.",
-				UsageLine:        "bws bin add <host-path> [-g | -l]",
-				Args:             clihelp.ExactArgs(1),
+				UsageLine: "bws bin add <host-path> [-g | -l]",
+				Args:      clihelp.ExactArgs(1),
+				Parameters: []clihelp.Param{
+					{Name: "host-path", Description: "Executable or script to expose", Complete: completePaths},
+				},
 				OptionsValidator: glValidator,
 				Examples: []clihelp.Example{
 					{Line: "bws bin add ~/bin/agy-run-wild", Description: "Expose script locally in current workspace"},

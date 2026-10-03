@@ -81,6 +81,10 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 		LongDescription: "Run an isolated, disposable agent session in a temporary Git clone. " +
 			"Changes are fetched back and offered as a merge, squash, keep, or discard on exit.",
 		UsageLine: "bws git-workflow [subcommand|options] [-- command [args...]]",
+		Parameters: []clihelp.Param{
+			{Name: "command", Description: "Agent command to run in the clone"},
+			{Name: "args...", Description: "Arguments passed to the agent command", Variadic: true},
+		},
 		Options: []clihelp.Option{
 			clihelp.String(&gwFlags.branch, "-b, --branch NAME", "", "Target branch name for the agent session"),
 			clihelp.Bool(&gwFlags.stash, "--stash", false, "Automatically stash uncommitted changes before starting"),

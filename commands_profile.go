@@ -73,6 +73,9 @@ func profileSearchCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp
 			"and list matching capabilities.",
 		UsageLine: "bws profile search <query>",
 		Args:      clihelp.ExactArgs(1),
+		Parameters: []clihelp.Param{
+			{Name: "query", Description: "Name fragment to search for"},
+		},
 		Examples: []clihelp.Example{
 			{Line: "bws profile search python", Description: "Find all Python-related profiles"},
 			{Line: "bws profile search secret", Description: "Find hardening profiles for secrets"},
@@ -92,6 +95,9 @@ func profileShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.C
 			"and its smoke tests.",
 		UsageLine: "bws profile show <name>",
 		Args:      clihelp.ExactArgs(1),
+		Parameters: []clihelp.Param{
+			{Name: "name", Description: "Profile to display"},
+		},
 		Run: func(ctx *clihelp.Context) error {
 			return cli.HandleProfileShow(ctx.Args[0])
 		},

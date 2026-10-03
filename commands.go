@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"sort"
 	"strings"
 
@@ -30,6 +31,7 @@ type appFlags struct {
 	preset       string
 	profiles     []string
 	docsDir      string
+	docsMan      string
 	desc         string
 	basic        bool
 	yes          bool
@@ -55,6 +57,40 @@ func completeStacks(toComplete string) []string {
 	return matches
 }
 
+// completePaths offers host filesystem entries for a path-taking argument,
+// completing the directory part and matching the last path element.
+func completePaths(toComplete string) []string {
+	dir := "."
+	prefix := toComplete
+	if idx := strings.LastIndex(toComplete, "/"); idx >= 0 {
+		dir = toComplete[:idx]
+		if dir == "" {
+			dir = "/"
+		}
+		prefix = toComplete[idx+1:]
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var matches []string
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), prefix) {
+			continue
+		}
+		path := e.Name()
+		if dir != "." {
+			path = strings.TrimSuffix(dir, "/") + "/" + e.Name()
+		}
+		if e.IsDir() {
+			path += "/"
+		}
+		matches = append(matches, path)
+	}
+	sort.Strings(matches)
+	return matches
+}
+
 func initCmd(f *appFlags) clihelp.Command {
 	profileOpt := clihelp.StringSlice(&f.profiles, "-p, --profile <name>", nil, "Include tool profile(s) (repeatable)")
 	profileOpt.Complete = completeProfiles
@@ -73,6 +109,9 @@ func initCmd(f *appFlags) clihelp.Command {
 			"bws inspects the workspace, proposes detected stacks and profiles, and writes a local config only after review.",
 		UsageLine: "bws init [options] [target-dir]",
 		Args:      clihelp.RangeArgs(0, 1),
+		Parameters: []clihelp.Param{
+			{Name: "target-dir", Description: "Directory to initialize (default: current)"},
+		},
 		Options: []clihelp.Option{
 			clihelp.Bool(&f.basic, "--basic", false, "Select detected embedded tool profiles"),
 			clihelp.Bool(&f.yes, "-y, --yes", false, "Confirm the selected initialization plan"),
@@ -109,6 +148,9 @@ func statusCmd(f *appFlags) clihelp.Command {
 			"With 'all', print the complete execution plan, mounts, and environment variables.",
 		UsageLine: "bws status [all]",
 		Args:      clihelp.RangeArgs(0, 1),
+		Parameters: []clihelp.Param{
+			{Name: "all", Description: "Show the complete plan, mounts and environment"},
+		},
 		Examples: []clihelp.Example{
 			{Line: "bws status", Description: "Show installed profiles and workspace status"},
 			{Line: "bws status all", Description: "Show complete execution plan, mounts, and environment"},
