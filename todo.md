@@ -1,14 +1,16 @@
 # Prioritized backlog
 
-Reviewed against v0.3.47 on 2026-09-15. Items are ordered by usefulness and
+Reviewed against v0.3.68 on 2026-10-03. Items are ordered by usefulness and
 importance within each tier, not by implementation size. This is a backlog,
 not a commitment to implement every proposal. Investigation items are not
 claims of confirmed vulnerabilities; any confirmed boundary escape becomes
 an immediate release blocker.
 
-This replaces [the original roadmap](to_do.md). Compound profile save,
-compose, suggestions, interactive initialization, dependency review, and the
-September 15 boundary fixes are already implemented and are not new tasks.
+This is the single roadmap. It subsumes the older `to_do.md`, whose unique
+concrete items are preserved under "Concrete follow-ups carried from the
+original roadmap". Compound profile save, compose, suggestions, interactive
+initialization, dependency review, and the September 15 boundary fixes are
+already implemented and are not new tasks.
 
 ## Priority 1: Safety and dependable daily use
 
@@ -225,6 +227,35 @@ September 15 boundary fixes are already implemented and are not new tasks.
 - [ ] **Public release write-up.** After the safety/documentation work, prepare
   concrete examples and measured limitations for an announcement. Promotion
   and more assistant integrations rank below reliable existing workflows.
+
+## Concrete follow-ups carried from the original roadmap
+
+These items were on the pre-backlog roadmap and are not yet covered above in
+concrete form. They fold into the priorities above; listed here so specific
+tools, flags, and channels are not lost.
+
+- [ ] **Author the remaining assistant profiles.** Add capability profiles with
+  bind mounts, cache persistence, environment pass-through, and smoke tests for
+  Aider (`~/.aider/`, `~/.aider.conf.yml`, tag caches; `aider --version`),
+  LLM CLI (`~/.config/io.datasette.llm/`; `llm --version`), Shell-GPT
+  (`~/.config/shell_gpt/`; `sgpt --version`), and GitHub Copilot CLI
+  (`~/.config/github-copilot/`, `~/.config/gh/`). Validate before adding catalog
+  entries; do not widen `ai` or `secure-agent` automatically (see Priority 2).
+
+- [ ] **`--share-cache` for disposable clones.** Optional flag to bind-mount or
+  snapshot selected ignored build dependencies (`node_modules`, `.venv`,
+  `target/`) so clean workspaces need not re-download them. Weigh against the
+  isolation trade-offs in Priority 3 "Support deliberate dependency reuse".
+
+- [ ] **Interactive conflict-resolution helper for `bws gw`.** Guided 3-way merge
+  when merge/squash-merge of an agent branch conflicts (see Priority 3
+  "Improve disposable-clone recovery and triage").
+
+- [ ] **Release announcement.** Once the safety and documentation work lands,
+  prepare the announcement artifacts: a concise technical write-up on
+  unprivileged Bubblewrap sandboxing for autonomous agents without Docker, and
+  targeted posts (`r/golang`, `r/commandline`, `r/linux`, `r/LocalLLaMA`).
+  Choose release numbers from delivered scope rather than a fixed v0.4.0.
 
 ## Scope guardrails
 
