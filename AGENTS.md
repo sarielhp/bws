@@ -46,7 +46,7 @@ bws/
 - **Use `internal/`** for all packages — this is a single-binary CLI, not a library.
 - **One package per directory**, named after the directory.
 - **`main.go` is thin** — define the clihelp App/Command tree, delegate to packages. No business logic.
-- **CLI framework** — use `github.com/sarielhp/clihelp` for commands, options, help rendering, and validation.
+- **CLI framework** — use `github.com/sarielhp/clihelp` for commands, options, help rendering, and validation. The project tracks the latest release (currently v0.3.53) and uses its full surface: two help tiers (`-h` concise, `--help`/`-H` extended), examples (`-E`), grouped flags (`clihelp.Group`), `LongDescription` and `Parameters`, dynamic completion (`Option.Complete`, `Param.Complete`), flag groups and validators (`MutuallyExclusive`, `ValidateOptions`), `ManPageCommand`, `GenManPage`, and the `doc`/`clihelptest` subpackages.
 - **JSONC support** — use the built-in JSONC loader in `internal/config/`. No additional dependencies.
 
 ## Configuration merging

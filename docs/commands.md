@@ -6,13 +6,41 @@ Comprehensive reference for all commands and options in `bws`.
 
 ## Table of contents
 
+* [Help and informational commands](#help-and-informational-commands)
 * [Core execution commands](#core-execution-commands)
-* [Workspace initialization](#workspace-initialization)
-* [Environment status & plan](#environment-status--plan)
-* [Capability profile management](#capability-profile-management)
+* [Current environment](#current-environment)
 * [Environment stacks management](#environment-stacks-management)
 * [Environment modifiers (mount, bin, copy, path)](#environment-modifiers-mount-bin-copy-path)
 * [Configuration management & remote sync](#configuration-management--remote-sync)
+
+---
+
+## Help and informational commands
+
+`bws` renders three help tiers from the same command tree:
+
+* `bws -h` / `bws <command> -h` — concise help: usage, subcommands, and flags.
+* `bws --help` / `bws <command> --help` — extended help: adds long descriptions,
+  parameter explanations, and examples.
+* `bws -H` — extended help as a single-letter alias.
+
+Additional reference topics, and their aliases:
+
+| Invocation | Purpose |
+| :--- | :--- |
+| `bws help` | Top-level command list |
+| `bws help <command>` | Help for a command |
+| `bws help flags` | Grouped list of every global flag |
+| `bws help examples` / `bws -E` | Every example in one place |
+| `bws help topics` | List the available help topics |
+| `bws help man` | The complete reference manual |
+| `bws manpage` | Print the roff manual page |
+| `bws manpage --man-install` | Install it under the user's data directory for `man(1)` |
+| `bws manpage --man-uninstall` | Remove a page installed this way |
+| `bws docs` | Generate Markdown documentation (developer command, hidden) |
+
+`bws config completion <shell>` (aliases `comp`) generates or installs shell
+tab-completion scripts for `bash`, `zsh`, and `fish`.
 
 ---
 
@@ -26,6 +54,10 @@ Launch an interactive sandbox shell in the current directory.
 | `--verbose` | `-v` | `false` | Print detailed bwrap arguments, staging paths, and mount plans to stderr |
 | `--force` | `-f` | `false` | Skip the safety prompt when the directory contains more than `max_file_count` files |
 | `--no-net` | `-N`, `--offline` | `false` | Completely block network access (air-gapped network namespace) |
+| `--no-color` | | `false` | Disable ANSI color in all output |
+
+These are global flags: every subcommand accepts them. Run `bws help flags` for
+the complete grouped list.
 
 ```bash
 bws            # Interactive sandbox (read-write workspace)
@@ -35,8 +67,8 @@ bws -N         # Air-gapped interactive sandbox (no network access)
 
 ---
 
-### `bws run [flags] <cmd> [args...]`
-Execute a single command inside the sandbox and exit with the command's status code (alias: `bws exec`).
+### `bws run <command> [args...]`
+Run an arbitrary command inside the sandbox and exit with its status code (alias: `bws exec`).
 
 ```bash
 bws run go test ./...
@@ -54,7 +86,8 @@ Run an isolated, disposable agent session in a temporary Git clone (aliases: `gw
 | `-b`, `--branch <name>` | Custom target branch name for the agent session |
 | `--stash` | Automatically stash uncommitted changes before starting |
 | `--allow-dirty` | Allow starting even if the working tree has uncommitted changes |
-| `-v`, `--verbose` | Enable verbose diagnostic logging |
+
+Verbose logging is the global `-v`, not a `git-workflow` option.
 
 ```bash
 bws gw                                      # Interactive shell in a disposable clone
@@ -64,6 +97,28 @@ bws gw --stash                              # Auto-stash dirty tree before start
 ```
 
 Upon sandbox exit, changes are fetched back to the host and presented with an interactive Merge/Squash/Keep/Discard menu.
+
+#### `bws gw list [--merged | --unmerged]`
+List `bws-agent-*` branches with commit info and merge status (alias: `ls`).
+
+| Option | Description |
+| :--- | :--- |
+| `--merged` | List only merged agent branches |
+| `--unmerged` | List only unmerged agent branches |
+
+#### `bws gw prune [-a] [-n]`
+Remove merged or abandoned `bws-agent` branches and clean up leftover `/tmp/bws/agent_*` directories (aliases: `clean`, `rm`).
+
+| Option | Description |
+| :--- | :--- |
+| `-a`, `--all` | Remove all agent branches, including unmerged/abandoned |
+| `-n`, `--dry-run` | Preview branches and temp directories without deleting |
+
+```bash
+bws gw list --unmerged
+bws gw prune -n
+bws gw prune -a
+```
 
 ---
 
@@ -83,11 +138,11 @@ Learn required bind mounts, binary PATH additions, and sandbox features dynamica
 
 | Option | Description |
 | :--- | :--- |
-| `-n`, `--dry-run` | Preview newly discovered additions/deltas compared to existing config without modifying disk |
-| `-p`, `--profile <name>` | Save discovered configuration as a reusable capability profile in `profiles/<name>.json` |
-| `-g`, `--global` | Target global config (`~/.config/bws/config.jsonc`) instead of local workspace (`.bws/config.jsonc`) |
-| `-f`, `--force` | Overwrite existing profile without confirmation |
-| `-v`, `--verbose` | Print verbose debug information |
+| `-n`, `--dry-run` | Preview discovered additions/deltas without saving |
+| `-p`, `--profile <name>` | Save discovery as a reusable capability profile |
+
+The global `-g`/`-l` flags select the target config, and `-v` enables verbose
+logging; they are not `learn`-specific. There is no `--force` on `learn`.
 
 #### Tracing an entire interactive session (recommended)
 Drop into a traced interactive shell, run all commands, builds, and tools needed by your workflow, then exit. `bws learn` traces the entire process tree (`strace -f`) across all subcommands and synthesizes the required mounts and features upon exit:
@@ -126,12 +181,13 @@ Inspect workspace markers, suggest compound profiles, and generate a reference-b
 
 | Option | Description |
 | :--- | :--- |
-| `-s`, `--stack <name>` | Explicitly select an environment stack (e.g. `go-agent`, `python-uv`) |
-| `-n`, `--dry-run` | Preview generated JSONC on stdout without creating `.bws/` |
-| `--preset <name>` | Force stack preset (`go`, `python`, `rust`, `node`, `latex`, `agent`, `all`) |
-| `-p`, `--profile <name>`| Explicit selections; do not add detected profiles |
+| `-s`, `--stack <name>` | Select an environment stack by name (e.g. `go-agent`, `python-uv`) |
+| `-n`, `--dry-run` | Print generated config to stdout without writing |
+| `--preset <stack>` | Select a preset stack (`go`, `python`, `rust`, `node`, `latex`, `agent`, `all`) |
+| `-p`, `--profile <name>`| Include tool profile(s) (repeatable); does not add detected profiles |
+| `--opencode` | Force inclusion of OpenCode config directories |
 | `--basic` | Select detected embedded tool profiles |
-| `-y`, `--yes` | Skip confirmation of an explicit selection |
+| `-y`, `--yes` | Confirm the selected initialization plan |
 
 ```bash
 bws init                        # Suggest and select interactively
@@ -173,20 +229,24 @@ bws doctor -v                   # Run diagnostics with verbose output
 
 ---
 
-### `bws add <profile...> [-g | -l]`
-Add and enable one or more capability profiles in the current environment (defaults to local workspace `-l`; pass `-g` for global). Alias: `enable`.
+### `bws add <name...> [-g | -l] [-c | --create]`
+Add and enable one or more capability profiles in the current environment. Alias: `enable`.
 ```bash
-bws add python                  # Enable python in local workspace
+bws add python                  # Enable python in the current workspace config
 bws add python node rust        # Enable multiple profiles at once
 bws add docker -g               # Enable docker globally
+bws add -c fish                 # Synthesize the profile if missing, then enable it
 ```
+
+Use `-g`/`-l` to target the global config or the local workspace config, and
+`-c`/`--create` to synthesize a profile that does not yet exist.
 
 ---
 
-### `bws rm <profile...> [-g | -l]`
+### `bws rm <name...> [-g | -l]`
 Remove and disable one or more capability profiles from the current environment. Aliases: `del`, `remove`, `disable`.
 ```bash
-bws rm python                   # Remove python from local workspace
+bws rm python                   # Remove python from the current workspace config
 bws rm node rust                # Remove multiple profiles at once
 ```
 
@@ -221,21 +281,53 @@ bws profile fetch zig
 ```
 
 ### `bws profile update`
-Synchronize all installed global profiles from GitHub repository (alias: `sync`).
+Update all installed global profiles from the remote repository (alias: `sync`).
 ```bash
 bws profile update
 ```
 
-### `bws profile save <name> [-g | -l] [-f] [-d <description>]`
-Save effective global, trusted local, and profile capabilities as a reusable compound profile. Aliases: `snap`, `export`. Saving does not activate it.
+### `bws profile test <name>`
+Run all verification and smoke tests declared by a profile inside a sandbox.
 ```bash
-bws profile save my-env                       # Save as global profile in ~/.config/bws/profiles/
-bws profile save my-env -f                    # Overwrite existing profile
-bws profile save project-env -l               # Save as local profile in .bws/profiles/
-bws profile save ml-env -d "ML stack setup"   # Set custom description
+bws profile test python
+```
+
+### `bws profile add <name...> [-g | -l] [-c | --create]`
+Add and enable one or more capability profiles in the local or global config (alias: `enable`).
+```bash
+bws profile add python -l
+bws profile add -c fish -g       # Synthesize if missing, then enable
+```
+
+### `bws profile rm <name...> [-g | -l]`
+Remove and disable one or more capability profiles. Aliases: `del`, `remove`, `disable`.
+```bash
+bws profile rm python -l
+```
+
+### `bws profile save <name> [options]`
+Save effective global, trusted local, and profile capabilities as a reusable compound profile. Aliases: `snap`, `export`. Saving does not activate it.
+
+| Option | Description |
+| :--- | :--- |
+| `-d`, `--desc <text>` | Description |
+| `-n`, `--dry-run` | Preview JSON and limitations without writing |
+| `-y`, `--yes` | Confirm saving after reviewing the preview |
+| `--flatten` | Materialize capabilities, dropping dependency references |
+| `--allow-machine-paths` | Acknowledge machine-specific absolute paths |
+| `--omit <field>` | Acknowledge an unsupported configuration field (repeatable) |
+| `--match <file>` | Match project filenames (repeatable) |
+| `--no-detect` | Do not derive project matching rules |
+
+```bash
+bws profile save my-env                       # Save a compound profile
+bws profile save ml-env -d "ML stack setup"   # Set a custom description
 bws profile save my-env --dry-run             # Preview JSON without writes
 bws profile save my-env --flatten             # Materialize supported settings
 ```
+
+There is no `-f`/`--force` and no `-g`/`-l` on `profile save`; confirmation is
+controlled by `-y`, and the destination is determined by the reviewed preview.
 
 ---
 
@@ -281,8 +373,7 @@ Save the current active workspace as a reusable user stack in `~/.config/bws/sta
 | :--- | :--- |
 | `-t`, `--title <text>` | Human-readable title for the stack |
 | `-d`, `--desc <text>` | Description of the stack persona |
-| `-f`, `--force` | Overwrite existing stack with the same name |
-| `--no-verify` | Skip automated smoke tests for constituent profiles |
+| `--no-verify` | Bypass smoke tests for constituent profiles |
 
 ```bash
 bws stack save my-persona -t "My Custom Persona" -d "Custom dev environment"
@@ -463,3 +554,11 @@ Copy global configuration and themes to a remote host via SCP (aliases: `scp`, `
 ```bash
 bws config push user@server:
 ```
+
+### `bws config completion <shell>`
+Generate or install shell tab-completion scripts (alias: `comp`).
+```bash
+bws config completion bash
+bws config completion zsh
+```
+Run `bws config completion --help` for install options.
