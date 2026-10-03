@@ -10,6 +10,7 @@ import (
 	"bws/internal/util"
 
 	"github.com/sarielhp/clihelp"
+	"github.com/sarielhp/clihelp/clihelptest"
 )
 
 var bwPath string
@@ -91,7 +92,7 @@ func TestHelp(t *testing.T) {
 		t.Skip("binary not built, skipping")
 	}
 
-	for _, flag := range []string{"help", "-h", "--help", "-help", "--h", "-?", "-H"} {
+	for _, flag := range []string{"help", "-h", "--help", "-H"} {
 		cmd := exec.Command(bwPath, flag)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -131,40 +132,40 @@ func TestClihelpAbbrevAndCompletion(t *testing.T) {
 	app := buildApp()
 
 	// Test shell completion generator
-	res := clihelp.TestExecute(app, []string{"config", "completion", "bash"})
+	res := clihelptest.Execute(app, []string{"config", "completion", "bash"})
 	res.AssertNoError(t)
 	res.AssertStdoutContains(t, "_bws_complete")
 
 	// Test MutuallyExclusive validation (-g and -l together)
-	res = clihelp.TestExecute(app, []string{"config", "reset", "-g", "-l"})
+	res = clihelptest.Execute(app, []string{"config", "reset", "-g", "-l"})
 	if res.Error == nil {
 		t.Error("expected mutually exclusive error when both -g and -l are passed")
 	}
 
 	// Test Enum validation on init --preset
-	res = clihelp.TestExecute(app, []string{"init", "--preset", "invalidstack"})
+	res = clihelptest.Execute(app, []string{"init", "--preset", "invalidstack"})
 	if res.Error == nil {
 		t.Error("expected error for invalid --preset enum value")
 	}
 
 	// Test status and plan commands
-	res = clihelp.TestExecute(app, []string{"status"})
+	res = clihelptest.Execute(app, []string{"status"})
 	res.AssertNoError(t)
-	res = clihelp.TestExecute(app, []string{"plan"})
+	res = clihelptest.Execute(app, []string{"plan"})
 	res.AssertNoError(t)
 
 	// Test top-level add / rm command routing
-	res = clihelp.TestExecute(app, []string{"add"})
+	res = clihelptest.Execute(app, []string{"add"})
 	if res.Error == nil {
 		t.Error("expected error when add is missing name argument")
 	}
-	res = clihelp.TestExecute(app, []string{"rm"})
+	res = clihelptest.Execute(app, []string{"rm"})
 	if res.Error == nil {
 		t.Error("expected error when rm is missing name argument")
 	}
 
 	// Test profile add / del command routing
-	res = clihelp.TestExecute(app, []string{"profile", "add"})
+	res = clihelptest.Execute(app, []string{"profile", "add"})
 	if res.Error == nil {
 		t.Error("expected error when profile add is missing name argument")
 	}

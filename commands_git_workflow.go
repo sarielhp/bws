@@ -18,11 +18,12 @@ type gitWorkflowFlags struct {
 
 func gitWorkflowListSubcommand(gwFlags *gitWorkflowFlags) clihelp.Command {
 	return clihelp.Command{
-		Name:        "list",
-		Aliases:     []string{"ls"},
-		Description: "List all bws-agent-* branches with commit info and merge status",
-		UsageLine:   "bws git-workflow list [--merged | --unmerged]",
-		Args:        clihelp.NoArgs,
+		Name:            "list",
+		Aliases:         []string{"ls"},
+		Description:     "List agent branches with merge status",
+		LongDescription: "List all bws-agent-* branches with their commit information and merge status.",
+		UsageLine:       "bws git-workflow list [--merged | --unmerged]",
+		Args:            clihelp.NoArgs,
 		Options: []clihelp.Option{
 			clihelp.Bool(&gwFlags.listMerged, "--merged", false, "List only merged agent branches"),
 			clihelp.Bool(&gwFlags.listUnmerged, "--unmerged", false, "List only unmerged agent branches"),
@@ -45,9 +46,11 @@ func gitWorkflowPruneSubcommand(gwFlags *gitWorkflowFlags, f *appFlags) clihelp.
 	return clihelp.Command{
 		Name:        "prune",
 		Aliases:     []string{"clean", "rm"},
-		Description: "Remove merged/abandoned bws-agent branches and cleanup /tmp/bws/agent_* temp dirs",
-		UsageLine:   "bws git-workflow prune [-a] [-n]",
-		Args:        clihelp.NoArgs,
+		Description: "Prune agent branches and temp dirs",
+		LongDescription: "Remove merged and abandoned bws-agent branches and clean up leftover " +
+			"/tmp/bws/agent_* temporary directories.",
+		UsageLine: "bws git-workflow prune [-a] [-n]",
+		Args:      clihelp.NoArgs,
 		Options: []clihelp.Option{
 			clihelp.Bool(&gwFlags.pruneAll, "-a, --all", false, "Remove all bws-agent branches, including unmerged/abandoned"),
 			clihelp.Bool(&gwFlags.pruneDryRun, "-n, --dry-run", false, "Preview branches and temp directories to prune without deleting"),
@@ -74,8 +77,14 @@ func gitWorkflowCmd(f *appFlags) clihelp.Command {
 		Name:        "git-workflow",
 		Aliases:     []string{"gw", "worktree"},
 		Group:       "Core workflow",
-		Description: "Run an isolated, disposable agent session in a temporary Git clone",
-		UsageLine:   "bws git-workflow [subcommand|options] [-- command [args...]]",
+		Description: "Run an isolated agent session in a clone",
+		LongDescription: "Run an isolated, disposable agent session in a temporary Git clone. " +
+			"Changes are fetched back and offered as a merge, squash, keep, or discard on exit.",
+		UsageLine: "bws git-workflow [subcommand|options] [-- command [args...]]",
+		Parameters: []clihelp.Param{
+			{Name: "command", Description: "Agent command to run in the clone"},
+			{Name: "args...", Description: "Arguments passed to the agent command", Variadic: true},
+		},
 		Options: []clihelp.Option{
 			clihelp.String(&gwFlags.branch, "-b, --branch NAME", "", "Target branch name for the agent session"),
 			clihelp.Bool(&gwFlags.stash, "--stash", false, "Automatically stash uncommitted changes before starting"),

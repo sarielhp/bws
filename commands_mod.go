@@ -12,12 +12,12 @@ func addCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 		Name:             "add",
 		Aliases:          []string{"enable"},
 		Group:            "Current environment",
-		Description:      "Add one or more capability profiles to the current environment",
+		Description:      "Add capability profiles to the environment",
 		UsageLine:        "bws add <name...> [-g | -l] [-c | --create]",
 		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,
 		Options: []clihelp.Option{
-			clihelp.Bool(&create, "-c, --create", false, "Automatically synthesize and create the profile if it does not exist"),
+			clihelp.Bool(&create, "-c, --create", false, "Synthesize the profile if it does not exist"),
 		},
 		Examples: []clihelp.Example{
 			{Line: "bws add python", Description: "Enable python profile in current workspace"},
@@ -36,7 +36,7 @@ func rmCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 		Name:             "rm",
 		Aliases:          []string{"del", "remove", "disable"},
 		Group:            "Current environment",
-		Description:      "Remove one or more capability profiles from the current environment",
+		Description:      "Remove capability profiles from the environment",
 		UsageLine:        "bws rm <name...> [-g | -l]",
 		Args:             clihelp.MinimumNArgs(1),
 		OptionsValidator: glValidator,
@@ -56,18 +56,24 @@ func mountCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 		Name:        "mount",
 		Aliases:     []string{"cbind", "bind"},
 		Group:       "Current environment",
-		Description: "Manage bind mounts between the host and the sandbox",
+		Description: "Manage host-to-sandbox bind mounts",
 		UsageLine:   "bws mount add|rm|list [args...]",
 		Subcommands: []clihelp.Command{
 			{
-				Name:             "add",
-				Aliases:          []string{"enable"},
-				Description:      "Add a bind mount (-g for global, defaults to local workspace; read-only by default, --rw for read-write)",
-				UsageLine:        "bws mount add <host-path> [sandbox-path] [-g | -l] [--rw] [--ro]",
-				Args:             clihelp.RangeArgs(1, 2),
+				Name:        "add",
+				Aliases:     []string{"enable"},
+				Description: "Add a bind mount",
+				LongDescription: "Add a bind mount. Defaults to the local workspace and read-only access; " +
+					"pass -g for global config, or --rw for read-write access.",
+				UsageLine: "bws mount add <host-path> [sandbox-path] [-g | -l] [--rw] [--ro]",
+				Args:      clihelp.RangeArgs(1, 2),
+				Parameters: []clihelp.Param{
+					{Name: "host-path", Description: "Host file or directory to expose", Complete: completePaths},
+					{Name: "sandbox-path", Description: "Mount point inside the sandbox"},
+				},
 				OptionsValidator: glValidator,
 				Options: []clihelp.Option{
-					clihelp.Bool(&f.rw, "--rw", false, "Make the bind mount read-write (defaults to read-only)"),
+					clihelp.Bool(&f.rw, "--rw", false, "Make the bind mount read-write"),
 					clihelp.Bool(&f.ro, "--ro", false, "Make the bind mount read-only (default)"),
 				},
 				Notes: []clihelp.Note{
@@ -100,11 +106,14 @@ func mountCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 				},
 			},
 			{
-				Name:             "del",
-				Aliases:          []string{"delete", "rm", "remove"},
-				Description:      "Remove a bind mount by host path",
-				UsageLine:        "bws mount rm <host-path> [-g | -l]",
-				Args:             clihelp.ExactArgs(1),
+				Name:        "del",
+				Aliases:     []string{"delete", "rm", "remove"},
+				Description: "Remove a bind mount by host path",
+				UsageLine:   "bws mount rm <host-path> [-g | -l]",
+				Args:        clihelp.ExactArgs(1),
+				Parameters: []clihelp.Param{
+					{Name: "host-path", Description: "Host path of the mount to remove", Complete: completePaths},
+				},
 				OptionsValidator: glValidator,
 				Examples: []clihelp.Example{
 					{Line: "bws mount rm /home/user/projects", Description: "Remove local mount"},
@@ -123,17 +132,20 @@ func copyCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command 
 		Name:        "copy",
 		Aliases:     []string{"ccopy"},
 		Group:       "Current environment",
-		Description: "Manage files and programs copied into the sandbox home directory",
+		Description: "Manage files copied into the sandbox home",
 		UsageLine:   "bws copy add|rm|list [args...]",
 		Notes: []clihelp.Note{
 			{Heading: "Copied files vs bind mounts", Text: "Copied files are snapshots of host files placed into the sandbox home before each launch. Unlike bind mounts, they are not live — changes on the host after the copy are not reflected in the sandbox. This is useful for tools and scripts that should be available without exposing the full host filesystem."},
 		},
 		Subcommands: []clihelp.Command{
 			{
-				Name:             "add",
-				Description:      "Add a program or file to the copy list",
-				UsageLine:        "bws copy add <absolute-path> [-g | -l]",
-				Args:             clihelp.ExactArgs(1),
+				Name:        "add",
+				Description: "Add a program or file to the copy list",
+				UsageLine:   "bws copy add <absolute-path> [-g | -l]",
+				Args:        clihelp.ExactArgs(1),
+				Parameters: []clihelp.Param{
+					{Name: "absolute-path", Description: "Host path to copy in", Complete: completePaths},
+				},
 				OptionsValidator: glValidator,
 				Examples: []clihelp.Example{
 					{Line: "bws copy add /home/user/bin/myprog", Description: "Add to local copy list"},
@@ -182,10 +194,13 @@ func pathCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command 
 		UsageLine:   "bws path add|rm|list [args...]",
 		Subcommands: []clihelp.Command{
 			{
-				Name:             "add",
-				Description:      "Add a directory to the sandbox PATH",
-				UsageLine:        "bws path add <directory> [-g | -l]",
-				Args:             clihelp.ExactArgs(1),
+				Name:        "add",
+				Description: "Add a directory to the sandbox PATH",
+				UsageLine:   "bws path add <directory> [-g | -l]",
+				Args:        clihelp.ExactArgs(1),
+				Parameters: []clihelp.Param{
+					{Name: "directory", Description: "Host directory to add", Complete: completePaths},
+				},
 				OptionsValidator: glValidator,
 				Examples: []clihelp.Example{
 					{Line: "bws path add ~/mytools/bin", Description: "Add directory to local PATH"},
@@ -234,6 +249,10 @@ func runCmd(f *appFlags) clihelp.Command {
 		Description: "Run an arbitrary command inside the sandbox and exit",
 		UsageLine:   "bws run <command> [args...]",
 		Args:        clihelp.MinimumNArgs(1),
+		Parameters: []clihelp.Param{
+			{Name: "command", Description: "Program to run inside the sandbox"},
+			{Name: "args...", Description: "Arguments passed to the program", Variadic: true},
+		},
 		Run: func(ctx *clihelp.Context) error {
 			return runExec(ctx.Args, f.force, f.verbose, policyFlags(f), f.noInit, f.tmux, f.noTmux)
 		},
@@ -244,9 +263,14 @@ func testCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "test",
 		Group:       "Execution & testing",
-		Description: "Run verification and smoke tests for a tool or profile inside sandbox",
-		UsageLine:   "bws test <target>",
-		Args:        clihelp.ExactArgs(1),
+		Description: "Run verification tests for a target",
+		LongDescription: "Run the verification and smoke tests for a tool or profile inside the sandbox " +
+			"and report each result.",
+		UsageLine: "bws test <target>",
+		Args:      clihelp.ExactArgs(1),
+		Parameters: []clihelp.Param{
+			{Name: "target", Description: "Tool or profile to verify"},
+		},
 		Run: func(ctx *clihelp.Context) error {
 			return cli.HandleProfileTest(ctx.Args[0], f.verbose)
 		},

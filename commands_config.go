@@ -29,10 +29,14 @@ func configShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Co
 func configKeyCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp.Command {
 	return []clihelp.Command{
 		{
-			Name:             "set",
-			Description:      "Set a configuration key value in local or global configuration",
-			UsageLine:        "bws config set <key> <value> [-g | -l]",
-			Args:             clihelp.ExactArgs(2),
+			Name:        "set",
+			Description: "Set a configuration key value",
+			UsageLine:   "bws config set <key> <value> [-g | -l]",
+			Args:        clihelp.ExactArgs(2),
+			Parameters: []clihelp.Param{
+				{Name: "key", Description: "Configuration key, e.g. enable_proxy"},
+				{Name: "value", Description: "New value for the key"},
+			},
 			OptionsValidator: glValidator,
 			Examples: []clihelp.Example{
 				{Line: "bws config set enable_proxy true", Description: "Enable proxy in local workspace config"},
@@ -45,10 +49,13 @@ func configKeyCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp.
 			},
 		},
 		{
-			Name:             "get",
-			Description:      "Read a configuration key value from local or global configuration",
-			UsageLine:        "bws config get <key> [-g | -l]",
-			Args:             clihelp.ExactArgs(1),
+			Name:        "get",
+			Description: "Read a configuration key value",
+			UsageLine:   "bws config get <key> [-g | -l]",
+			Args:        clihelp.ExactArgs(1),
+			Parameters: []clihelp.Param{
+				{Name: "key", Description: "Configuration key to read"},
+			},
 			OptionsValidator: glValidator,
 			Examples: []clihelp.Example{
 				{Line: "bws config get enable_proxy", Description: "Get proxy setting from local config"},
@@ -61,7 +68,7 @@ func configKeyCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp.
 		},
 		{
 			Name:             "unset",
-			Description:      "Remove a configuration key from local or global configuration",
+			Description:      "Remove a configuration key",
 			UsageLine:        "bws config unset <key> [-g | -l]",
 			Args:             clihelp.ExactArgs(1),
 			OptionsValidator: glValidator,
@@ -92,7 +99,7 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 		{
 			Name:        "where",
 			Aliases:     []string{"paths"},
-			Description: "Print filepaths of active global and local configuration files",
+			Description: "Print active configuration file paths",
 			UsageLine:   "bws config where",
 			Args:        clihelp.NoArgs,
 			Run: func(ctx *clihelp.Context) error {
@@ -101,9 +108,11 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 			},
 		},
 		{
-			Name:             "reset",
-			Aliases:          []string{"init"},
-			Description:      "Reset configuration file to clean defaults (backs up existing to .bak)",
+			Name:        "reset",
+			Aliases:     []string{"init"},
+			Description: "Reset configuration to defaults",
+			LongDescription: "Reset the configuration file to clean defaults, backing up the existing file " +
+				"to a .bak alongside it.",
 			UsageLine:        "bws config reset [-g | -l]",
 			Args:             clihelp.NoArgs,
 			OptionsValidator: glValidator,
@@ -115,9 +124,12 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 		{
 			Name:        "push",
 			Aliases:     []string{"scp", "sync"},
-			Description: "Copy global configuration and themes to a remote host via SCP",
+			Description: "Copy config and themes to a remote host",
 			UsageLine:   "bws config push <user@host:>",
 			Args:        clihelp.ExactArgs(1),
+			Parameters: []clihelp.Param{
+				{Name: "user@host:", Description: "SCP destination directory"},
+			},
 			Examples: []clihelp.Example{
 				{Line: "bws config push user@server:", Description: "Copy config and themes to remote host"},
 			},
@@ -133,9 +145,11 @@ func configSubcommands(f *appFlags, glValidator clihelp.OptionsValidator) []clih
 	cmds := []clihelp.Command{configShowCmd(f, glValidator)}
 	cmds = append(cmds, clihelp.Command{
 		Name:        "trust",
-		Description: "Approve reviewed local configuration and profiles for this workspace",
-		UsageLine:   "bws config trust",
-		Args:        clihelp.NoArgs,
+		Description: "Approve local config and profiles",
+		LongDescription: "Approve the reviewed local configuration and profiles for this workspace, " +
+			"recording a trust fingerprint.",
+		UsageLine: "bws config trust",
+		Args:      clihelp.NoArgs,
 		Run: func(ctx *clihelp.Context) error {
 			dir, err := os.Getwd()
 			if err != nil {
@@ -156,10 +170,12 @@ func configSubcommands(f *appFlags, glValidator clihelp.OptionsValidator) []clih
 
 func configCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
-		Name:             "config",
-		Aliases:          []string{"conf"},
-		Group:            "Configuration & sync",
-		Description:      "Manage global and local sandbox configuration files, sync, and completions",
+		Name:        "config",
+		Aliases:     []string{"conf"},
+		Group:       "Configuration & sync",
+		Description: "Manage configuration files and sync",
+		LongDescription: "Manage the global and local sandbox configuration files, push them to a remote " +
+			"host, and install shell completions.",
 		UsageLine:        "bws config [subcommand] [-g | -l]",
 		OptionsValidator: glValidator,
 		Notes: []clihelp.Note{
@@ -171,7 +187,7 @@ func configCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Comman
 				cli.HandleConfigShow(f.global, f.local)
 				return nil
 			}
-			ctx.App.Render(clihelp.Options{Writer: ctx.Stdout}, "config")
+			ctx.App.RenderCommand(clihelp.Options{Writer: ctx.Stdout}, "config")
 			return nil
 		},
 	}
@@ -184,7 +200,7 @@ func docsCmd(f *appFlags) clihelp.Command {
 		Description: "Generate Markdown documentation for all commands and options",
 		UsageLine:   "bws docs [options]",
 		Options: []clihelp.Option{
-			clihelp.String(&f.docsDir, "-d, --dir PATH", "docs/clihelp", "Target directory for generated markdown pages"),
+			clihelp.String(&f.docsDir, "-d, --dir PATH", "docs/clihelp", "Output directory for markdown pages"),
 		},
 		Run: func(ctx *clihelp.Context) error {
 			changed, err := doc.RenderMarkdown(ctx.App, doc.MarkdownOptions{Dir: f.docsDir})
