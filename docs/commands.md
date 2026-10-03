@@ -331,13 +331,46 @@ controlled by `-y`, and the destination is determined by the reviewed preview.
 
 ---
 
-### Compound authoring, suggestions, and review
+### `bws profile compose <name> --profiles <names> [options]`
+Combine explicit profiles into a compound profile without activating it.
+
+| Option | Description |
+| :--- | :--- |
+| `-d`, `--desc <text>` | Description |
+| `-n`, `--dry-run` | Preview JSON and limitations without writing |
+| `-y`, `--yes` | Confirm saving after reviewing the preview |
+| `--flatten` | Materialize capabilities, dropping dependency references |
+| `--allow-machine-paths` | Acknowledge machine-specific absolute paths |
+| `--omit <field>` | Acknowledge an unsupported configuration field (repeatable) |
+| `--match <file>` | Match project filenames (alternatives; repeatable) |
+| `--no-detect` | Do not derive project matching rules |
+| `-p`, `--profiles <names>` | Dependencies (repeatable or comma-separated) |
 
 ```bash
 bws profile compose go-agent --profiles go,opencode,git --no-ssh --match go.mod
+```
+
+### `bws profile suggest [directory] [options]`
+Explain which profiles match a directory without changing configuration.
+
+| Option | Description |
+| :--- | :--- |
+| `--json` | Print machine-readable suggestions |
+| `--compound` | Suggest only compound profiles |
+
+```bash
 bws profile suggest --compound
 bws profile suggest /path/to/project --json
-bws profile list --compound
+```
+
+### `bws profile review <name> [--accept]`
+Review changed dependencies before approval.
+
+| Option | Description |
+| :--- | :--- |
+| `--accept` | Approve displayed dependency changes |
+
+```bash
 bws profile review go-agent
 bws profile review go-agent --accept
 ```

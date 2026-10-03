@@ -95,6 +95,7 @@ func buildApp() *clihelp.App {
 			stackCmd(f),
 			configCmd(f, glValidator),
 			docsCmd(f),
+			inventoryCommand(),
 			clihelp.ManPageCommand(),
 		},
 		BeforeRun: func(ctx *clihelp.Context) error {
