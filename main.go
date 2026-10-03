@@ -25,24 +25,50 @@ func buildApp() *clihelp.App {
 		AbbrevCommands: true,
 		// A bare `bws [flags] [--] <command...>` runs a sandbox, so trailing
 		// words are arguments for Run, not misspelled subcommands.
-		Args:                clihelp.MinimumNArgs(0),
-		InteractiveFallback: false,
+		Args: clihelp.MinimumNArgs(0),
+		// -H is an opt-in single-letter alias for extended help; -E, --examples
+		// renders the examples topic.
+		ExtendedHelpFlag:   true,
+		EnableExamplesFlag: true,
+		// Keep an already-installed completion script and manual page current
+		// across upgrades. It never creates or edits anything on its own.
+		AutoRefreshIntegration: true,
+		// Subcommand pages point at 'help flags' instead of re-listing every
+		// global flag.
+		OmitGlobalFlagsInCommands: true,
 		PersistentOptions: []clihelp.Option{
-			clihelp.Bool(&f.force, "-f, --force", false, "Bypass the file count safety check / force overwrite"),
-			clihelp.Bool(&f.global, "-g, --global", false, "Target the global config file"),
-			clihelp.Bool(&f.local, "-l, --local", false, "Target the local workspace config file"),
-			clihelp.Bool(&f.noSSH, "--no-ssh", false, "Disable SSH agent forwarding and Git SSH"),
-			clihelp.Bool(&f.noNet, "-N, --no-net, --offline", false, "Block all network access"),
-			clihelp.Bool(&f.proxy, "--proxy", false, "Tunnel sandbox traffic through a host proxy"),
-			clihelp.Bool(&f.noProxy, "--no-proxy", false, "Disable the in-process host proxy"),
-			clihelp.Bool(&f.dbus, "--dbus", false, "Enable filtered session D-Bus access"),
-			clihelp.Bool(&f.noDBus, "--no-dbus", false, "Disable session D-Bus access"),
-			clihelp.Bool(&f.noInit, "--no-init", false, "Skip workspace auto-configuration"),
-			clihelp.Bool(&f.noFileLimit, "--no-file-limit", false, "Disable the file count safety check"),
-			clihelp.Int(&f.maxFileCount, "--max-file-count <N>", 0, "Override the file count limit (-1 disables)"),
-			clihelp.Bool(&f.tmux, "--tmux", false, "Force an internal tmux session"),
-			clihelp.Bool(&f.noTmux, "--no-tmux", false, "Use a direct shell, not internal tmux"),
-			clihelp.Bool(&f.verbose, "-v, --verbose", false, "Print verbose debug information"),
+			clihelp.Group("Configuration scope",
+				clihelp.Bool(&f.global, "-g, --global", false, "Target the global config file")),
+			clihelp.Group("Configuration scope",
+				clihelp.Bool(&f.local, "-l, --local", false, "Target the local workspace config file")),
+			clihelp.Group("Configuration scope",
+				clihelp.Bool(&f.force, "-f, --force", false, "Bypass the file count safety check / force overwrite")),
+			clihelp.Group("Sandbox policy",
+				clihelp.Bool(&f.noSSH, "--no-ssh", false, "Disable SSH agent forwarding and Git SSH")),
+			clihelp.Group("Sandbox policy",
+				clihelp.Bool(&f.noNet, "-N, --no-net, --offline", false, "Block all network access")),
+			clihelp.Group("Sandbox policy",
+				clihelp.Bool(&f.proxy, "--proxy", false, "Tunnel sandbox traffic through a host proxy")),
+			clihelp.Group("Sandbox policy",
+				clihelp.Bool(&f.noProxy, "--no-proxy", false, "Disable the in-process host proxy")),
+			clihelp.Group("Sandbox policy",
+				clihelp.Bool(&f.dbus, "--dbus", false, "Enable filtered session D-Bus access")),
+			clihelp.Group("Sandbox policy",
+				clihelp.Bool(&f.noDBus, "--no-dbus", false, "Disable session D-Bus access")),
+			clihelp.Group("Safety limits",
+				clihelp.Bool(&f.noInit, "--no-init", false, "Skip workspace auto-configuration")),
+			clihelp.Group("Safety limits",
+				clihelp.Bool(&f.noFileLimit, "--no-file-limit", false, "Disable the file count safety check")),
+			clihelp.Group("Safety limits",
+				clihelp.Int(&f.maxFileCount, "--max-file-count <N>", 0, "Override the file count limit (-1 disables)")),
+			clihelp.Group("Terminal & output",
+				clihelp.Bool(&f.tmux, "--tmux", false, "Force an internal tmux session")),
+			clihelp.Group("Terminal & output",
+				clihelp.Bool(&f.noTmux, "--no-tmux", false, "Use a direct shell, not internal tmux")),
+			clihelp.Group("Terminal & output",
+				clihelp.Bool(&f.verbose, "-v, --verbose", false, "Print verbose debug information")),
+			clihelp.Group("Terminal & output",
+				clihelp.Bool(&f.noColor, "--no-color", false, "Disable ANSI color output")),
 		},
 		Commands: []clihelp.Command{
 			initCmd(f),
@@ -64,134 +90,24 @@ func buildApp() *clihelp.App {
 			configCmd(f, glValidator),
 			docsCmd(f),
 		},
+		BeforeRun: func(ctx *clihelp.Context) error {
+			// --no-color has to reach the renderer, not just be bound.
+			ctx.App.NoColor = f.noColor
+			return nil
+		},
 		Run: func(ctx *clihelp.Context) error {
 			return runDefault(ctx.Args, f.force, f.verbose, policyFlags(f), f.noInit, f.tmux, f.noTmux)
 		},
 	}
 }
 
+// normalizeArgs applies the two argument rewrites clihelp cannot express
+// declaratively: a negative integer as a positional value (config set) and the
+// learn subcommand's "-- " passthrough. Help routing, leading flags and command
+// abbreviations are handled natively by clihelp.
 func normalizeArgs(rawArgs []string) []string {
-	if len(rawArgs) == 0 {
-		return rawArgs
-	}
-
-	normalized := make([]string, 0, len(rawArgs)+1)
-	for i := 0; i < len(rawArgs); i++ {
-		arg := rawArgs[i]
-		switch arg {
-		case "help", "-help", "--h", "-?", "-H":
-			if i == 0 {
-				normalized = append(normalized, "--help")
-				continue
-			}
-		}
-		normalized = append(normalized, arg)
-	}
-
-	normalized = hoistSubcommand(normalized)
-	normalized = normalizeConfigSet(normalized)
+	normalized := normalizeConfigSet(rawArgs)
 	return normalizeCommandPassThrough(normalized)
-}
-
-func hoistSubcommand(args []string) []string {
-	if len(args) == 0 || !strings.HasPrefix(args[0], "-") || args[0] == "--" {
-		return args
-	}
-
-	for i := 0; i < len(args); i++ {
-		token := args[i]
-		if token == "--" {
-			return args
-		}
-		if token == "--max-file-count" {
-			i++
-			continue
-		}
-		if strings.HasPrefix(token, "-") {
-			continue
-		}
-		if !isKnownSubcommand(token) {
-			return args
-		}
-
-		cmdStart := i
-		cmdEnd := i + 1
-		if cmdEnd < len(args) && isKnownSubSubcommand(token, args[cmdEnd]) {
-			cmdEnd++
-		}
-
-		precedingFlags := args[:cmdStart]
-		commandTokens := args[cmdStart:cmdEnd]
-		rest := args[cmdEnd:]
-
-		result := make([]string, 0, len(args))
-		result = append(result, commandTokens...)
-		result = append(result, precedingFlags...)
-		result = append(result, rest...)
-		return result
-	}
-	return args
-}
-
-func isKnownSubcommand(token string) bool {
-	switch token {
-	case "init", "initialize", "setup", "init-dev",
-		"status", "info", "current",
-		"plan", "dry-run",
-		"doctor", "check",
-		"add",
-		"rm", "remove",
-		"mount", "bind", "cbind",
-		"bin",
-		"copy", "cp", "ccopy",
-		"path",
-		"git-workflow", "gw", "worktree",
-		"run", "exec",
-		"test",
-		"learn", "record", "trace",
-		"profile", "prof", "profiles",
-		"stack", "stacks",
-		"config", "conf", "cfg",
-		"docs", "doc", "faq":
-		return true
-	}
-	return false
-}
-
-func isKnownSubSubcommand(cmd, sub string) bool {
-	switch cmd {
-	case "config", "conf", "cfg":
-		switch sub {
-		case "show", "cat", "view", "set", "get", "unset", "edit", "where", "paths", "reset", "init", "push", "scp", "sync", "trust":
-			return true
-		}
-	case "profile", "prof":
-		switch sub {
-		case "list", "ls", "search", "find", "show", "info", "view", "cat", "generate", "fetch", "update", "test", "add", "del", "save", "suggest", "review":
-			return true
-		}
-	case "stack", "stacks":
-		switch sub {
-		case "list", "ls", "show", "info", "view", "save", "update", "upgrade", "pull", "suggest":
-			return true
-		}
-	case "mount", "cbind", "bind":
-		switch sub {
-		case "add", "del", "list", "ro", "rw", "ls", "delete", "rm", "remove":
-			return true
-		}
-	case "bin", "path", "copy":
-		switch sub {
-		case "add", "del", "list", "ls", "delete", "rm", "remove":
-			return true
-		}
-	case "git-workflow", "gw", "worktree":
-		switch sub {
-		case "run", "list", "ls", "prune", "clean", "rm":
-			return true
-		}
-	}
-	return false
 }
 
 func normalizeConfigSet(args []string) []string {

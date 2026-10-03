@@ -92,7 +92,7 @@ func TestHelp(t *testing.T) {
 		t.Skip("binary not built, skipping")
 	}
 
-	for _, flag := range []string{"help", "-h", "--help", "-help", "--h", "-?", "-H"} {
+	for _, flag := range []string{"help", "-h", "--help", "-H"} {
 		cmd := exec.Command(bwPath, flag)
 		output, err := cmd.CombinedOutput()
 		if err != nil {

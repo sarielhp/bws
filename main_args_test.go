@@ -3,72 +3,57 @@ package main
 import (
 	"reflect"
 	"testing"
+
+	"github.com/sarielhp/clihelp/clihelptest"
 )
 
-func TestNormalizeArgs_Help(t *testing.T) {
+// TestNativeHelpRouting verifies that clihelp itself, without bws rewriting the
+// arguments, resolves the help flags and the help topics.
+func TestNativeHelpRouting(t *testing.T) {
 	tests := []struct {
-		input    []string
-		expected []string
+		name    string
+		args    []string
+		wantSub string
 	}{
-		{input: []string{"help"}, expected: []string{"--help"}},
-		{input: []string{"-help"}, expected: []string{"--help"}},
-		{input: []string{"--h"}, expected: []string{"--help"}},
-		{input: []string{"-?"}, expected: []string{"--help"}},
-		{input: []string{"-H"}, expected: []string{"--help"}},
-		{input: []string{"status", "help"}, expected: []string{"status", "help"}},
+		{"bare help lists commands", []string{"help"}, "Commands:"},
+		{"help flags shows grouped flags page", []string{"help", "flags"}, "Global flags available to all commands:"},
+		{"help topics lists topics", []string{"help", "topics"}, "Help Topics:"},
+		{"-H extended help includes the global note", []string{"-H"}, "Bws runs isolated"},
+		{"--help extended help", []string{"--help"}, "Commands:"},
 	}
-
 	for _, tc := range tests {
-		got := normalizeArgs(tc.input)
-		if !reflect.DeepEqual(got, tc.expected) {
-			t.Errorf("normalizeArgs(%v) = %v, want %v", tc.input, got, tc.expected)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			res := clihelptest.Execute(buildApp(), tc.args)
+			res.AssertNoError(t)
+			res.AssertStdoutContains(t, tc.wantSub)
+		})
 	}
 }
 
-func TestNormalizeArgs_HoistSubcommand(t *testing.T) {
+// TestNormalizeArgs_Passthrough checks the rewrites bws still needs: the learn
+// subcommand's "--" separator, and nothing else.
+func TestNormalizeArgs_Passthrough(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []string
 		expected []string
 	}{
 		{
-			name:     "flags before plan with argument",
-			input:    []string{"--max-file-count", "-1", "plan"},
-			expected: []string{"plan", "--max-file-count", "-1"},
+			name:     "learn inserts dash-dash before the traced command",
+			input:    []string{"learn", "bash"},
+			expected: []string{"learn", "--", "bash"},
 		},
 		{
-			name:     "verbose before status",
-			input:    []string{"-v", "status"},
-			expected: []string{"status", "-v"},
+			name:     "learn keeps an existing dash-dash",
+			input:    []string{"learn", "--", "bash"},
+			expected: []string{"learn", "--", "bash"},
 		},
 		{
-			name:     "force before init with subargs",
-			input:    []string{"-f", "init", "-s", "latex-review"},
-			expected: []string{"init", "-f", "-s", "latex-review"},
-		},
-		{
-			name:     "flags before compound config set with negative value",
-			input:    []string{"-g", "config", "set", "max_file_count", "-1"},
-			expected: []string{"config", "set", "-g", "max_file_count", "--", "-1"},
-		},
-		{
-			name:     "non-subcommand not hoisted",
-			input:    []string{"-v", "ls", "-la"},
-			expected: []string{"-v", "ls", "-la"},
-		},
-		{
-			name:     "stop at dash-dash",
-			input:    []string{"-v", "--", "status"},
-			expected: []string{"-v", "--", "status"},
-		},
-		{
-			name:     "already command-first",
+			name:     "non-learn args pass through unchanged",
 			input:    []string{"status", "-v"},
 			expected: []string{"status", "-v"},
 		},
 	}
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := normalizeArgs(tc.input)

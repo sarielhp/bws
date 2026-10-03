@@ -37,6 +37,7 @@ type appFlags struct {
 	noTmux       bool
 	noFileLimit  bool
 	maxFileCount int
+	noColor      bool
 }
 
 func completeStacks(toComplete string) []string {
