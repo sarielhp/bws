@@ -1,0 +1,7 @@
+{
+  "target": ".",
+  "build_cmd": "tools/install",
+  "audit_cmd": "/home/sariel/prog/standards/workflow/bin/audit",
+  "guidelines": "Adhere strictly to AGENTS.md guidelines",
+  "max_diff_lines": 800
+}
