@@ -131,9 +131,10 @@ dependency updates, and portability.
 ./tools/audit_lines.rb
 ```
 
-The verification script formats, vets, tests, and builds. Optional long tests
-are available through `./tools/test_long`. See [AGENTS.md](AGENTS.md) for
-repository conventions and [the prioritized backlog](todo.md) for additional work.
+The verification script formats, vets, tests, builds, and checks that
+`docs/commands.md` matches the CLI surface. Optional long tests are available
+through `./tools/test_long`. See [AGENTS.md](AGENTS.md) for repository
+conventions and [the prioritized backlog](todo.md) for additional work.
 
 ## License
 

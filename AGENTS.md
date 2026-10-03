@@ -2,11 +2,12 @@
 ## Quick commands
 ```bash
 make                          # build + test + lint (via Makefile)
-./tools/verify_build.sh       # go vet + go test + go build in one
+./tools/verify_build.sh       # go vet + go test + go build + docs drift check
 go vet ./...                  # static analysis
 go test ./...                 # run all tests
 ./tools/test_long             # run all long tests (opt-in)
 ./tools/audit_lines.rb        # audit function (80 max) & file limits (800 warn / 1100 max)
+./tools/check_docs_drift.rb   # verify docs/commands.md matches the CLI (--strict)
 ./tools/bump_version.sh       # increment patch, commit, push
 ./tools/bump_version.sh 0.2.0 # set explicit version, commit, push
 ./tools/snapshot.sh           # commit all with message & push
@@ -24,7 +25,8 @@ bws/
 │   ├── README.md            # Detailed profiles catalog documentation
 │   └── *.json               # Profile definitions (embedded in binary)
 ├── tools/                   # Developer automation scripts
-│   ├── verify_build.sh      # vet + test + build
+│   ├── verify_build.sh      # vet + test + build + docs drift check
+│   ├── check_docs_drift.rb  # verify docs/commands.md against `bws inventory`
 │   ├── test_long            # run all long tests individually
 │   ├── audit_lines.rb       # enforce 80-line func & 800/1100-line file limits
 │   ├── bump_version.sh      # bump version, commit, push
@@ -61,7 +63,7 @@ bws/
 
 ## Before committing
 1. Run `go vet ./...` — no warnings.
-2. Run `./tools/verify_build.sh` — all tests pass, binary compiles.
+2. Run `./tools/verify_build.sh` — all tests pass, binary compiles, and the docs drift check passes.
 3. Run `./tools/audit_lines.rb` — no function exceeds 80 lines and files remain within 300–700 lines (warn > 800, max 1100).
 4. Run `./tools/bump_version.sh` — every code change bumps the version (and auto-commits/pushes to git).
 5. Commit messages follow conventional style: `area: description` or `Type(scope): description`.
@@ -117,17 +119,32 @@ bws/
 ## Scripts catalog
 | Script | Purpose |
 |---|---|
-| `verify_build.sh` | `go fmt` → `go vet` → `go test` → `go build` |
+| `verify_build.sh` | `go fmt` → `go vet` → `go test` → `go build` → `check_docs_drift.rb --strict` |
+| `check_docs_drift.rb` | verify `docs/commands.md` matches the CLI (`bws inventory`); `--strict` fails on undocumented commands |
 | `audit_lines.rb` | audit function lengths (80 max) and file lengths (800 warn / 1100 max) |
 | `bump_version.sh [v]` | increment patch (or set explicit version), commit, push |
 | `outline_symbols.sh` | sorted index of all Go types, functions, constants, vars |
 | `show_symbol.sh <sym>` | display declaration lines for a named symbol |
 | `snapshot.sh [msg]` | `git add -A && git commit -m "<msg>" && git push` |
 
+## Documentation drift check
+
+`docs/commands.md` is hand-written and drifts whenever the CLI changes. The build
+prevents that: the hidden `bws inventory` command emits a JSON tree of the whole
+command surface (names, aliases, per-command flags, globals), and
+`tools/check_docs_drift.rb` diffs it against the `` `bws ...` `` headings and
+option tables in `docs/commands.md`. It fails on a documented command or flag
+that does not exist, and (in `--strict`, used by `verify_build.sh`) on a real
+command with no heading. Hidden commands are excluded from the inventory.
+
+To add a command: give it a `` ### `bws <name>` `` heading with an option table,
+then run `./tools/check_docs_drift.rb --strict`. Run it via `./tools/verify_build.sh`.
+
 ## Autonomous Review Cycle (`tools/review_cycle`)
 
 Single-command orchestration executing adversarial review, sandbox remediation, and quality gate verification.
-Complete specification: [`tools/REVIEW_CYCLE.md`](tools/REVIEW_CYCLE.md)
+The orchestrator and its `audit` runner live outside this repository; only the
+local configuration (`tools/review_cycle.json`) is checked in here.
 
 ### Pipeline Execution Phases:
 1. **Audit**: Runs multi-lens audit (`tools/audit`), producing `<reports-dir>/<NUM>_<profile>.md`.

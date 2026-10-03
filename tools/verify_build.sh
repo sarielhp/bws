@@ -18,5 +18,8 @@ go build -o bws .
 echo "=== go test ==="
 go test ./... -count=1
 
+echo "=== docs drift ==="
+./tools/check_docs_drift.rb --strict
+
 echo ""
 echo "All checks passed."
