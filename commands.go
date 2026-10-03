@@ -32,7 +32,6 @@ type appFlags struct {
 	profiles     []string
 	docsDir      string
 	docsMan      string
-	desc         string
 	basic        bool
 	yes          bool
 	tmux         bool
