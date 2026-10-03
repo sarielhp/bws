@@ -95,6 +95,7 @@ func buildApp() *clihelp.App {
 			stackCmd(f),
 			configCmd(f, glValidator),
 			docsCmd(f),
+			clihelp.ManPageCommand(),
 		},
 		BeforeRun: func(ctx *clihelp.Context) error {
 			// --no-color has to reach the renderer, not just be bound.
