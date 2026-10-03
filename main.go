@@ -22,8 +22,10 @@ func buildApp() *clihelp.App {
 		UsageLine:           "bws [options] [command | -- [args...]]",
 		GlobalNote:          "Bws runs isolated unprivileged Bubblewrap sandboxes configured via JSONC and profiles catalog.",
 		ConfigPath:          "~/.config/bws/config.jsonc",
-		Pager:               true,
 		AbbrevCommands:      true,
+		// A bare `bws [flags] [--] <command...>` runs a sandbox, so trailing
+		// words are arguments for Run, not misspelled subcommands.
+		Args: clihelp.MinimumNArgs(0),
 		InteractiveFallback: false,
 		PersistentOptions: []clihelp.Option{
 			clihelp.Bool(&f.force, "-f, --force", false, "Bypass the file count safety check / force overwrite"),

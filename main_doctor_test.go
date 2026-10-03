@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sarielhp/clihelp"
+	"github.com/sarielhp/clihelp/clihelptest"
 )
 
 func TestDoctorIntegrationExecution(t *testing.T) {
@@ -90,7 +91,7 @@ func TestDoctorClihelpAuditAndRouting(t *testing.T) {
 	}
 
 	// Verify doctor rejects unexpected positional arguments
-	res := clihelp.TestExecute(app, []string{"doctor", "unexpected-arg"})
+	res := clihelptest.Execute(app, []string{"doctor", "unexpected-arg"})
 	if res.Error == nil {
 		t.Error("expected error when doctor is passed unexpected positional argument")
 	}

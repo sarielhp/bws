@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sarielhp/clihelp"
+	"github.com/sarielhp/clihelp/clihelptest"
 )
 
 func TestGwListAndPruneCLI(t *testing.T) {
@@ -15,29 +15,29 @@ func TestGwListAndPruneCLI(t *testing.T) {
 	app := buildApp()
 
 	// 1. Test help on gw
-	res := clihelp.TestExecute(app, []string{"gw", "--help"})
+	res := clihelptest.Execute(app, []string{"gw", "--help"})
 	res.AssertNoError(t)
 	res.AssertStdoutContains(t, "list")
 	res.AssertStdoutContains(t, "prune")
 
 	// 2. Test help on gw list
-	res = clihelp.TestExecute(app, []string{"gw", "list", "--help"})
+	res = clihelptest.Execute(app, []string{"gw", "list", "--help"})
 	res.AssertNoError(t)
 	res.AssertStdoutContains(t, "--merged")
 	res.AssertStdoutContains(t, "--unmerged")
 
 	// 3. Test help on gw prune
-	res = clihelp.TestExecute(app, []string{"gw", "prune", "--help"})
+	res = clihelptest.Execute(app, []string{"gw", "prune", "--help"})
 	res.AssertNoError(t)
 	res.AssertStdoutContains(t, "--all")
 	res.AssertStdoutContains(t, "--dry-run")
 
 	// 4. Test execution of gw list
-	res = clihelp.TestExecute(app, []string{"gw", "list"})
+	res = clihelptest.Execute(app, []string{"gw", "list"})
 	res.AssertNoError(t)
 
 	// 5. Test execution of gw prune dry run
-	res = clihelp.TestExecute(app, []string{"gw", "prune", "-n"})
+	res = clihelptest.Execute(app, []string{"gw", "prune", "-n"})
 	res.AssertNoError(t)
 }
 

@@ -34,7 +34,7 @@ func learnCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 		},
 		Run: func(ctx *clihelp.Context) error {
 			if len(ctx.Args) == 0 {
-				ctx.App.Render(clihelp.Options{Writer: ctx.Stdout}, "learn")
+				ctx.App.RenderCommand(clihelp.Options{Writer: ctx.Stdout}, "learn")
 				return nil
 			}
 			return cli.HandleLearn(ctx.Args, lf.dryRun, lf.profileName, f.global, f.force, f.verbose)

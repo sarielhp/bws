@@ -171,7 +171,7 @@ func configCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Comman
 				cli.HandleConfigShow(f.global, f.local)
 				return nil
 			}
-			ctx.App.Render(clihelp.Options{Writer: ctx.Stdout}, "config")
+			ctx.App.RenderCommand(clihelp.Options{Writer: ctx.Stdout}, "config")
 			return nil
 		},
 	}
