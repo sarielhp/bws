@@ -9,7 +9,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.70"
+var Version = "0.3.71"
 
 // rootPersistentOptions is the set of flags available to every command,
 // organised into help-page groups.
@@ -83,6 +83,7 @@ func buildApp() *clihelp.App {
 			doctorCmd(f),
 			addCmd(f, glValidator),
 			rmCmd(f, glValidator),
+			undoCmd(f, glValidator),
 			mountCmd(f, glValidator),
 			binCmd(f, glValidator),
 			copyCmd(f, glValidator),
