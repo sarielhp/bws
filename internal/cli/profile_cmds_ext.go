@@ -152,7 +152,7 @@ func HandleProfileSearch(query string) error {
 	hbURL := fmt.Sprintf("https://formulae.brew.sh/api/formula/%s.json", cleanQ)
 	if resp, err := client.Get(hbURL); err == nil && resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponseBytes))
 		var hb struct {
 			Name string `json:"name"`
 			Desc string `json:"desc"`
@@ -166,6 +166,8 @@ func HandleProfileSearch(query string) error {
 
 	return nil
 }
+
+const maxHTTPResponseBytes = 5 * 1024 * 1024 // 5 MB
 
 // HandleProfileFetch downloads a profile from GitHub repository or synthesizes it.
 func HandleProfileFetch(name string, global, local, force bool) error {
@@ -195,7 +197,7 @@ func HandleProfileFetch(name string, global, local, force bool) error {
 	resp, err := client.Get(url)
 	if err == nil && resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
-		data, err := io.ReadAll(resp.Body)
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponseBytes))
 		if err == nil {
 			var p profile.Profile
 			if err := json.Unmarshal(data, &p); err == nil {

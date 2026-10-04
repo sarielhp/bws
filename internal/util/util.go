@@ -108,3 +108,23 @@ func ExpandHome(path string) string {
 	}
 	return path
 }
+
+// UserTempDirBase returns the base per-user temporary directory path /tmp/bws-<UID>.
+func UserTempDirBase() string {
+	return filepath.Join(os.TempDir(), fmt.Sprintf("bws-%d", os.Getuid()))
+}
+
+// UserTempDir creates and returns an ephemeral temporary directory scoped to the
+// current user's UID (e.g. /tmp/bws-<UID>/<sub_*>), falling back to os.TempDir()/bws_<sub_*>
+// if the per-user base cannot be created or accessed with appropriate permissions.
+func UserTempDir(sub string) (string, error) {
+	base := UserTempDirBase()
+	if err := os.MkdirAll(base, 0700); err == nil {
+		if fi, err := os.Stat(base); err == nil && fi.IsDir() && fi.Mode().Perm()&0077 == 0 {
+			if tmp, err := os.MkdirTemp(base, sub+"_"); err == nil {
+				return tmp, nil
+			}
+		}
+	}
+	return os.MkdirTemp("", "bws_"+sub+"_")
+}

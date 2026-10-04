@@ -340,18 +340,15 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 }
 
 // sandboxTmpArgs returns the mount for the sandbox /tmp. It prefers a private
-// host directory under /tmp/bws; if that cannot be created (for example because
-// another user owns /tmp/bws) it falls back to an ephemeral tmpfs rather than a
-// predictable shared path.
+// host directory under /tmp/bws-<UID>; if that cannot be created it falls back
+// to an ephemeral tmpfs rather than a predictable shared path.
 func sandboxTmpArgs(dryRun bool) []string {
 	if dryRun {
 		return []string{"--bind", "/tmp/bws/SANDBOX_TMP", "/tmp"}
 	}
-	if err := os.MkdirAll("/tmp/bws", 0755); err == nil {
-		if tmp, err := os.MkdirTemp("/tmp/bws", "sandbox_"); err == nil {
-			return []string{"--bind", tmp, "/tmp"}
-		}
+	if tmp, err := util.UserTempDir("sandbox"); err == nil {
+		return []string{"--bind", tmp, "/tmp"}
 	}
-	fmt.Fprintf(os.Stderr, "Warning: cannot create a private directory under /tmp/bws; using a tmpfs for /tmp\n")
+	fmt.Fprintf(os.Stderr, "Warning: cannot create a private directory for /tmp; using a tmpfs for /tmp\n")
 	return []string{"--tmpfs", "/tmp"}
 }

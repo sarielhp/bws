@@ -69,8 +69,7 @@ func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 		return "", nil, err
 	}
 
-	os.MkdirAll("/tmp/bws", 0755)
-	stageDir, err := os.MkdirTemp("/tmp/bws", "stage_")
+	stageDir, err := util.UserTempDir("stage")
 	if err != nil {
 		return "", nil, fmt.Errorf("creating session stage directory: %w", err)
 	}

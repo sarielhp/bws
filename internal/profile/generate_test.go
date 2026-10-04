@@ -1,6 +1,9 @@
 package profile
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 )
@@ -167,5 +170,34 @@ func TestVerifyToolInstalled(t *testing.T) {
 	_, err = VerifyToolInstalled("mongishogi_nonexistent", pFake)
 	if err == nil {
 		t.Errorf("expected error for non-existent tool, got nil")
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestFetchHomebrewFormulaBoundedRead(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		chunk := bytes.Repeat([]byte(" "), 1024*1024)
+		for i := 0; i < 6; i++ {
+			_, _ = w.Write(chunk)
+		}
+	}))
+	defer ts.Close()
+
+	client := &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			return http.Get(ts.URL)
+		}),
+	}
+
+	p := &Profile{}
+	ok := fetchHomebrewFormula(client, "test", p, nil)
+	if ok {
+		t.Fatal("expected false for oversized invalid JSON payload")
 	}
 }

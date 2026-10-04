@@ -55,7 +55,7 @@ func TestGetConfigKVUnquotesStrings(t *testing.T) {
 	}
 }
 
-func TestAtomicWriteFileKeepsSymlinkAndMode(t *testing.T) {
+func TestAtomicWriteFileRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	real := filepath.Join(dir, "real.jsonc")
 	link := filepath.Join(dir, "link.jsonc")
@@ -65,20 +65,12 @@ func TestAtomicWriteFileKeepsSymlinkAndMode(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
 	}
-	if err := atomicWriteFile(link, []byte("new")); err != nil {
-		t.Fatal(err)
-	}
-	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
-		t.Fatal("symlink replaced by a regular file")
+	if err := atomicWriteFile(link, []byte("new")); err == nil {
+		t.Fatal("expected error writing through symlink")
 	}
 	data, _ := os.ReadFile(real)
-	fi, _ := os.Stat(real)
-	if string(data) != "new" || fi.Mode().Perm() != 0600 {
-		t.Fatalf("got %q mode %o", data, fi.Mode().Perm())
-	}
-	entries, _ := os.ReadDir(dir)
-	if len(entries) != 2 {
-		t.Fatalf("temp file left behind: %v", entries)
+	if string(data) != "old" {
+		t.Fatalf("symlink target was overwritten: got %q, want %q", string(data), "old")
 	}
 }
 

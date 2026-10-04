@@ -66,7 +66,12 @@ func trustContents(path string, data []byte) error {
 
 // WriteTrustedFile writes configuration produced by a host configuration command.
 // Configuration files gain a single-slot backup of their prior contents first.
+// It refuses to write through symlinks to prevent symlink traversal attacks.
 func WriteTrustedFile(path string, data []byte) error {
+	fi, err := os.Lstat(path)
+	if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to write through symlink: %s", path)
+	}
 	if err := backupConfig(path); err != nil {
 		return err
 	}

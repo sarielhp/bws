@@ -124,7 +124,11 @@ func copyPolicyFile(src, dest *os.Root, path string) error {
 			return err
 		}
 	}
-	if err := dest.WriteFile(path, data, 0644); err != nil {
+	perm := info.Mode().Perm()
+	if strings.HasPrefix(filepath.Base(path), ".env") {
+		perm = 0600
+	}
+	if err := dest.WriteFile(path, data, perm); err != nil {
 		return err
 	}
 	if config.IsLocalPolicy(path) {

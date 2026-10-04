@@ -39,3 +39,35 @@ func TestConfigCopyRejectsEscapingDestination(t *testing.T) {
 		t.Fatal("outside file changed")
 	}
 }
+
+func TestCopyConfigFilesPreservesSecurePerms(t *testing.T) {
+	src, dest := t.TempDir(), t.TempDir()
+	envPath := filepath.Join(src, ".env")
+	envLocalPath := filepath.Join(src, ".env.local")
+	if err := os.WriteFile(envPath, []byte("SECRET=123"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(envLocalPath, []byte("TOKEN=abc"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyConfigFiles(src, dest); err != nil {
+		t.Fatalf("copyConfigFiles failed: %v", err)
+	}
+
+	destEnv, err := os.Stat(filepath.Join(dest, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if destEnv.Mode().Perm() != 0600 {
+		t.Errorf("staged .env perm = %o, want 0600", destEnv.Mode().Perm())
+	}
+
+	destEnvLocal, err := os.Stat(filepath.Join(dest, ".env.local"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if destEnvLocal.Mode().Perm() != 0600 {
+		t.Errorf("staged .env.local perm = %o, want 0600", destEnvLocal.Mode().Perm())
+	}
+}

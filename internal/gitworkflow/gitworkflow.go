@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"bws/internal/util"
 )
 
 // Options defines configuration for a git-workflow session.
@@ -105,10 +107,7 @@ func prepareClone(hostRepo, baseBranch, requestedBranch string, verbose bool) (s
 		return "", "", nil, nil, fmt.Errorf("invalid agent branch %q: %w", branchName, err)
 	}
 
-	if err := os.MkdirAll("/tmp/bws", 0755); err != nil {
-		// explicitly ignored
-	}
-	tempDir, err := os.MkdirTemp("/tmp/bws", "agent_")
+	tempDir, err := util.UserTempDir("agent")
 	if err != nil {
 		return "", "", nil, nil, fmt.Errorf("creating agent temp directory: %w", err)
 	}

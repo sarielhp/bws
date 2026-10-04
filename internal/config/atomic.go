@@ -192,15 +192,15 @@ func descendPolicyParts(root *os.Root, parts []string) (*os.Root, error) {
 }
 
 // atomicWriteFile replaces path with data via a synced temp file and rename,
-// so a crash leaves either the old or the new contents. A symlinked path is
-// resolved first so the link itself is preserved, and an existing file keeps
-// its permissions.
+// so a crash leaves either the old or the new contents. It refuses to write
+// through symlinks to prevent symlink traversal attacks.
 func atomicWriteFile(path string, data []byte) error {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolved
+	fi, err := os.Lstat(path)
+	if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to write through symlink: %s", path)
 	}
 	perm := os.FileMode(0644)
-	if fi, err := os.Stat(path); err == nil {
+	if err == nil {
 		perm = fi.Mode().Perm()
 	}
 	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")

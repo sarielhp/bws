@@ -138,6 +138,8 @@ func VerifyToolInstalled(name string, p *Profile) (string, error) {
 	return "", fmt.Errorf("executable %q is not installed on host system ($PATH)", cleanName)
 }
 
+const maxHTTPResponseBytes = 5 * 1024 * 1024 // 5 MB
+
 func fetchHomebrewFormula(client *http.Client, cleanName string, p *Profile, registry map[string]*Profile) bool {
 	hbURL := fmt.Sprintf("https://formulae.brew.sh/api/formula/%s.json", cleanName)
 	resp, err := client.Get(hbURL)
@@ -146,7 +148,7 @@ func fetchHomebrewFormula(client *http.Client, cleanName string, p *Profile, reg
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponseBytes))
 	if err != nil {
 		return false
 	}
@@ -212,7 +214,7 @@ func fetchFirejail(client *http.Client, cleanName string) ([]string, []string, [
 		return nil, nil, nil, false
 	}
 	defer resp.Body.Close()
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := bufio.NewScanner(io.LimitReader(resp.Body, maxHTTPResponseBytes))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "#") || line == "" {

@@ -34,13 +34,9 @@ func IsConfigFile(path string) bool {
 	return false
 }
 
-// resolvedConfigPath mirrors atomicWriteFile's symlink resolution so the backup
-// and the subsequent write always target the same regular file.
+// resolvedConfigPath ensures paths are clean and never follow symlinks.
 func resolvedConfigPath(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return resolved
-	}
-	return path
+	return filepath.Clean(path)
 }
 
 // BackupConfig records the current contents of a configuration file as its
@@ -56,6 +52,10 @@ func BackupConfig(path string) error {
 func backupConfig(path string) error {
 	if !IsConfigFile(path) {
 		return nil
+	}
+	fi, err := os.Lstat(path)
+	if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to backup through symlink: %s", path)
 	}
 	resolved := resolvedConfigPath(path)
 	data, err := os.ReadFile(resolved)
@@ -88,6 +88,10 @@ func HasBackup(path string) bool {
 func RestoreBackup(path string) error {
 	if !IsConfigFile(path) {
 		return fmt.Errorf("not a bws configuration file: %s", path)
+	}
+	fi, err := os.Lstat(path)
+	if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to restore through symlink: %s", path)
 	}
 	resolved := resolvedConfigPath(path)
 	backup := BackupPath(resolved)

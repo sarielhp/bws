@@ -57,3 +57,45 @@ func TestHomeAndWorkspaceMountOrdering(t *testing.T) {
 		t.Fatalf("mount order: tmp=%d home=%d workspace=%d", tmpIndex, homeIndex, projectIndex)
 	}
 }
+
+func TestIsSystemOrHomeRoot(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	blocked := []string{
+		"/",
+		".",
+		"/usr",
+		"/bin",
+		"/sbin",
+		"/usr/local",
+		"/usr/bin",
+		"/usr/sbin",
+		"/etc",
+		"/var",
+		"/opt",
+		home,
+		filepath.Join(home, ".local"),
+		filepath.Join(home, ".local", "bin"),
+		filepath.Join(home, "bin"),
+	}
+
+	for _, p := range blocked {
+		if !isSystemOrHomeRoot(p) {
+			t.Errorf("expected isSystemOrHomeRoot(%q) = true, got false", p)
+		}
+	}
+
+	allowed := []string{
+		"/opt/quarto",
+		"/opt/quarto/bin",
+		filepath.Join(home, ".local", "share", "quarto"),
+		"/custom/tools/quarto",
+	}
+
+	for _, p := range allowed {
+		if isSystemOrHomeRoot(p) {
+			t.Errorf("expected isSystemOrHomeRoot(%q) = false, got true", p)
+		}
+	}
+}

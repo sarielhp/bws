@@ -156,29 +156,37 @@ func addEtcAutoBindArgs(args *[]string) {
 	}
 }
 
+func isAlreadyBound(args []string, target string) bool {
+	for _, a := range args {
+		if a == target {
+			return true
+		}
+	}
+	return false
+}
+
+func isSystemOrHomeRoot(p string) bool {
+	clean := filepath.Clean(p)
+	if clean == "/" || clean == "." || clean == "/usr" || clean == "/bin" || clean == "/sbin" ||
+		clean == "/usr/local" || clean == "/usr/bin" || clean == "/usr/sbin" ||
+		clean == "/etc" || clean == "/var" || clean == "/opt" || clean == "/home" {
+		return true
+	}
+	home := filepath.Clean(util.HomeDir())
+	if clean == home || clean == filepath.Join(home, ".local") ||
+		clean == filepath.Join(home, ".local", "bin") || clean == filepath.Join(home, "bin") {
+		return true
+	}
+	return false
+}
+
 func addOptBind(args *[]string) {
 	if fi, err := os.Stat("/opt"); err == nil && fi.IsDir() {
-		alreadyBound := false
-		for _, a := range *args {
-			if a == "/opt" {
-				alreadyBound = true
-				break
-			}
-		}
-		if !alreadyBound {
+		if !isAlreadyBound(*args, "/opt") {
 			*args = append(*args, "--ro-bind-try", "/opt", "/opt")
 			if realPath, err := filepath.EvalSymlinks("/opt"); err == nil && realPath != "/opt" {
-				if fi, err := os.Stat(realPath); err == nil && fi.IsDir() {
-					alreadyBound = false
-					for _, a := range *args {
-						if a == realPath {
-							alreadyBound = true
-							break
-						}
-					}
-					if !alreadyBound {
-						*args = append(*args, "--ro-bind-try", realPath, realPath)
-					}
+				if fi, err := os.Stat(realPath); err == nil && fi.IsDir() && !isAlreadyBound(*args, realPath) {
+					*args = append(*args, "--ro-bind-try", realPath, realPath)
 				}
 			}
 		}
@@ -200,27 +208,13 @@ func addQuartoBind(args *[]string) {
 	binDir := filepath.Dir(realPath)
 	rootDir := filepath.Dir(binDir)
 
-	if fi, err := os.Stat(rootDir); err == nil && fi.IsDir() {
-		alreadyBound := false
-		for _, a := range *args {
-			if a == rootDir {
-				alreadyBound = true
-				break
-			}
-		}
-		if !alreadyBound {
+	if !isSystemOrHomeRoot(rootDir) {
+		if fi, err := os.Stat(rootDir); err == nil && fi.IsDir() && !isAlreadyBound(*args, rootDir) {
 			*args = append(*args, "--ro-bind-try", rootDir, rootDir)
 		}
 	}
-	if fi, err := os.Stat(binDir); err == nil && fi.IsDir() {
-		alreadyBound := false
-		for _, a := range *args {
-			if a == binDir {
-				alreadyBound = true
-				break
-			}
-		}
-		if !alreadyBound {
+	if !isSystemOrHomeRoot(binDir) {
+		if fi, err := os.Stat(binDir); err == nil && fi.IsDir() && !isAlreadyBound(*args, binDir) {
 			*args = append(*args, "--ro-bind-try", binDir, binDir)
 		}
 	}

@@ -136,3 +136,50 @@ func TestTrustContentsAtomic(t *testing.T) {
 		t.Errorf("expected trust file mode 0600, got %o", fi.Mode().Perm())
 	}
 }
+
+func TestWriteTrustedFileRejectsSymlink(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	dir := t.TempDir()
+	victim := filepath.Join(dir, "victim.txt")
+	if err := os.WriteFile(victim, []byte("secret content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	link := filepath.Join(dir, ".bws.jsonc")
+	if err := os.Symlink(victim, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteTrustedFile(link, []byte(`{"features":{"no_net":true}}`)); err == nil {
+		t.Fatal("expected WriteTrustedFile to reject symlink target")
+	}
+
+	data, err := os.ReadFile(victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "secret content" {
+		t.Fatalf("victim file was corrupted: got %q, want %q", string(data), "secret content")
+	}
+
+	if _, err := os.Stat(victim + ".bak"); err == nil {
+		t.Fatal("backup was created for symlink victim")
+	}
+}
+
+func TestBackupConfigRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	victim := filepath.Join(dir, "target.jsonc")
+	if err := os.WriteFile(victim, []byte("target content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	link := filepath.Join(dir, ".bws.jsonc")
+	if err := os.Symlink(victim, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := BackupConfig(link); err == nil {
+		t.Fatal("expected BackupConfig to refuse symlink")
+	}
+}
