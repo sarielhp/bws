@@ -84,7 +84,10 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 }
 
 func profileTestConfig(cfg *config.Config, resolved *ResolvedProfile) *config.Config {
-	testCfg := copyConfig(cfg)
+	testCfg := config.Clone(cfg)
+	if testCfg == nil {
+		testCfg = &config.Config{}
+	}
 	testCfg.Features = config.MergeFeatures(testCfg.Features, resolved.Features)
 	if resolved.UnshareNet {
 		if testCfg.Features == nil {
@@ -167,21 +170,4 @@ func isBinaryAvailable(bin string, extraPaths []string) bool {
 	}
 
 	return false
-}
-
-func copyConfig(c *config.Config) *config.Config {
-	if c == nil {
-		return &config.Config{}
-	}
-	cp := *c
-	cp.BindsRW = append([]config.BindEntry{}, c.BindsRW...)
-	cp.BindsRO = append([]config.BindEntry{}, c.BindsRO...)
-	cp.Path = append([]string{}, c.Path...)
-	if c.Env != nil {
-		cp.Env = make(map[string]string)
-		for k, v := range c.Env {
-			cp.Env[k] = v
-		}
-	}
-	return &cp
 }

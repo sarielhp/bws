@@ -132,6 +132,7 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport := &http.Transport{
+		DisableKeepAlives: true,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			dialer := &net.Dialer{Timeout: 15 * time.Second}
 			conn, err := dialer.DialContext(ctx, "tcp4", addr)
@@ -141,6 +142,7 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 			return conn, nil
 		},
 	}
+	defer transport.CloseIdleConnections()
 
 	resp, err := transport.RoundTrip(outReq)
 	if err != nil {

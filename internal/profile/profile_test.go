@@ -2,6 +2,8 @@ package profile
 
 import (
 	"testing"
+
+	"bws/internal/config"
 )
 
 func TestLoadRegistry(t *testing.T) {
@@ -109,5 +111,47 @@ func TestConvertFirejailPath(t *testing.T) {
 	sysP := convertFirejailPath("/var/lib/test")
 	if len(sysP) != 2 || sysP[0] != "/var/lib/test" || sysP[1] != "/var/lib/test" {
 		t.Errorf("unexpected system conversion: %v", sysP)
+	}
+}
+
+func TestProfileTestConfigIsolation(t *testing.T) {
+	origFeatures := &config.FeaturesConfig{}
+	origPassEnv := make([]string, 1, 10)
+	origPassEnv[0] = "ORIGINAL_ENV"
+	origMask := make([]string, 1, 10)
+	origMask[0] = "/orig/mask"
+
+	cfg := &config.Config{
+		PassEnv:  origPassEnv,
+		Mask:     origMask,
+		Features: origFeatures,
+	}
+
+	resolved := &ResolvedProfile{
+		UnshareNet: true,
+		PassEnv:    []string{"EXTRA_ENV"},
+		Mask:       []string{"/extra/mask"},
+	}
+
+	testCfg := profileTestConfig(cfg, resolved)
+
+	if testCfg.Features == nil || testCfg.Features.NoNet == nil || !*testCfg.Features.NoNet {
+		t.Errorf("expected testCfg.Features.NoNet to be true")
+	}
+	if len(testCfg.PassEnv) != 2 || testCfg.PassEnv[1] != "EXTRA_ENV" {
+		t.Errorf("expected testCfg.PassEnv to contain EXTRA_ENV, got %v", testCfg.PassEnv)
+	}
+	if len(testCfg.Mask) != 2 || testCfg.Mask[1] != "/extra/mask" {
+		t.Errorf("expected testCfg.Mask to contain /extra/mask, got %v", testCfg.Mask)
+	}
+
+	if cfg.Features.NoNet != nil {
+		t.Errorf("caller cfg.Features.NoNet was mutated: %v", *cfg.Features.NoNet)
+	}
+	if len(cfg.PassEnv) != 1 || cfg.PassEnv[0] != "ORIGINAL_ENV" {
+		t.Errorf("caller cfg.PassEnv was mutated: %v", cfg.PassEnv)
+	}
+	if len(cfg.Mask) != 1 || cfg.Mask[0] != "/orig/mask" {
+		t.Errorf("caller cfg.Mask was mutated: %v", cfg.Mask)
 	}
 }

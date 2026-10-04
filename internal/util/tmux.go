@@ -28,22 +28,14 @@ func SetHostTmuxTitle() (func(), error) {
 		return func() {}, nil
 	}
 
-	out, err := exec.Command("tmux", "display-message", "-p", "#{pane_id}:#W:#{automatic-rename}:#{pane_title}").Output()
+	out, err := exec.Command("tmux", "display-message", "-p", "#{pane_id}\t#W\t#{automatic-rename}\t#{pane_title}").Output()
 	if err != nil {
 		return func() {}, err
 	}
 
-	parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 4)
-	if len(parts) < 4 || parts[0] == "" {
+	state := parseTmuxOutput(string(out))
+	if state == nil {
 		return func() {}, nil
-	}
-
-	state := &HostTmuxState{
-		PaneID:     parts[0],
-		WindowName: parts[1],
-		AutoRename: parts[2] == "1",
-		PaneTitle:  parts[3],
-		Active:     true,
 	}
 
 	prefix := "[BTS] "
@@ -51,15 +43,8 @@ func SetHostTmuxTitle() (func(), error) {
 		prefix = custom
 	}
 
-	newWinName := state.WindowName
-	if !strings.HasPrefix(newWinName, prefix) && !strings.HasPrefix(newWinName, "[BTS]") && !strings.HasPrefix(newWinName, "[BWS]") {
-		newWinName = prefix + newWinName
-	}
-
-	newPaneTitle := state.PaneTitle
-	if !strings.HasPrefix(newPaneTitle, prefix) && !strings.HasPrefix(newPaneTitle, "[BTS]") && !strings.HasPrefix(newPaneTitle, "[BWS]") {
-		newPaneTitle = prefix + newPaneTitle
-	}
+	newWinName := formatPrefixedTitle(state.WindowName, prefix)
+	newPaneTitle := formatPrefixedTitle(state.PaneTitle, prefix)
 
 	_ = exec.Command("tmux", "rename-window", "-t", state.PaneID, newWinName).Run()
 	_ = exec.Command("tmux", "select-pane", "-t", state.PaneID, "-T", newPaneTitle).Run()
@@ -78,4 +63,25 @@ func SetHostTmuxTitle() (func(), error) {
 	}
 
 	return cleanup, nil
+}
+
+func parseTmuxOutput(out string) *HostTmuxState {
+	parts := strings.SplitN(strings.TrimSpace(out), "\t", 4)
+	if len(parts) < 4 || parts[0] == "" {
+		return nil
+	}
+	return &HostTmuxState{
+		PaneID:     parts[0],
+		WindowName: parts[1],
+		AutoRename: parts[2] == "1",
+		PaneTitle:  parts[3],
+		Active:     true,
+	}
+}
+
+func formatPrefixedTitle(current, prefix string) string {
+	if !strings.HasPrefix(current, prefix) && !strings.HasPrefix(current, "[BTS]") && !strings.HasPrefix(current, "[BWS]") {
+		return prefix + current
+	}
+	return current
 }

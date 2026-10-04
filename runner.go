@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"bws/internal/bwrap"
@@ -74,17 +76,58 @@ func setupSandboxHome(cfg *config.Config, currentDir string, dryRun, verbose boo
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] Staged ephemeral sandbox home: %s\n", sandboxDir)
 	}
+
+	safeCleanup := startSandboxSignalMonitor(cleanup, getDBus)
+	return sandboxDir, safeCleanup, nil
+}
+
+func startSandboxSignalMonitor(cleanup func(), getDBus func() *dbus.Proxy) func() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	done := make(chan struct{})
+	var stopOnce sync.Once
+	stopSignal := func() {
+		stopOnce.Do(func() {
+			signal.Stop(sigChan)
+			close(done)
+		})
+	}
+
+	var cleanupOnce sync.Once
+	safeCleanup := func() {
+		cleanupOnce.Do(func() {
+			stopSignal()
+			if cleanup != nil {
+				cleanup()
+			}
+		})
+	}
+
 	go func() {
-		<-sigChan
-		if p := getDBus(); p != nil {
-			_ = p.Close()
+		select {
+		case <-sigChan:
+			signal.Stop(sigChan)
+			if p := getDBus(); p != nil {
+				_ = p.Close()
+			}
+			safeCleanup()
+			os.Exit(130)
+		case <-done:
 		}
-		cleanup()
-		os.Exit(130)
 	}()
-	return sandboxDir, cleanup, nil
+
+	return safeCleanup
+}
+
+func appendDBusArgs(args []string, p *dbus.Proxy) []string {
+	if p != nil && !p.IsRaw() && p.SocketPath() != "" {
+		return append(args,
+			"--bind", p.SocketPath(), p.DestPath(),
+			"--setenv", "DBUS_SESSION_BUS_ADDRESS", fmt.Sprintf("unix:path=%s", p.DestPath()),
+			"--setenv", "XDG_RUNTIME_DIR", p.DestDir(),
+		)
+	}
+	return args
 }
 
 func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []string, verbose bool) error {
@@ -94,8 +137,8 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		}
 	}
 
-	var dbusProxy *dbus.Proxy
-	sandboxDir, cleanup, err := setupSandboxHome(sl.cfg, currentDir, dryRun, verbose, func() *dbus.Proxy { return dbusProxy })
+	var dbusProxy atomic.Pointer[dbus.Proxy]
+	sandboxDir, cleanup, err := setupSandboxHome(sl.cfg, currentDir, dryRun, verbose, func() *dbus.Proxy { return dbusProxy.Load() })
 	if err != nil {
 		return err
 	}
@@ -115,19 +158,13 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 		defer proxyServer.Close()
 	}
 
-	dbusProxy = setupDBusService(sl.cfg, dryRun, verbose)
-	if dbusProxy != nil {
-		defer dbusProxy.Close()
+	if p := setupDBusService(sl.cfg, dryRun, verbose); p != nil {
+		dbusProxy.Store(p)
+		defer p.Close()
 	}
 
 	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, dryRun, verbose)
-	if dbusProxy != nil && !dbusProxy.IsRaw() && dbusProxy.SocketPath() != "" {
-		bwrapArgs = append(bwrapArgs,
-			"--bind", dbusProxy.SocketPath(), dbusProxy.DestPath(),
-			"--setenv", "DBUS_SESSION_BUS_ADDRESS", fmt.Sprintf("unix:path=%s", dbusProxy.DestPath()),
-			"--setenv", "XDG_RUNTIME_DIR", dbusProxy.DestDir(),
-		)
-	}
+	bwrapArgs = appendDBusArgs(bwrapArgs, dbusProxy.Load())
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[verbose] bwrap command:\n  bwrap %s\n", strings.Join(append(bwrapArgs, execArgs...), " "))
@@ -148,8 +185,8 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	runErr := cmd.Run()
-	if dbusProxy != nil {
-		_ = dbusProxy.Close()
+	if p := dbusProxy.Load(); p != nil {
+		_ = p.Close()
 	}
 	if cleanup != nil {
 		cleanup()

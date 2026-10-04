@@ -188,12 +188,24 @@ func SaveUserStack(s *Stack) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("formatting stack JSON: %w", err)
 	}
-	tmp := target + fmt.Sprintf(".tmp-%d", os.Getpid())
-	if err := os.WriteFile(tmp, data, 0644); err != nil {
+	f, err := os.CreateTemp(dir, "."+s.Name+".json.tmp-*")
+	if err != nil {
+		return "", fmt.Errorf("creating temporary stack file: %w", err)
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
 		return "", fmt.Errorf("writing temporary stack file: %w", err)
 	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return "", fmt.Errorf("syncing temporary stack file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("closing temporary stack file: %w", err)
+	}
 	if err := os.Rename(tmp, target); err != nil {
-		_ = os.Remove(tmp)
 		return "", fmt.Errorf("persisting stack file: %w", err)
 	}
 	s.Source = target

@@ -102,3 +102,37 @@ func TestTrustCannotBeBorrowedThroughDirectoryLink(t *testing.T) {
 		t.Fatal("borrowed another workspace's approval")
 	}
 }
+
+func TestTrustContentsAtomic(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.jsonc")
+	data := []byte(`{"features":{"no_net":true}}`)
+	if err := os.WriteFile(cfgPath, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := trustContents(cfgPath, data); err != nil {
+		t.Fatalf("trustContents failed: %v", err)
+	}
+
+	readData, err := ReadTrustedFile(cfgPath)
+	if err != nil {
+		t.Fatalf("ReadTrustedFile failed: %v", err)
+	}
+	if string(readData) != string(data) {
+		t.Errorf("read data mismatch: got %s, want %s", string(readData), string(data))
+	}
+
+	rec, err := trustRecord(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0600 {
+		t.Errorf("expected trust file mode 0600, got %o", fi.Mode().Perm())
+	}
+}

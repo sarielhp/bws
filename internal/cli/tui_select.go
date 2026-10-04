@@ -59,7 +59,24 @@ func SelectStackInteractive(title string, items []StackChoice) (int, error) {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
+	done := make(chan struct{})
+	defer close(done)
+	startSelectorSignalMonitor(sigCh, done, func() {
+		_ = term.Restore(stdinFd, oldState)
+		os.Exit(130)
+	})
+
 	return runSelectorLoop(title, items, termWidth, termHeight)
+}
+
+func startSelectorSignalMonitor(sigCh <-chan os.Signal, done <-chan struct{}, onSignal func()) {
+	go func() {
+		select {
+		case <-sigCh:
+			onSignal()
+		case <-done:
+		}
+	}()
 }
 
 func runSelectorLoop(title string, items []StackChoice, termWidth, termHeight int) (int, error) {

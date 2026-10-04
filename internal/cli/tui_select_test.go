@@ -2,8 +2,11 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"bws/internal/config"
 	"bws/internal/stack"
@@ -139,4 +142,45 @@ func TestExtractSecurityHighlights(t *testing.T) {
 			t.Errorf("expected security tags to contain %s, got: %s", expected, joined)
 		}
 	}
+}
+
+func TestStartSelectorSignalMonitor(t *testing.T) {
+	t.Run("signals trigger onSignal callback", func(t *testing.T) {
+		sigCh := make(chan os.Signal, 1)
+		done := make(chan struct{})
+		defer close(done)
+
+		called := make(chan struct{})
+		startSelectorSignalMonitor(sigCh, done, func() {
+			close(called)
+		})
+
+		sigCh <- syscall.SIGTERM
+
+		select {
+		case <-called:
+			// Success
+		case <-time.After(500 * time.Millisecond):
+			t.Fatal("timed out waiting for signal callback to execute")
+		}
+	})
+
+	t.Run("done channel cancels monitor cleanly without calling callback", func(t *testing.T) {
+		sigCh := make(chan os.Signal, 1)
+		done := make(chan struct{})
+
+		called := make(chan struct{})
+		startSelectorSignalMonitor(sigCh, done, func() {
+			close(called)
+		})
+
+		close(done)
+
+		select {
+		case <-called:
+			t.Fatal("callback should not be executed when done is closed")
+		case <-time.After(50 * time.Millisecond):
+			// Success - monitor cleanly exited on done
+		}
+	})
 }

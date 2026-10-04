@@ -1,7 +1,9 @@
 package stack
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -217,5 +219,38 @@ func TestUserStackSaveAndGet(t *testing.T) {
 	}
 	if len(searchRes) == 0 || searchRes[0].Name != "my-test-stack" {
 		t.Errorf("Search by description failed to find stack: %+v", searchRes)
+	}
+}
+
+func TestSaveUserStackAtomicClean(t *testing.T) {
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+
+	stk := &Stack{
+		Name:        "atomic-test",
+		Title:       "Atomic Persistence Test",
+		Description: "Testing atomic tempfile creation and fsync",
+		Profiles:    []string{"go"},
+	}
+
+	path, err := SaveUserStack(stk)
+	if err != nil {
+		t.Fatalf("SaveUserStack failed: %v", err)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected target stack file to exist: %v", err)
+	}
+
+	dir := UserStacksDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("reading user stacks dir: %v", err)
+	}
+
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), ".tmp-") {
+			t.Errorf("found leftover temporary file in user stacks dir: %s", entry.Name())
+		}
 	}
 }

@@ -57,7 +57,11 @@ func trustContents(path string, data []byte) error {
 	if err := os.MkdirAll(TrustDir(), 0700); err != nil {
 		return err
 	}
-	return os.WriteFile(record, []byte(fmt.Sprintf("%x", sha256.Sum256(data))), 0600)
+	if err := atomicWriteFile(record, []byte(fmt.Sprintf("%x", sha256.Sum256(data)))); err != nil {
+		return err
+	}
+	_ = os.Chmod(record, 0600)
+	return nil
 }
 
 // WriteTrustedFile writes configuration produced by a host configuration command.
