@@ -2,6 +2,18 @@
   "last_profile_index": 0,
   "last_cadence_index": 0,
   "history": [
-
+    {
+      "number": "001",
+      "profile": "systems",
+      "model": "Gemini 3.8 Flash (Tier 0 Workhorse)",
+      "tier": "tier0",
+      "backend": "gemini",
+      "findings": 7,
+      "outcome": "remediated",
+      "log": "reviews/logs/review_001_systems.log",
+      "timestamp": "2026-10-04T19:31:39Z",
+      "files_edited": 17,
+      "summary": "reviews/archive/001_summary.md"
+    }
   ]
 }
