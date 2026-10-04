@@ -3,9 +3,26 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/tailscale/hujson"
 )
+
+// arrayElementExtra returns the leading whitespace (newline + indentation) used
+// by the array's existing elements, so an appended element is rendered on its
+// own indented line. huJSON moves the last element's trailing whitespace to the
+// array, and a fresh element has none, which would otherwise join it to the
+// previous line (e.g. ["a","b"],"c"). It falls back to two spaces when the
+// array is empty or its elements carry no newline.
+func arrayElementExtra(arr *hujson.Array) hujson.Extra {
+	for _, e := range arr.Elements {
+		extra := string(e.BeforeExtra)
+		if i := strings.LastIndexByte(extra, '\n'); i >= 0 {
+			return hujson.Extra(extra[i:])
+		}
+	}
+	return hujson.Extra("\n  ")
+}
 
 func EditJSONC(path string, fn func(root *hujson.Value) error) error {
 	data, err := os.ReadFile(path)
@@ -71,7 +88,7 @@ func AddArrayElement(path, key, element string) error {
 				if !ok {
 					return fmt.Errorf("key %q is not an array", key)
 				}
-				elem := hujson.Value{Value: hujson.String(element)}
+				elem := hujson.Value{Value: hujson.String(element), BeforeExtra: arrayElementExtra(arr)}
 				arr.Elements = append(arr.Elements, elem)
 				return nil
 			}
@@ -104,6 +121,7 @@ func AddBindArrayElement(path, key, entry string) error {
 				if err != nil {
 					return fmt.Errorf("parsing bind entry: %w", err)
 				}
+				elem.BeforeExtra = arrayElementExtra(arr)
 				arr.Elements = append(arr.Elements, elem)
 				return nil
 			}
