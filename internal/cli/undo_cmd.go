@@ -14,6 +14,7 @@ func HandleUndo(global, local bool) {
 	if !global && !local {
 		local = true
 	}
+	printWorkspaceBanner(global)
 	path := configFilePath(global)
 	label := "local"
 	if global {

@@ -151,6 +151,7 @@ func runBindAdd(hostPath, sandboxPath string, rw, global, local bool) error {
 }
 
 func HandleBindAdd(hostPath, sandboxPath string, rw, global, local bool) {
+	printWorkspaceBanner(global)
 	if err := runBindAdd(hostPath, sandboxPath, rw, global, local); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

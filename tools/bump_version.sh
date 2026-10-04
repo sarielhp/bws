@@ -33,7 +33,10 @@ echo "New version:     $new_version"
 # Rewrite Version line in main.go
 sed -i "s/Version\s*=\s*\"$current\"/Version = \"$new_version\"/" "$VERSION_FILE"
 
-git add "$VERSION_FILE"
+# Stage the version bump together with any pending code changes. A version
+# line committed on its own leaves the tree inconsistent (the code that the
+# version describes would still be unstaged), so add everything.
+git add -A
 git commit -m "chore: bump version to $new_version"
 git push
 

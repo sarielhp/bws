@@ -152,6 +152,7 @@ func HandleSCP(args []string) {
 }
 
 func HandleCopyAdd(prog string, global, local bool) {
+	printWorkspaceBanner(global)
 	if !global && !local {
 		local = true
 	}
@@ -228,6 +229,7 @@ func HandleCopyList() {
 }
 
 func HandleCopyDel(prog string, global, local bool) {
+	printWorkspaceBanner(global)
 	if !global && !local {
 		local = true
 	}

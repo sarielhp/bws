@@ -17,6 +17,7 @@ func HandleBinAdd(hostPath string, global, local bool) {
 	}
 	targetPath := configFilePath(global)
 	ensureConfigFile(targetPath)
+	printWorkspaceBanner(global)
 
 	expanded := resolveAndValidateHostBin(hostPath)
 	homeDir := util.HomeDir()

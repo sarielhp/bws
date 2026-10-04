@@ -15,6 +15,7 @@ func HandlePathAdd(dir string, global, local bool) {
 	}
 	targetPath := configFilePath(global)
 	ensureConfigFile(targetPath)
+	printWorkspaceBanner(global)
 
 	if !strings.HasPrefix(dir, "/") && !strings.HasPrefix(dir, "~/") {
 		fmt.Fprintf(os.Stderr, "Error: Directory path must be absolute or start with ~/.\n")

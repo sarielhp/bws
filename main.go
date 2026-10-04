@@ -6,10 +6,12 @@ import (
 	"os/exec"
 	"strings"
 
+	"bws/internal/cli"
+
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.73"
+var Version = "0.3.74"
 
 // rootPersistentOptions is the set of flags available to every command,
 // organised into help-page groups.
@@ -102,6 +104,7 @@ func buildApp() *clihelp.App {
 		BeforeRun: func(ctx *clihelp.Context) error {
 			// --no-color has to reach the renderer, not just be bound.
 			ctx.App.NoColor = f.noColor
+			cli.SetWorkspaceBannerColor(!f.noColor)
 			return nil
 		},
 		Run: func(ctx *clihelp.Context) error {
