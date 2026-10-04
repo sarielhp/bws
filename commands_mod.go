@@ -241,6 +241,29 @@ func pathCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command 
 	}
 }
 
+func undoCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+	return clihelp.Command{
+		Name:        "undo",
+		Aliases:     []string{"revert"},
+		Group:       "Current environment",
+		Description: "Restore the target config from its single-slot backup",
+		LongDescription: "Restore a configuration file to its contents immediately before the most " +
+			"recent bws write. A single backup is kept per config file; deeper history is not retained. " +
+			"A restored local file is left untrusted until reviewed with 'bws config trust'.",
+		UsageLine:        "bws undo [-g | -l]",
+		Args:             clihelp.NoArgs,
+		OptionsValidator: glValidator,
+		Examples: []clihelp.Example{
+			{Line: "bws undo", Description: "Restore the local workspace config"},
+			{Line: "bws undo -g", Description: "Restore the global config"},
+		},
+		Run: func(ctx *clihelp.Context) error {
+			cli.HandleUndo(f.global, f.local)
+			return nil
+		},
+	}
+}
+
 func runCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "run",

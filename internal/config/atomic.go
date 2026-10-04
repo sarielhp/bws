@@ -60,6 +60,9 @@ func AtomicPolicyWrite(path string, data, expected []byte) error {
 	if err := checkExpected(root, name, expected); err != nil {
 		return err
 	}
+	if err := backupConfig(path); err != nil {
+		return err
+	}
 	temp := fmt.Sprintf(".write-%x", rand.Text())
 	f, err := root.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {

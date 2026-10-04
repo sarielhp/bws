@@ -61,7 +61,11 @@ func trustContents(path string, data []byte) error {
 }
 
 // WriteTrustedFile writes configuration produced by a host configuration command.
+// Configuration files gain a single-slot backup of their prior contents first.
 func WriteTrustedFile(path string, data []byte) error {
+	if err := backupConfig(path); err != nil {
+		return err
+	}
 	if err := atomicWriteFile(path, data); err != nil {
 		return err
 	}

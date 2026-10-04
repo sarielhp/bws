@@ -582,6 +582,13 @@ bws config reset -g
 bws config reset -l
 ```
 
+### `bws undo [-g | -l]`
+Restore a configuration file to its contents immediately before the most recent `bws` write (alias: `revert`). One backup slot is kept per config file, at `<config>.bak`; deeper history is not retained. After an undo the restored local file is no longer trusted, so run `bws config trust` in its workspace after reviewing it.
+```bash
+bws undo          # Restore the local workspace config
+bws undo -g       # Restore the global config
+```
+
 ### `bws config push <user@host:>`
 Copy global configuration and themes to a remote host via SCP (aliases: `scp`, `sync`).
 ```bash

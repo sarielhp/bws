@@ -55,12 +55,13 @@ func HandleConfigReset(global, local bool) {
 	}
 
 	if _, err := os.Stat(path); err == nil {
-		backup := path + ".bak"
-		if err := os.Rename(path, backup); err != nil {
+		if err := config.BackupConfig(path); err != nil {
 			fmt.Fprintf(os.Stderr, "Error backing up config: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Backed up old %s config to %s\n", label, backup)
+		if config.HasBackup(path) {
+			fmt.Printf("Backed up old %s config to %s\n", label, config.BackupPath(path))
+		}
 	}
 
 	if global {
