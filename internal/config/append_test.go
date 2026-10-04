@@ -63,6 +63,37 @@ func TestAddArrayElementOwnLine(t *testing.T) {
 	}
 }
 
+// A compact hand-written array stays compact: the new element is joined inline
+// rather than forced onto its own line.
+func TestAddArrayElementCompactStaysCompact(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".bws", "config.jsonc")
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteTrustedFile(path, []byte("{\"mask\":[\"a\",\"b\"]}\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := AddArrayElement(path, "mask", "c"); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	data, _ := os.ReadFile(path)
+	out := string(data)
+	if strings.Contains(out, `"b",`+"\n") {
+		t.Fatalf("compact array was broken onto a new line:\n%s", out)
+	}
+	if !strings.Contains(out, `"a","b","c"`) && !strings.Contains(out, `"a","b", "c"`) {
+		t.Fatalf("new element not appended inline:\n%s", out)
+	}
+	cfg, err := Parse(data, path)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(cfg.Mask) != 3 {
+		t.Fatalf("mask=%v", cfg.Mask)
+	}
+}
+
 // Appending to the packed default asset (whose elements are compact rows and
 // whose binds_ro holds only a comment) must stay valid and mountable.
 func TestAddBindArrayElementOnGeneratedDefault(t *testing.T) {

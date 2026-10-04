@@ -8,18 +8,24 @@ import (
 	"github.com/tailscale/hujson"
 )
 
-// arrayElementExtra returns the leading whitespace (newline + indentation) used
-// by the array's existing elements, so an appended element is rendered on its
-// own indented line. huJSON moves the last element's trailing whitespace to the
-// array, and a fresh element has none, which would otherwise join it to the
-// previous line (e.g. ["a","b"],"c"). It falls back to two spaces when the
-// array is empty or its elements carry no newline.
+// arrayElementExtra returns the leading whitespace to place before an appended
+// array element. huJSON moves the last element's trailing whitespace to the
+// array, and a fresh element has none, so without this the new element would be
+// joined to the previous one (e.g. ["a","b"],"c").
+//
+// When the array's existing elements begin on new lines, the new element gets a
+// newline plus the same indentation as its last multi-line sibling. When the
+// elements share a line (a compact array), it gets a single space so the array
+// stays compact. An empty array falls back to a newline and two spaces.
 func arrayElementExtra(arr *hujson.Array) hujson.Extra {
 	for _, e := range arr.Elements {
 		extra := string(e.BeforeExtra)
 		if i := strings.LastIndexByte(extra, '\n'); i >= 0 {
 			return hujson.Extra(extra[i:])
 		}
+	}
+	if len(arr.Elements) > 0 {
+		return hujson.Extra(" ")
 	}
 	return hujson.Extra("\n  ")
 }

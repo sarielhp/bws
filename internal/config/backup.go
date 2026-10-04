@@ -104,6 +104,11 @@ func RestoreBackup(path string) error {
 	return nil
 }
 
+// DisplayPath shortens a home-anchored path to '~/...' for user-facing messages.
+func DisplayPath(path string) string {
+	return displayConfigPath(path)
+}
+
 // displayConfigPath shortens a home-anchored path to '~/...' for messages.
 func displayConfigPath(path string) string {
 	home, err := os.UserHomeDir()

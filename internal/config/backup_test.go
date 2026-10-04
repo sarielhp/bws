@@ -153,3 +153,15 @@ func TestBackupInvisibleToWorkspaceDiscovery(t *testing.T) {
 		t.Errorf("discovery returned %q (root %q); backup should be invisible", found, root)
 	}
 }
+
+func TestDisplayPathShortensHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	got := DisplayPath(filepath.Join(home, ".bws", "config.jsonc.bak"))
+	if got != "~/.bws/config.jsonc.bak" {
+		t.Errorf("DisplayPath = %q, want ~/.bws/config.jsonc.bak", got)
+	}
+	if outside := DisplayPath("/etc/bws.conf"); outside != "/etc/bws.conf" {
+		t.Errorf("DisplayPath outside home = %q, want unchanged", outside)
+	}
+}

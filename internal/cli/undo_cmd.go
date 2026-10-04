@@ -25,7 +25,7 @@ func HandleUndo(global, local bool) {
 		os.Exit(1)
 	}
 	if !config.HasBackup(path) {
-		fmt.Fprintf(os.Stderr, "No backup available for %s configuration (%s).\n", label, config.BackupPath(path))
+		fmt.Fprintf(os.Stderr, "No backup available for %s configuration (%s).\n", label, config.DisplayPath(config.BackupPath(path)))
 		os.Exit(1)
 	}
 
@@ -34,7 +34,7 @@ func HandleUndo(global, local bool) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Restored %s configuration from %s (state before the most recent write).\n", label, config.BackupPath(path))
+	fmt.Printf("Restored %s configuration from %s (state before the most recent write).\n", label, config.DisplayPath(config.BackupPath(path)))
 	if !global {
 		PrintWorkspaceInfo(findWorkspaceForPath(path))
 		fmt.Println("This file is no longer trusted; run 'bws config trust' in its workspace after reviewing it.")
