@@ -226,3 +226,59 @@ func TestHandleBindAddDanglingSymlinkError(t *testing.T) {
 		t.Errorf("config file should not be created on error")
 	}
 }
+
+func TestRunBindDelPreservesBackupForUndo(t *testing.T) {
+	tmpDir, cleanup := setupTestWorkspace(t)
+	defer cleanup()
+
+	cfgPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
+	if err := os.MkdirAll(filepath.Dir(cfgPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	initialConfig := `{
+  "binds_rw": ["/data/rw"],
+  "binds_ro": ["/data/ro"]
+}
+`
+	if err := config.WriteTrustedFile(cfgPath, []byte(initialConfig)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remove /data/rw - should remove from binds_rw and break without clobbering backup via binds_ro
+	if err := runBindDel("/data/rw", false, true); err != nil {
+		t.Fatalf("runBindDel failed: %v", err)
+	}
+
+	// Verify current file no longer has /data/rw
+	currentBytes, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(currentBytes), `"/data/rw"`) {
+		t.Errorf("current file still contains /data/rw: %s", string(currentBytes))
+	}
+	if !strings.Contains(string(currentBytes), `"/data/ro"`) {
+		t.Errorf("current file lost /data/ro: %s", string(currentBytes))
+	}
+
+	// Verify backup file still contains /data/rw
+	bakPath := cfgPath + ".bak"
+	bakBytes, err := os.ReadFile(bakPath)
+	if err != nil {
+		t.Fatalf("reading backup file %s: %v", bakPath, err)
+	}
+	if !strings.Contains(string(bakBytes), `"/data/rw"`) {
+		t.Errorf("backup file was clobbered by second pass and lost /data/rw: %s", string(bakBytes))
+	}
+
+	// Verify undo restores the file with /data/rw
+	HandleUndo(false, true)
+	restoredBytes, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(restoredBytes), `"/data/rw"`) {
+		t.Errorf("undo failed to restore /data/rw: %s", string(restoredBytes))
+	}
+}

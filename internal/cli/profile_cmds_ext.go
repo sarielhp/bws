@@ -169,6 +169,53 @@ func HandleProfileSearch(query string) error {
 
 const maxHTTPResponseBytes = 5 * 1024 * 1024 // 5 MB
 
+// fetchRemoteProfile downloads a profile from GitHub repository. Returns (true, nil) on success,
+// (false, nil) if not found in catalog (404), or (false, err) on network/JSON/file error.
+func fetchRemoteProfile(name, targetDir string) (bool, error) {
+	cleanName := strings.ToLower(strings.TrimSpace(name))
+	if cleanName == "" {
+		return false, fmt.Errorf("profile name cannot be empty")
+	}
+	if err := profile.ValidateName(cleanName); err != nil {
+		return false, err
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	url := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bws/main/profiles/%s.json", cleanName)
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return false, fmt.Errorf("fetching %s: %w", cleanName, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("unexpected status %d fetching %s", resp.StatusCode, cleanName)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponseBytes))
+	if err != nil {
+		return false, fmt.Errorf("reading profile %s: %w", cleanName, err)
+	}
+
+	var p profile.Profile
+	if err := json.Unmarshal(data, &p); err != nil {
+		return false, fmt.Errorf("invalid profile json for %s: %w", cleanName, err)
+	}
+
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return false, err
+	}
+	targetFile := filepath.Join(targetDir, cleanName+".json")
+	if err := config.WriteTrustedFile(targetFile, data); err != nil {
+		return false, fmt.Errorf("saving %s: %w", targetFile, err)
+	}
+	return true, nil
+}
+
 // HandleProfileFetch downloads a profile from GitHub repository or synthesizes it.
 func HandleProfileFetch(name string, global, local, force bool) error {
 	cleanName := strings.ToLower(strings.TrimSpace(name))
@@ -186,27 +233,17 @@ func HandleProfileFetch(name string, global, local, force bool) error {
 	} else {
 		targetDir = profile.GlobalProfilesDir()
 	}
-	os.MkdirAll(targetDir, 0755)
-
 	targetFile := filepath.Join(targetDir, cleanName+".json")
+	if _, err := os.Stat(targetFile); err == nil && !force {
+		return fmt.Errorf("profile %q already exists at %s (use -f/--force to overwrite)", cleanName, targetFile)
+	}
 
-	// Try remote GitHub fetch
-	client := &http.Client{Timeout: 5 * time.Second}
-	url := fmt.Sprintf("https://raw.githubusercontent.com/sarielhp/bws/main/profiles/%s.json", cleanName)
-
-	resp, err := client.Get(url)
-	if err == nil && resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		data, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponseBytes))
-		if err == nil {
-			var p profile.Profile
-			if err := json.Unmarshal(data, &p); err == nil {
-				if err := config.WriteTrustedFile(targetFile, data); err == nil {
-					fmt.Printf("Fetched profile %s from GitHub -> %s\n", ColorProfile(cleanName), targetFile)
-					return nil
-				}
-			}
-		}
+	ok, err := fetchRemoteProfile(cleanName, targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: remote fetch for %s failed: %v\n", cleanName, err)
+	} else if ok {
+		fmt.Printf("Fetched profile %s from GitHub -> %s\n", ColorProfile(cleanName), targetFile)
+		return nil
 	}
 
 	// Fall back to synthesis
@@ -228,7 +265,10 @@ func HandleProfileUpdate() error {
 			continue
 		}
 		pName := strings.TrimSuffix(e.Name(), ".json")
-		if err := HandleProfileFetch(pName, true, false, false); err == nil {
+		ok, err := fetchRemoteProfile(pName, dir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "skip %s: %v\n", pName, err)
+		} else if ok {
 			updated++
 		}
 	}

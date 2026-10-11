@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -200,7 +201,7 @@ func LoadFile(path string) (*Config, error) {
 
 // Parse loads JSONC configuration without reading or writing files.
 func Parse(data []byte, path string) (*Config, error) {
-	standardized, err := hujson.Standardize(data)
+	standardized, err := hujson.Standardize(bytes.Clone(data))
 	if err != nil {
 		return nil, fmt.Errorf("invalid JSONC in %s: %w", path, err)
 	}

@@ -1,12 +1,16 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/tailscale/hujson"
 )
+
+// ErrNoChange indicates that an edit operation resulted in no changes to the file.
+var ErrNoChange = errors.New("no change")
 
 // arrayElementExtra returns the leading whitespace to place before an appended
 // array element. huJSON moves the last element's trailing whitespace to the
@@ -43,6 +47,9 @@ func EditJSONC(path string, fn func(root *hujson.Value) error) error {
 		return fmt.Errorf("parsing %s: %w", path, err)
 	}
 	if err := fn(&ast); err != nil {
+		if errors.Is(err, ErrNoChange) {
+			return nil
+		}
 		return err
 	}
 	out := ast.Pack()
@@ -197,11 +204,14 @@ func RemoveBindElement(path, key, hostPath string) (bool, error) {
 					}
 					filtered = append(filtered, e)
 				}
+				if !found {
+					return ErrNoChange
+				}
 				arr.Elements = filtered
 				return nil
 			}
 		}
-		return fmt.Errorf("key %q not found in root object", key)
+		return ErrNoChange
 	})
 	return found, err
 }

@@ -182,12 +182,13 @@ func runBindDel(hostPath string, global, local bool) error {
 	for _, cand := range candidates {
 		for _, key := range []string{"binds_rw", "binds_ro"} {
 			f, err := config.RemoveBindElement(targetPath, key, cand)
-			if err != nil || f {
-				found = found || f
+			if err == nil && f {
+				found = true
+				matchedPath = cand
+				break
 			}
 		}
 		if found {
-			matchedPath = cand
 			break
 		}
 	}

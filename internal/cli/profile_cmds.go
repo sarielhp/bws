@@ -180,6 +180,17 @@ func HandleProfileNew(name string, global, local, force bool) error {
 	}
 	cwd, _ := os.Getwd()
 
+	var targetDir string
+	if local {
+		targetDir = profile.LocalProfilesDir(cwd)
+	} else {
+		targetDir = profile.GlobalProfilesDir()
+	}
+	targetPath := filepath.Join(targetDir, name+".json")
+	if _, err := os.Stat(targetPath); err == nil && !force {
+		return fmt.Errorf("profile %q already exists at %s (use -f/--force to overwrite)", name, targetPath)
+	}
+
 	registry, err := profile.LoadRegistry(cwd)
 	if err != nil {
 		return err
@@ -205,14 +216,6 @@ func HandleProfileNew(name string, global, local, force bool) error {
 		fmt.Printf("  • Host binary:  not found in $PATH (profile created without local installation)\n")
 	}
 
-	var targetDir string
-	if local {
-		targetDir = profile.LocalProfilesDir(cwd)
-	} else {
-		targetDir = profile.GlobalProfilesDir()
-	}
-
-	targetPath := filepath.Join(targetDir, name+".json")
 	if err := profile.SaveProfile(p, targetPath); err != nil {
 		return err
 	}

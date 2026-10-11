@@ -9,6 +9,7 @@ import (
 )
 
 func TestEmbeddedStacksLoad(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	seeds := []string{"go-agent", "latex-review", "python-uv", "rust-dev"}
 	for _, name := range seeds {
 		stk, err := Get(name)

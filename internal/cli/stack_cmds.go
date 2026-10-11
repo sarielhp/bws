@@ -13,6 +13,8 @@ import (
 	"bws/internal/profile"
 	"bws/internal/stack"
 	"bws/internal/util"
+
+	"github.com/tailscale/hujson"
 )
 
 // HandleStackList displays all registered seed and user-saved stacks.
@@ -355,16 +357,13 @@ func HandleStackUpdate(dryRun, yes bool) error {
 	}
 	fmt.Printf("Created configuration backup: %s\n", backupPath)
 
-	localCfg.ReviewedStack = &config.ProfileApproval{
+	updatedJSON, err := patchReviewedStack(before, &config.ProfileApproval{
 		Source: upstream.Source,
 		SHA256: upstreamDigest,
-	}
-
-	updatedJSON, err := json.MarshalIndent(localCfg, "", "  ")
+	})
 	if err != nil {
-		return fmt.Errorf("marshaling updated config: %w", err)
+		return err
 	}
-	updatedJSON = append(updatedJSON, '\n')
 
 	if err := config.AtomicPolicyWrite(localPath, updatedJSON, before); err != nil {
 		return fmt.Errorf("writing updated config: %w", err)
@@ -372,6 +371,26 @@ func HandleStackUpdate(dryRun, yes bool) error {
 	fmt.Printf("Successfully updated stack %q in %s (%s)\n", upstream.Name, localPath, upstreamDigest[:12])
 	PrintWorkspaceInfo(root)
 	return nil
+}
+
+func patchReviewedStack(before []byte, approval *config.ProfileApproval) ([]byte, error) {
+	ast, err := hujson.Parse(before)
+	if err != nil {
+		return nil, fmt.Errorf("parsing configuration: %w", err)
+	}
+	approvalBytes, err := json.Marshal(approval)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling stack approval: %w", err)
+	}
+	patch := fmt.Sprintf(`[{"op":"add","path":"/reviewed_stack","value":%s}]`, approvalBytes)
+	if err := ast.Patch([]byte(patch)); err != nil {
+		return nil, fmt.Errorf("patching reviewed_stack: %w", err)
+	}
+	out := ast.Pack()
+	if len(out) > 0 && out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	return out, nil
 }
 
 func printStackUpdateDetails(upstream *stack.Stack, currentDigest, upstreamDigest string) {

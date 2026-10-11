@@ -49,6 +49,12 @@
       "@@HOME@@/.local/state/antigravity"
     ]
   ],
+  "binds_ro": [
+    [
+      "~/bin",
+      "@@HOME@@/bin"
+    ]
+  ],
   "tests": [
     {
       "name": "Antigravity CLI help",

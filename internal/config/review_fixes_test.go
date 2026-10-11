@@ -140,3 +140,33 @@ func TestCloneSharesNoPointers(t *testing.T) {
 	fillPointers(reflect.ValueOf(c).Elem())
 	assertNoSharedPointers(t, "Config", reflect.ValueOf(c).Elem(), reflect.ValueOf(Clone(c)).Elem())
 }
+
+func TestRemoveBindElementNoChangeDoesNotRewriteOrBackup(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.jsonc")
+	body := "{\n  // User comments\n  \"binds_rw\": [\"/existing/path\"]\n}\n"
+	if err := os.WriteFile(p, []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	found, err := RemoveBindElement(p, "binds_rw", "/nonexistent/path")
+	if err != nil {
+		t.Fatalf("RemoveBindElement failed: %v", err)
+	}
+	if found {
+		t.Error("expected found=false for non-existent path")
+	}
+
+	bakPath := p + ".bak"
+	if _, err := os.Stat(bakPath); !os.IsNotExist(err) {
+		t.Errorf("backup file should not be created on no-change remove")
+	}
+
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != body {
+		t.Errorf("file was rewritten on no-op removal: got %q, want %q", string(data), body)
+	}
+}

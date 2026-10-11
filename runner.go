@@ -191,13 +191,10 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	if cleanup != nil {
 		cleanup()
 	}
-	if runErr != nil {
-		if exitErr, ok := runErr.(*exec.ExitError); ok {
-			os.Exit(exitErr.ExitCode())
-		}
-		return runErr
-	}
-	return nil
+	// Return the error instead of calling os.Exit here: main already maps
+	// *exec.ExitError to the child's exit code. Exiting in the middle of the
+	// stack would bypass the deferred tmux/proxy/signal cleanup in callers.
+	return runErr
 }
 
 func runDefault(args []string, force, verbose bool, flags policy.Flags, noInit, tmuxFlag, noTmuxFlag bool) error {
