@@ -29,6 +29,7 @@ bws/
 │   ├── integrations.rb      # Antigravity skill and OpenCode commands, copied by install
 │   ├── check_docs_drift.rb  # verify docs/commands.md against `bws inventory`
 │   ├── test_long            # run all long tests individually
+│   ├── go_tools_setup_fix   # link an installed Go into ~/.local/bin, set GOPATH=~/.go
 │   ├── outline_symbols.sh   # sorted index of exported symbols
 │   ├── show_symbol.sh       # show a symbol's declaration
 │   └── review_cycle.json    # review-cycle configuration

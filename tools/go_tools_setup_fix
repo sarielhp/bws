@@ -1,0 +1,145 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Links an existing user-level Go installation into ~/.local/bin and points
+# GOPATH at ~/.go, so non-interactive shells (sync_all, ssh host cmd) find go.
+require 'fileutils'
+require 'open3'
+
+HELP = <<~TEXT
+  Usage: tools/go_tools_setup_fix [--goroot DIR] [--force] [--dry-run]
+
+  Make an installed Go usable from any shell:
+
+    ~/.local/bin/go    -> <GOROOT>/bin/go
+    ~/.local/bin/gofmt -> <GOROOT>/bin/gofmt
+    GOPATH             =  ~/.go (via go env -w), unless GOROOT is ~/.go itself
+
+  Go is not downloaded or installed. Without --goroot, the first of these
+  holding bin/go is used: ~/.go/sdk, ~/.go/go, ~/.go, ~/.local/opt/go,
+  ~/sdk/go*, /usr/local/go, then the go on PATH. Toolchains auto-downloaded into the module cache
+  are never linked.
+
+  Options:
+    --goroot DIR  Use the Go installation in DIR.
+    --force       Replace an existing ~/.local/bin/go or gofmt that is a
+                  regular file rather than a symlink.
+    --dry-run     Print what would change; change nothing.
+    -h, --help    Show this help; nothing is changed.
+TEXT
+
+HOME = Dir.home
+BIN_DIR = File.join(HOME, '.local', 'bin')
+GOPATH_DIR = File.join(HOME, '.go')
+LINKED = %w[go gofmt].freeze
+# Run go as installed: without this a go.mod toolchain line in the current
+# directory makes go switch to a cached download.
+LOCAL_GO = { 'GOTOOLCHAIN' => 'local' }.freeze
+
+def parse_args(argv)
+  opts = { goroot: nil, force: false, dry_run: false }
+  args = argv.dup
+  until args.empty?
+    arg = args.shift
+    case arg
+    when '-h', '--help'
+      puts HELP
+      exit
+    when '--force' then opts[:force] = true
+    when '--dry-run' then opts[:dry_run] = true
+    when '--goroot' then opts[:goroot] = args.shift || abort('--goroot needs a directory')
+    else abort("unknown argument: #{arg}\n\n#{HELP}")
+    end
+  end
+  opts
+end
+
+def candidates
+  sdk = Dir[File.join(HOME, 'sdk', 'go*')].reverse
+  [File.join(GOPATH_DIR, 'sdk'), File.join(GOPATH_DIR, 'go'), GOPATH_DIR,
+   File.join(HOME, '.local', 'opt', 'go'), *sdk, '/usr/local/go']
+end
+
+def go_root?(dir)
+  File.executable?(File.join(dir, 'bin', 'go')) && File.directory?(File.join(dir, 'src')) &&
+    !dir.include?('/pkg/mod/')
+end
+
+def find_goroot(requested)
+  if requested
+    dir = File.expand_path(requested)
+    abort("#{dir} is not a Go installation (no bin/go and src/)") unless go_root?(dir)
+    return File.realpath(dir)
+  end
+  dir = candidates.find { |path| go_root?(path) } || path_goroot
+  abort("no Go installation found; pass --goroot DIR\nlooked in: #{candidates.join(', ')}") unless dir
+  File.realpath(dir)
+end
+
+# path_goroot returns the installation of the go found on PATH, ignoring the
+# go.mod toolchain line so that a cached auto-downloaded toolchain is not chosen.
+def path_goroot
+  out, status = Open3.capture2(LOCAL_GO, 'go', 'env', 'GOROOT')
+  dir = out.strip
+  status.success? && go_root?(dir) ? dir : nil
+rescue Errno::ENOENT
+  nil
+end
+
+def go_version(goroot)
+  out, status = Open3.capture2e(LOCAL_GO, File.join(goroot, 'bin', 'go'), 'version')
+  abort("#{goroot}/bin/go does not run:\n#{out}") unless status.success?
+  out.strip
+end
+
+# Replaces the link at path with one to target, atomically; a regular file
+# there is only replaced with --force.
+def link(target, path, opts)
+  current = File.symlink?(path) ? File.readlink(path) : nil
+  return puts("  ok      #{path} -> #{target}") if current == target
+
+  abort("#{path} is a regular file; move it away or pass --force") if File.exist?(path) && current.nil? && !opts[:force]
+  puts "  link    #{path} -> #{target}#{" (was #{current})" if current}"
+  return if opts[:dry_run]
+
+  FileUtils.mkdir_p(File.dirname(path))
+  staged = "#{path}.go_setup.#{Process.pid}"
+  File.symlink(target, staged)
+  File.rename(staged, path)
+end
+
+def set_gopath(goroot, opts)
+  if goroot == File.realpath(GOPATH_DIR)
+    puts "  skip    GOPATH: GOROOT is #{GOPATH_DIR}; Go's default ~/go stays in use"
+    return
+  end
+  go = File.join(goroot, 'bin', 'go')
+  current, = Open3.capture2(go, 'env', 'GOPATH')
+  return puts("  ok      GOPATH=#{GOPATH_DIR}") if current.strip == GOPATH_DIR
+
+  puts "  set     GOPATH=#{GOPATH_DIR} (was #{current.strip})"
+  return if opts[:dry_run]
+
+  _, status = Open3.capture2e(go, 'env', '-w', "GOPATH=#{GOPATH_DIR}")
+  abort('go env -w GOPATH failed') unless status.success?
+end
+
+def check_path
+  dirs = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).map { |dir| File.expand_path(dir) }
+  missing = [BIN_DIR, File.join(GOPATH_DIR, 'bin')].reject { |dir| dirs.include?(dir) }
+  return puts('  ok      PATH includes ~/.local/bin and ~/.go/bin') if missing.empty?
+
+  puts "\nPATH is missing: #{missing.join(', ')}"
+  puts 'Add it where non-interactive shells read it, e.g. near the top of ~/.bashrc'
+  puts '(before the "not interactive, stop" check):'
+  puts '  export PATH="$HOME/.local/bin:$HOME/.go/bin:$PATH"'
+  puts 'or, in fish: fish_add_path ~/.local/bin ~/.go/bin'
+end
+
+opts = parse_args(ARGV)
+goroot = find_goroot(opts[:goroot])
+puts "Go installation: #{goroot} (#{go_version(goroot)})"
+puts '(dry run: nothing is changed)' if opts[:dry_run]
+LINKED.each { |name| link(File.join(goroot, 'bin', name), File.join(BIN_DIR, name), opts) }
+set_gopath(goroot, opts)
+check_path
