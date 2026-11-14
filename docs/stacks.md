@@ -126,6 +126,67 @@ The update operation:
 
 ---
 
+## Stack integrity and shadowing
+
+To protect sandbox isolation and reproducibility, workspaces pin the cryptographic SHA-256 fingerprint of their base stack in `.bws/config.jsonc`:
+
+```jsonc
+{
+  "stack": "latex-review",
+  "reviewed_stack": {
+    "source": "embedded",
+    "sha256": "61a8120a0f444d1a6de0e6ca96475376ce4bf7fa827bb798beb93f55c2a9ff57"
+  }
+}
+```
+
+Whenever `bws` launches a sandbox or runs a command in the workspace, it verifies that the active stack definition matches `reviewed_stack.sha256`.
+
+### Why the error occurs
+
+If the digest does not match, `bws` fails fast:
+
+```text
+error: stack "<name>" changed or was shadowed; review with 'bws stack show <name>', then update with 'bws stack update'
+See: https://github.com/sarielhp/bws/blob/main/docs/stacks.md#stack-integrity-and-shadowing
+```
+
+This occurs in two situations:
+
+1. **Stack definition changed**: An upstream stack (embedded in `bws` or saved in `~/.config/bws/stacks/`) was modified after this workspace was initialized. Constituent profiles, environment variables, default commands, or feature toggles (such as D-Bus or proxy access) changed.
+2. **Stack shadowed**: A user stack in `~/.config/bws/stacks/<name>.json` was saved with the same name as a built-in seed stack (such as `latex-review`, `go-agent`, `python-uv`, or `rust-dev`). Because `bws` checks `~/.config/bws/stacks/` before embedded stacks, the user stack takes precedence and **shadows** the built-in stack. Because the shadowed definition has a different digest, `bws` blocks execution until reviewed.
+
+### Resolution workflows
+
+Depending on whether the change or shadowing was intended, choose one of the following paths:
+
+#### 1. Review and accept the updated stack
+
+Inspect the current stack definition and compare it to your workspace expectations:
+
+```bash
+# View current stack metadata, constituent profiles, features, and digest
+bws stack show <name>
+
+# Preview what will change in your workspace configuration
+bws stack update --dry-run
+
+# Apply the update (backs up .bws/config.jsonc to .bws/config.jsonc.bak)
+bws stack update
+```
+
+#### 2. Restore the original embedded stack (unshadow)
+
+If a user stack was saved with the same name accidentally (for example, by running `bws stack save <name>` with a seed stack name), remove or rename the overriding user file:
+
+```bash
+rm ~/.config/bws/stacks/<name>.json
+```
+
+Once removed, `bws` resolves the embedded seed stack again. If the embedded stack matches the digest originally pinned in your workspace, `bws` runs without needing an update.
+
+---
+
 ## Command reference
 
 ### `bws stack list`

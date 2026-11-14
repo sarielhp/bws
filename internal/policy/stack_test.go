@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"strings"
 	"testing"
 
 	"bws/internal/config"
@@ -61,6 +62,10 @@ func TestApplyStackDigestMismatch(t *testing.T) {
 	err := ApplyStack(cfg, ".")
 	if err == nil {
 		t.Fatalf("expected error on digest mismatch, got nil")
+	}
+	expectedLink := "https://github.com/sarielhp/bws/blob/main/docs/stacks.md#stack-integrity-and-shadowing"
+	if !strings.Contains(err.Error(), expectedLink) {
+		t.Errorf("expected error to contain %q, got: %v", expectedLink, err)
 	}
 }
 

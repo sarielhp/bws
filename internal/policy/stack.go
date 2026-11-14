@@ -24,7 +24,7 @@ func ApplyStack(cfg *config.Config, currentDir string) error {
 			return err
 		}
 		if cfg.ReviewedStack.SHA256 != digest {
-			return fmt.Errorf("stack %q changed or was shadowed; review with 'bws stack show %s', then update with 'bws stack update'", cfg.Stack, cfg.Stack)
+			return fmt.Errorf("stack %q changed or was shadowed; review with 'bws stack show %s', then update with 'bws stack update'\nSee: https://github.com/sarielhp/bws/blob/main/docs/stacks.md#stack-integrity-and-shadowing", cfg.Stack, cfg.Stack)
 		}
 	}
 	cfg.Profiles = MergeStackProfiles(stk.Profiles, cfg.Profiles)
