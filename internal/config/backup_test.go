@@ -1,20 +1,11 @@
 package config
 
 import (
+	"bws/internal/testutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
-
-func writeFile(t *testing.T, path, content string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-}
 
 func TestIsConfigFile(t *testing.T) {
 	home := t.TempDir()
@@ -42,7 +33,7 @@ func TestIsConfigFile(t *testing.T) {
 func TestBackupConfigLocal(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, ".bws", "config.jsonc")
-	writeFile(t, cfg, `{"profiles":["go"]}`)
+	testutil.WriteFile(t, cfg, `{"profiles":["go"]}`)
 
 	if err := BackupConfig(cfg); err != nil {
 		t.Fatalf("BackupConfig: %v", err)
@@ -56,7 +47,7 @@ func TestBackupConfigLocal(t *testing.T) {
 	}
 
 	// Second backup overwrites with the newer state.
-	writeFile(t, cfg, `{"profiles":["go","git"]}`)
+	testutil.WriteFile(t, cfg, `{"profiles":["go","git"]}`)
 	if err := BackupConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +60,7 @@ func TestBackupConfigLocal(t *testing.T) {
 func TestBackupConfigIgnoresNonConfigAndAbsent(t *testing.T) {
 	dir := t.TempDir()
 	profile := filepath.Join(dir, ".bws", "profiles", "go.json")
-	writeFile(t, profile, `{"name":"go"}`)
+	testutil.WriteFile(t, profile, `{"name":"go"}`)
 	if err := BackupConfig(profile); err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +70,7 @@ func TestBackupConfigIgnoresNonConfigAndAbsent(t *testing.T) {
 
 	// Absent config: no error, and any stale backup is cleared.
 	cfg := filepath.Join(dir, ".bws", "config.jsonc")
-	writeFile(t, cfg+BackupSuffix, `stale`)
+	testutil.WriteFile(t, cfg+BackupSuffix, `stale`)
 	if err := BackupConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -91,11 +82,11 @@ func TestBackupConfigIgnoresNonConfigAndAbsent(t *testing.T) {
 func TestRestoreBackup(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, ".bws", "config.jsonc")
-	writeFile(t, cfg, `{"v":1}`)
+	testutil.WriteFile(t, cfg, `{"v":1}`)
 	if err := BackupConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, cfg, `{"v":2}`)
+	testutil.WriteFile(t, cfg, `{"v":2}`)
 
 	if !HasBackup(cfg) {
 		t.Fatal("HasBackup = false, want true")
@@ -123,7 +114,7 @@ func TestRestoreBackup(t *testing.T) {
 func TestRestoreBackupMissing(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, ".bws", "config.jsonc")
-	writeFile(t, cfg, `{}`)
+	testutil.WriteFile(t, cfg, `{}`)
 	if HasBackup(cfg) {
 		t.Fatal("HasBackup = true, want false")
 	}
@@ -135,7 +126,7 @@ func TestRestoreBackupMissing(t *testing.T) {
 func TestBackupInvisibleToWorkspaceDiscovery(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, ".bws", "config.jsonc")
-	writeFile(t, cfg, `{"profiles":["go"]}`)
+	testutil.WriteFile(t, cfg, `{"profiles":["go"]}`)
 	if err := BackupConfig(cfg); err != nil {
 		t.Fatal(err)
 	}

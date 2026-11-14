@@ -1,43 +1,43 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+# Runs the opt-in long tests (build tag "long") one at a time and reports each.
+require 'open3'
+require_relative 'settings'
+require_relative 'tmp_space'
 
-echo "=== Building bw ==="
-go build -o /dev/null .
-echo ""
+HELP = <<~TEXT
+  Usage: tools/test_long [-v]
 
-echo "=== Compiling long tests ==="
-go test -tags=long -c -o /tmp/bw-long-test .
-echo ""
+  Run each long sandbox test (go test -tags=long) separately and report
+  PASS or FAIL. Exits with the number of failures.
 
-tests=(
-    TestLaTeXInSandbox
-    TestOpenCodeInSandbox
-    TestCppInSandbox
-    TestRustInSandbox
-    TestGoInSandbox
-    TestEmacsInSandbox
-    TestPythonInSandbox
-    TestMakeInSandbox
-    TestQuartoInSandbox
-    TestUVInSandbox
-)
+  Options:
+    -v          Print the output of failing tests.
+    -h, --help  Show this help; nothing is run.
+TEXT
 
-failed=0
-for test in "${tests[@]}"; do
-    printf "  %-35s " "$test"
-    if /tmp/bw-long-test -test.run "^${test}$" -test.v &>/dev/null; then
-        echo "PASS"
-    else
-        echo "FAIL"
-        failed=$((failed + 1))
-    fi
-done
+TESTS = %w[
+  TestLaTeXInSandbox TestOpenCodeInSandbox TestCppInSandbox TestRustInSandbox
+  TestGoInSandbox TestEmacsInSandbox TestPythonInSandbox TestMakeInSandbox
+  TestQuartoInSandbox TestUVInSandbox
+].freeze
 
-total="${#tests[@]}"
-passed=$((total - failed))
-echo ""
-echo "=== Results: $passed/$total passed, $failed failed ==="
-exit "$failed"
+if ARGV.intersect?(%w[-h --help])
+  puts HELP
+  exit
+end
+abort 'Usage: tools/test_long [-v]' unless ARGV.empty? || ARGV == ['-v']
+
+Dir.chdir(File.expand_path('..', __dir__))
+ProjectTmp.project = ToolSettings::PROJECT_NAME
+failed = ProjectTmp.with_test_env('test-long') do
+  TESTS.count do |name|
+    out, status = Open3.capture2e('go', 'test', '-tags=long', '-count=1', '-run', "^#{name}$", '.')
+    puts format('  %-35<name>s %<result>s', name: name, result: status.success? ? 'PASS' : 'FAIL')
+    puts out if !status.success? && ARGV == ['-v']
+    !status.success?
+  end
+end
+puts "\n=== Results: #{TESTS.size - failed}/#{TESTS.size} passed, #{failed} failed ==="
+exit failed

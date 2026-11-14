@@ -2,8 +2,10 @@ package profile
 
 import (
 	"bws/internal/detect"
+	"cmp"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -36,11 +38,8 @@ func Suggestions(e *detect.Evidence, registry map[string]*Profile, compound bool
 		}
 		result = append(result, Suggestion{p.Name, p.Source, p.Kind, p.Requires, reasons, rank})
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Rank != result[j].Rank {
-			return result[i].Rank > result[j].Rank
-		}
-		return result[i].Name < result[j].Name
+	slices.SortFunc(result, func(a, b Suggestion) int {
+		return cmp.Or(cmp.Compare(b.Rank, a.Rank), strings.Compare(a.Name, b.Name))
 	})
 	return result, nil
 }

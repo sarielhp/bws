@@ -62,7 +62,7 @@ func LoadSources(dir string) (*Resolution, error) {
 func Resolve(global, local *config.Config, root string) (*config.Config, error) {
 	cfg := config.Merge(global, local)
 	baseRW := len(cfg.BindsRW)
-	if err := ApplyProfiles(cfg, root, false); err != nil {
+	if err := ApplyProfiles(cfg, root); err != nil {
 		return nil, err
 	}
 	restrictProfileRW(cfg, global, baseRW)

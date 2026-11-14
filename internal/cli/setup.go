@@ -64,7 +64,7 @@ type setupMemory struct {
 	Access   []string `json:"access"`
 }
 
-func setupMemoryPath() string { return filepath.Join(config.ConfigDir(), "setup.json") }
+func setupMemoryPath() string { return filepath.Join(config.Dir(), "setup.json") }
 
 func loadSetupMemory() *setupMemory {
 	data, err := os.ReadFile(setupMemoryPath())
@@ -81,7 +81,7 @@ func loadSetupMemory() *setupMemory {
 func saveSetupMemory(s *setupState) {
 	m := setupMemory{Profiles: s.checked(false), Access: s.checked(true)}
 	data, err := json.MarshalIndent(m, "", "  ")
-	if err == nil && os.MkdirAll(config.ConfigDir(), 0700) == nil {
+	if err == nil && os.MkdirAll(config.Dir(), 0700) == nil {
 		_ = os.WriteFile(setupMemoryPath(), append(data, '\n'), 0600)
 	}
 }

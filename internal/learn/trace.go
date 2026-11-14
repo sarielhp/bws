@@ -77,7 +77,7 @@ func normalizeTraceOptions(opts *TraceOptions) {
 }
 
 func createTempLog() (string, error) {
-	tmpFile, err := os.CreateTemp("", "bws-learn-*.log")
+	tmpFile, err := util.UserTempFile("learn", "bws-learn-*.log")
 	if err != nil {
 		return "", fmt.Errorf("creating temporary trace log file: %w", err)
 	}

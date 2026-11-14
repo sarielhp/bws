@@ -165,7 +165,7 @@ func verifyExport(r *Resolution, p *profile.Profile, registry map[string]*profil
 		return err
 	}
 	ExpandWorkspace(replay, r.Workspace)
-	want, got := comparable(r.Config, r.Workspace), comparable(replay, r.Workspace)
+	want, got := comparableView(r.Config, r.Workspace), comparableView(replay, r.Workspace)
 	for _, field := range []string{"path", "mask", "copy", "pass_env", "env", "binds_rw", "binds_ro", "features"} {
 		if !reflect.DeepEqual(want[field], got[field]) {
 			return fmt.Errorf("%s does not round-trip", field)
@@ -174,7 +174,7 @@ func verifyExport(r *Resolution, p *profile.Profile, registry map[string]*profil
 	return nil
 }
 
-func comparable(c *config.Config, root string) map[string]any {
+func comparableView(c *config.Config, root string) map[string]any {
 	p := snapshot(config.Clone(c), "", "", root)
 	dedup := func(v []string) []string {
 		out := []string{}
@@ -206,7 +206,7 @@ func comparableFeatures(f *config.FeaturesConfig) *config.FeaturesConfig {
 	if f == nil {
 		return &config.FeaturesConfig{}
 	}
-	copy := *f
-	copy.AutoInit = ""
-	return &copy
+	clone := *f
+	clone.AutoInit = ""
+	return &clone
 }

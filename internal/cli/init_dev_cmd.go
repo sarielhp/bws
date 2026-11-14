@@ -106,7 +106,7 @@ func initDestination(dir string) (string, []byte, error) {
 		return "", nil, fmt.Errorf("target path is not a directory: %s", abs)
 	}
 	root, path := config.FindWorkspaceRoot(abs)
-	if err := config.ValidateWorkspace(root, 1000, true); err != nil {
+	if err = config.ValidateWorkspace(root, 1000, true); err != nil {
 		return "", nil, err
 	}
 	before, err := config.PolicyBytes(path)

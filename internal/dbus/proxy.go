@@ -114,7 +114,7 @@ func Start(cfg *config.Config, verbose bool) (*Proxy, error) {
 		return handleMissingProxy(cfg, hostSock, destPath, destDir)
 	}
 
-	tmpDir, err := util.UserTempDir("dbus_proxy")
+	tmpDir, err := util.UserTempDir("dbus")
 	if err != nil {
 		return nil, fmt.Errorf("creating dbus proxy directory: %w", err)
 	}
@@ -194,12 +194,8 @@ func (p *Proxy) Close() error {
 
 	var lastErr error
 	if p.cmd != nil && p.cmd.Process != nil {
-		if err := p.cmd.Process.Kill(); err != nil {
-			// explicitly ignored
-		}
-		if err := p.cmd.Wait(); err != nil {
-			// explicitly ignored
-		}
+		_ = p.cmd.Process.Kill() // the proxy may already have exited
+		_ = p.cmd.Wait()         // reaps it; a killed process always reports an error
 	}
 
 	if p.tempDir != "" {

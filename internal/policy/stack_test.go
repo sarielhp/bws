@@ -30,7 +30,7 @@ func TestApplyStackSuccess(t *testing.T) {
 		},
 	}
 
-	if err := ApplyStack(cfg, "."); err != nil {
+	if err := ApplyStack(cfg); err != nil {
 		t.Fatalf("ApplyStack failed: %v", err)
 	}
 
@@ -59,7 +59,7 @@ func TestApplyStackDigestMismatch(t *testing.T) {
 		},
 	}
 
-	err := ApplyStack(cfg, ".")
+	err := ApplyStack(cfg)
 	if err == nil {
 		t.Fatalf("expected error on digest mismatch, got nil")
 	}
@@ -74,7 +74,7 @@ func TestApplyStackMissing(t *testing.T) {
 		Stack: "non-existent-stack",
 	}
 
-	err := ApplyStack(cfg, ".")
+	err := ApplyStack(cfg)
 	if err == nil {
 		t.Fatalf("expected error on missing stack, got nil")
 	}

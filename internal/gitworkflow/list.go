@@ -61,11 +61,12 @@ func ListInDir(dir string, opts ListOptions) error {
 	}
 
 	if len(filtered) == 0 {
-		if opts.MergedOnly {
+		switch {
+		case opts.MergedOnly:
 			fmt.Fprintln(w, "No merged bws-agent branches found.")
-		} else if opts.UnmergedOnly {
+		case opts.UnmergedOnly:
 			fmt.Fprintln(w, "No unmerged bws-agent branches found.")
-		} else {
+		default:
 			fmt.Fprintln(w, "No bws-agent branches found.")
 		}
 		return nil
@@ -160,7 +161,7 @@ func PrintBranches(w io.Writer, branches []BranchInfo) error {
 		coloredName := cyan(displayName)
 		if len(displayName) < maxNameLen {
 			padding := strings.Repeat(" ", maxNameLen-len(displayName))
-			coloredName = coloredName + padding
+			coloredName += padding
 		}
 
 		statusStr := "[unmerged]"

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"bws/internal/config"
 	"bws/internal/profile"
@@ -13,7 +14,7 @@ func ensureProfileInRegistry(name string, global, local, create, force bool, cwd
 	p := reg[name]
 	if p == nil {
 		if !create {
-			return fmt.Errorf("profile %s not found in catalog.\n  • Run 'bws profile list' to see available profiles.\n  • Run 'bws add -c %s' to synthesize and add it.", ColorProfile(name), name)
+			return fmt.Errorf("profile %s not found in catalog; run 'bws profile list' to see available profiles, or 'bws add -c %s' to synthesize and add it", ColorProfile(name), name)
 		}
 
 		if err := profile.ValidateName(name); err != nil {
@@ -105,43 +106,41 @@ func HandleProfileAdd(names []string, global, local, create, force bool) error {
 		}
 	}
 
-	existing := make(map[string]bool)
-	for _, p := range cfg.Profiles {
-		existing[p] = true
-	}
-
-	var added []string
-	var refreshed []string
+	var added, refreshed []string
 	for _, name := range names {
-		if existing[name] {
+		if slices.Contains(cfg.Profiles, name) {
 			refreshed = append(refreshed, name)
 			continue
 		}
 		cfg.Profiles = append(cfg.Profiles, name)
-		existing[name] = true
 		added = append(added, name)
 	}
-
 	if len(added) > 0 {
 		if err := config.SetArrayValue(targetPath, "profiles", cfg.Profiles); err != nil {
 			return fmt.Errorf("saving config: %w", err)
 		}
 	}
+	reportProfileAdds(added, refreshed, targetPath, global)
+	return nil
+}
 
+// reportProfileAdds prints which profiles were added and which were already
+// active, then the workspace summary for a local configuration.
+func reportProfileAdds(added, refreshed []string, targetPath string, global bool) {
 	label := "global"
 	if !global {
 		label = "local"
 	}
+	where := formatConfigDisplay(targetPath, global)
 	for _, name := range added {
-		fmt.Printf("Added profile %s to %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
+		fmt.Printf("Added profile %s to %s sandbox configuration (%s).\n", ColorProfile(name), label, where)
 	}
 	for _, name := range refreshed {
-		fmt.Printf("Profile %s is active in %s sandbox configuration (%s).\n", ColorProfile(name), label, formatConfigDisplay(targetPath, global))
+		fmt.Printf("Profile %s is active in %s sandbox configuration (%s).\n", ColorProfile(name), label, where)
 	}
 	if !global && (len(added) > 0 || len(refreshed) > 0) {
 		PrintWorkspaceInfo(findWorkspaceForPath(targetPath))
 	}
-	return nil
 }
 
 // HandleProfileDel removes one or more profile names from the profiles array in the config file.

@@ -104,21 +104,6 @@ func TestHelp(t *testing.T) {
 	}
 }
 
-func TestBuildAndHelp(t *testing.T) {
-	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
-		t.Skip("binary not built, skipping")
-	}
-
-	cmd := exec.Command(bwPath, "--help")
-	output, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("bw --help failed: %v", err)
-	}
-	if !containsStr(string(output), "Usage:") || !containsStr(string(output), "bws") {
-		t.Errorf("expected usage string, got %q", string(output))
-	}
-}
-
 func TestAppAudit(t *testing.T) {
 	app := buildApp()
 	if err := clihelp.Audit(app); err != nil {
@@ -225,9 +210,8 @@ func TestMountAddListDel(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	bindPath := "/tmp/bws-test-bind-addlist"
+	bindPath := filepath.Join(t.TempDir(), "bind-addlist")
 	os.MkdirAll(bindPath, 0755)
-	defer os.RemoveAll(bindPath)
 
 	// Add via local config
 	cmd := exec.Command(bwPath, "mount", "add", bindPath, "-l")

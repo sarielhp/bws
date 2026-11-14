@@ -49,7 +49,7 @@ func profileCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Comma
 	}
 }
 
-func profileListCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+func profileListCmd(_ *appFlags, _ clihelp.OptionsValidator) clihelp.Command {
 	var compoundOnly bool
 	return clihelp.Command{
 		Name:        "list",
@@ -58,13 +58,13 @@ func profileListCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.C
 		UsageLine:   "bws profile list",
 		Args:        clihelp.NoArgs,
 		Options:     []clihelp.Option{clihelp.Bool(&compoundOnly, "--compound", false, "List only compound profiles")},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return cli.HandleProfileList(compoundOnly)
 		},
 	}
 }
 
-func profileSearchCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+func profileSearchCmd(_ *appFlags, _ clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
 		Name:        "search",
 		Aliases:     []string{"find"},
@@ -86,7 +86,7 @@ func profileSearchCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp
 	}
 }
 
-func profileShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+func profileShowCmd(_ *appFlags, _ clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
 		Name:        "show",
 		Aliases:     []string{"info", "view", "cat"},
@@ -115,7 +115,7 @@ func profileGenerateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihe
 		Args:             clihelp.ExactArgs(1),
 		OptionsValidator: glValidator,
 		Run: func(ctx *clihelp.Context) error {
-			return cli.HandleProfileNew(ctx.Args[0], f.global, f.local, f.force)
+			return cli.HandleProfileNew(ctx.Args[0], f.local, f.force)
 		},
 	}
 }
@@ -134,7 +134,7 @@ func profileFetchCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.
 	}
 }
 
-func profileUpdateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+func profileUpdateCmd(_ *appFlags, _ clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
 		Name:        "update",
 		Aliases:     []string{"sync"},
@@ -143,13 +143,13 @@ func profileUpdateCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp
 			"profiles whose definition has changed upstream.",
 		UsageLine: "bws profile update",
 		Args:      clihelp.NoArgs,
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return cli.HandleProfileUpdate()
 		},
 	}
 }
 
-func profileTestCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+func profileTestCmd(f *appFlags, _ clihelp.OptionsValidator) clihelp.Command {
 	return clihelp.Command{
 		Name:        "test",
 		Description: "Run a profile's verification tests",

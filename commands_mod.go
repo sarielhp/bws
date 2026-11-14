@@ -100,7 +100,7 @@ func mountCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 				Description: "List all configured bind mounts from both configs",
 				UsageLine:   "bws mount list",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					cli.HandleMountList()
 					return nil
 				},
@@ -128,114 +128,90 @@ func mountCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command
 }
 
 func copyCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
-	return clihelp.Command{
-		Name:        "copy",
-		Aliases:     []string{"ccopy"},
-		Group:       "Current environment",
-		Description: "Manage files copied into the sandbox home",
-		UsageLine:   "bws copy add|rm|list [args...]",
-		Notes: []clihelp.Note{
-			{Heading: "Copied files vs bind mounts", Text: "Copied files are snapshots of host files placed into the sandbox home before each launch. Unlike bind mounts, they are not live — changes on the host after the copy are not reflected in the sandbox. This is useful for tools and scripts that should be available without exposing the full host filesystem."},
-		},
-		Subcommands: []clihelp.Command{
-			{
-				Name:        "add",
-				Description: "Add a program or file to the copy list",
-				UsageLine:   "bws copy add <absolute-path> [-g | -l]",
-				Args:        clihelp.ExactArgs(1),
-				Parameters: []clihelp.Param{
-					{Name: "absolute-path", Description: "Host path to copy in", Complete: completePaths},
-				},
-				OptionsValidator: glValidator,
-				Examples: []clihelp.Example{
-					{Line: "bws copy add /home/user/bin/myprog", Description: "Add to local copy list"},
-					{Line: "bws copy add /home/user/scripts/util.sh -g", Description: "Add to global copy list"},
-				},
-				Run: func(ctx *clihelp.Context) error {
-					cli.HandleCopyAdd(ctx.Args[0], f.global, f.local)
-					return nil
-				},
-			},
-			{
-				Name:        "list",
-				Aliases:     []string{"ls"},
-				Description: "List all configured copy paths from both configs",
-				UsageLine:   "bws copy list",
-				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
-					cli.HandleCopyList()
-					return nil
-				},
-			},
-			{
-				Name:             "del",
-				Aliases:          []string{"delete", "rm", "remove"},
-				Description:      "Remove a path from the copy list",
-				UsageLine:        "bws copy rm <absolute-path> [-g | -l]",
-				Args:             clihelp.ExactArgs(1),
-				OptionsValidator: glValidator,
-				Examples: []clihelp.Example{
-					{Line: "bws copy rm /home/user/bin/myprog", Description: "Remove from local copy list"},
-				},
-				Run: func(ctx *clihelp.Context) error {
-					cli.HandleCopyDel(ctx.Args[0], f.global, f.local)
-					return nil
-				},
-			},
-		},
+	cmd := listEditCmd(f, glValidator, listEditSpec{
+		"copy", "absolute-path", "Host path to copy in", "copy list",
+		[2]string{"/home/user/bin/myprog", "/home/user/scripts/util.sh"},
+		"Add a program or file to the copy list", "List all configured copy paths from both configs", "Remove a path from the copy list",
+		cli.HandleCopyAdd, cli.HandleCopyDel, cli.HandleCopyList,
+	})
+	cmd.Aliases = []string{"ccopy"}
+	cmd.Description = "Manage files copied into the sandbox home"
+	cmd.Notes = []clihelp.Note{
+		{Heading: "Copied files vs bind mounts", Text: "Copied files are snapshots of host files placed into the sandbox home before each launch. Unlike bind mounts, they are not live — changes on the host after the copy are not reflected in the sandbox. This is useful for tools and scripts that should be available without exposing the full host filesystem."},
 	}
+	return cmd
 }
 
 func pathCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
+	cmd := listEditCmd(f, glValidator, listEditSpec{
+		"path", "directory", "Host directory to add", "PATH",
+		[2]string{"~/mytools/bin", "/opt/extra/bin"},
+		"Add a directory to the sandbox PATH", "List all configured PATH entries", "Remove a directory from the sandbox PATH",
+		cli.HandlePathAdd, cli.HandlePathDel, cli.HandlePathList,
+	})
+	cmd.Description = "Manage extra directory entries in the sandbox PATH"
+	return cmd
+}
+
+// listEditSpec describes a command that edits one list in the global or local
+// configuration through add, list and del subcommands. samples are example
+// values for the local and global add examples.
+type listEditSpec struct {
+	name, arg, argDesc, list   string
+	samples                    [2]string
+	addDesc, listDesc, delDesc string
+	onAdd, onDel               func(value string, global, local bool)
+	onList                     func()
+}
+
+// listEditCmd builds the add/list/del command tree described by s.
+func listEditCmd(f *appFlags, glValidator clihelp.OptionsValidator, s listEditSpec) clihelp.Command {
+	edit := func(fn func(string, bool, bool)) func(*clihelp.Context) error {
+		return func(ctx *clihelp.Context) error {
+			fn(ctx.Args[0], f.global, f.local)
+			return nil
+		}
+	}
 	return clihelp.Command{
-		Name:        "path",
-		Group:       "Current environment",
-		Description: "Manage extra directory entries in the sandbox PATH",
-		UsageLine:   "bws path add|rm|list [args...]",
+		Name:      s.name,
+		Group:     "Current environment",
+		UsageLine: "bws " + s.name + " add|rm|list [args...]",
 		Subcommands: []clihelp.Command{
 			{
-				Name:        "add",
-				Description: "Add a directory to the sandbox PATH",
-				UsageLine:   "bws path add <directory> [-g | -l]",
-				Args:        clihelp.ExactArgs(1),
-				Parameters: []clihelp.Param{
-					{Name: "directory", Description: "Host directory to add", Complete: completePaths},
-				},
+				Name:             "add",
+				Description:      s.addDesc,
+				UsageLine:        "bws " + s.name + " add <" + s.arg + "> [-g | -l]",
+				Args:             clihelp.ExactArgs(1),
+				Parameters:       []clihelp.Param{{Name: s.arg, Description: s.argDesc, Complete: completePaths}},
 				OptionsValidator: glValidator,
 				Examples: []clihelp.Example{
-					{Line: "bws path add ~/mytools/bin", Description: "Add directory to local PATH"},
-					{Line: "bws path add /opt/extra/bin -g", Description: "Add directory to global PATH"},
+					{Line: "bws " + s.name + " add " + s.samples[0], Description: "Add to local " + s.list},
+					{Line: "bws " + s.name + " add " + s.samples[1] + " -g", Description: "Add to global " + s.list},
 				},
-				Run: func(ctx *clihelp.Context) error {
-					cli.HandlePathAdd(ctx.Args[0], f.global, f.local)
-					return nil
-				},
+				Run: edit(s.onAdd),
 			},
 			{
 				Name:        "list",
 				Aliases:     []string{"ls"},
-				Description: "List all configured PATH entries",
-				UsageLine:   "bws path list",
+				Description: s.listDesc,
+				UsageLine:   "bws " + s.name + " list",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
-					cli.HandlePathList()
+				Run: func(_ *clihelp.Context) error {
+					s.onList()
 					return nil
 				},
 			},
 			{
 				Name:             "del",
 				Aliases:          []string{"delete", "rm", "remove"},
-				Description:      "Remove a directory from the sandbox PATH",
-				UsageLine:        "bws path rm <directory> [-g | -l]",
+				Description:      s.delDesc,
+				UsageLine:        "bws " + s.name + " rm <" + s.arg + "> [-g | -l]",
 				Args:             clihelp.ExactArgs(1),
 				OptionsValidator: glValidator,
 				Examples: []clihelp.Example{
-					{Line: "bws path rm ~/mytools/bin", Description: "Remove directory from local PATH"},
+					{Line: "bws " + s.name + " rm " + s.samples[0], Description: "Remove from local " + s.list},
 				},
-				Run: func(ctx *clihelp.Context) error {
-					cli.HandlePathDel(ctx.Args[0], f.global, f.local)
-					return nil
-				},
+				Run: edit(s.onDel),
 			},
 		},
 	}
@@ -257,7 +233,7 @@ func undoCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command 
 			{Line: "bws undo", Description: "Restore the local workspace config"},
 			{Line: "bws undo -g", Description: "Restore the global config"},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			cli.HandleUndo(f.global, f.local)
 			return nil
 		},

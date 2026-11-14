@@ -61,9 +61,9 @@ func ValidateDefinition(p *Profile) error {
 
 // Fingerprint hashes the declarative content, independently of installation path.
 func Fingerprint(p *Profile) (Dependency, error) {
-	copy := *p
-	copy.Source, copy.Origin, copy.Category = "", "", ""
-	data, err := json.Marshal(copy)
+	clone := *p
+	clone.Source, clone.Origin, clone.Category = "", "", ""
+	data, err := json.Marshal(clone)
 	if err != nil {
 		return Dependency{}, err
 	}
@@ -89,9 +89,9 @@ func Pin(p *Profile, registry map[string]*Profile) error {
 		if name == p.Name {
 			continue
 		}
-		pin, err := Fingerprint(reg[name])
-		if err != nil {
-			return err
+		pin, pinErr := Fingerprint(reg[name])
+		if pinErr != nil {
+			return pinErr
 		}
 		pins[name] = pin
 	}

@@ -15,9 +15,7 @@ func TestSandboxSignalLifecycleCleanExit(t *testing.T) {
 	}
 
 	var dbusProxy atomic.Pointer[dbus.Proxy]
-	safeCleanup := startSandboxSignalMonitor(cleanup, func() *dbus.Proxy {
-		return dbusProxy.Load()
-	})
+	safeCleanup := startSandboxSignalMonitor(cleanup, dbusProxy.Load)
 
 	if safeCleanup == nil {
 		t.Fatal("expected non-nil safeCleanup")
@@ -35,7 +33,7 @@ func TestSandboxSignalLifecycleCleanExit(t *testing.T) {
 	}
 }
 
-func TestSandboxDBusAtomicConcurrency(t *testing.T) {
+func TestSandboxDBusAtomicConcurrency(_ *testing.T) {
 	var dbusProxy atomic.Pointer[dbus.Proxy]
 	stop := make(chan struct{})
 

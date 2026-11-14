@@ -33,7 +33,7 @@ func gitWorkflowListSubcommand(gwFlags *gitWorkflowFlags) clihelp.Command {
 			{Line: "bws gw list --merged", Description: "List only merged bws-agent-* branches"},
 			{Line: "bws gw list --unmerged", Description: "List only unmerged bws-agent-* branches"},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return gitworkflow.List(gitworkflow.ListOptions{
 				MergedOnly:   gwFlags.listMerged,
 				UnmergedOnly: gwFlags.listUnmerged,
@@ -48,7 +48,7 @@ func gitWorkflowPruneSubcommand(gwFlags *gitWorkflowFlags, f *appFlags) clihelp.
 		Aliases:     []string{"clean", "rm"},
 		Description: "Prune agent branches and temp dirs",
 		LongDescription: "Remove merged and abandoned bws-agent branches and clean up leftover " +
-			"/tmp/bws/agent_* temporary directories.",
+			"agent_* temporary directories (under <tmpdir>/<user>/bws/agent).",
 		UsageLine: "bws git-workflow prune [-a] [-n]",
 		Args:      clihelp.NoArgs,
 		Options: []clihelp.Option{
@@ -60,7 +60,7 @@ func gitWorkflowPruneSubcommand(gwFlags *gitWorkflowFlags, f *appFlags) clihelp.
 			{Line: "bws gw prune -a", Description: "Prune all agent branches (including unmerged) and temp dirs"},
 			{Line: "bws gw prune -n", Description: "Dry run preview of what would be pruned"},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return gitworkflow.Prune(gitworkflow.PruneOptions{
 				All:     gwFlags.pruneAll || f.force,
 				DryRun:  gwFlags.pruneDryRun,

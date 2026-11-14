@@ -5,18 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"bws/internal/config"
 	"bws/internal/util"
 )
-
-func ValidateGL(global, local bool) {
-	if !global && !local {
-		fmt.Fprintf(os.Stderr, "Error: -g (--global) or -l (--local) must be specified for write operations.\n")
-		os.Exit(1)
-	}
-}
 
 func configFilePath(global bool) string {
 	if global {
@@ -43,6 +37,9 @@ func formatConfigDisplay(path string, global bool) string {
 	return path
 }
 
+// VerifyTools reports which host tools bws uses are installed and exits when a
+// critical one is missing, unless skipFail is set. tmux is critical only for
+// the default interactive session.
 func VerifyTools(isDefaultSession, skipFail bool) {
 	type tool struct {
 		cmd      string
@@ -91,6 +88,8 @@ func VerifyTools(isDefaultSession, skipFail bool) {
 	}
 }
 
+// VerifyBwrapUserns checks that bwrap can create user namespaces and otherwise
+// exits with instructions for an AppArmor profile.
 func VerifyBwrapUserns() {
 	cmd := exec.Command("bwrap", "--ro-bind", "/", "/", "true")
 	if err := cmd.Run(); err == nil {
@@ -112,6 +111,7 @@ func VerifyBwrapUserns() {
 	os.Exit(1)
 }
 
+// HandleSCP copies the bws configuration to a remote destination with scp.
 func HandleSCP(args []string) {
 	if len(args) == 0 || args[0] == "" {
 		fmt.Fprintf(os.Stderr, "Error: Destination must be specified.\n")
@@ -140,7 +140,7 @@ func HandleSCP(args []string) {
 	}
 
 	fmt.Printf("Copying %s to %s\n", strings.Join(files, ", "), dest)
-	scpArgs := append(files, dest)
+	scpArgs := append(slices.Clone(files), dest)
 	cmd := exec.Command("scp", scpArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -151,6 +151,8 @@ func HandleSCP(args []string) {
 	fmt.Println("Done.")
 }
 
+// HandleCopyAdd adds an absolute host path to the files copied into the
+// sandbox home, in the global or local configuration.
 func HandleCopyAdd(prog string, global, local bool) {
 	printWorkspaceBanner(global)
 	if !global && !local {
@@ -198,36 +200,32 @@ func HandleCopyAdd(prog string, global, local bool) {
 	}
 }
 
+// HandleCopyList prints the files copied into the sandbox home.
 func HandleCopyList() {
-	globalPath := config.GlobalPath()
-	localPath := config.LocalPath()
 	printed := false
-
-	if _, err := os.Stat(globalPath); err == nil {
-		cfg, err := config.LoadFile(globalPath)
-		if err == nil && len(cfg.Copy) > 0 {
-			fmt.Printf("Global copy list (%s):\n", globalPath)
-			for _, p := range cfg.Copy {
-				fmt.Printf("  - %s\n", p)
-			}
-			printed = true
+	for _, src := range []struct{ label, path string }{
+		{"Global", config.GlobalPath()},
+		{"Local", config.LocalPath()},
+	} {
+		if _, err := os.Stat(src.path); err != nil {
+			continue
 		}
-	}
-	if _, err := os.Stat(localPath); err == nil {
-		cfg, err := config.LoadFile(localPath)
-		if err == nil && len(cfg.Copy) > 0 {
-			fmt.Printf("Local copy list (%s):\n", localPath)
-			for _, p := range cfg.Copy {
-				fmt.Printf("  - %s\n", p)
-			}
-			printed = true
+		cfg, err := config.LoadFile(src.path)
+		if err != nil || len(cfg.Copy) == 0 {
+			continue
 		}
+		fmt.Printf("%s copy list (%s):\n", src.label, src.path)
+		for _, p := range cfg.Copy {
+			fmt.Printf("  - %s\n", p)
+		}
+		printed = true
 	}
 	if !printed {
 		fmt.Println("No programs currently configured in copy list.")
 	}
 }
 
+// HandleCopyDel removes a path from the files copied into the sandbox home.
 func HandleCopyDel(prog string, global, local bool) {
 	printWorkspaceBanner(global)
 	if !global && !local {

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"bws/internal/bwrap"
 	"bws/internal/config"
 	"bws/internal/profile"
 	"bws/internal/util"
@@ -21,8 +22,11 @@ import (
 type CheckStatus int
 
 const (
+	// StatusPass means the check found nothing to fix.
 	StatusPass CheckStatus = iota
+	// StatusWarn means the sandbox works but something is degraded.
 	StatusWarn
+	// StatusFail means the sandbox cannot work until this is fixed.
 	StatusFail
 )
 
@@ -89,7 +93,7 @@ func DefaultUsrnsProber() (string, error) {
 		return "", fmt.Errorf("bubblewrap executable ('bwrap') not found in PATH")
 	}
 	trueBin := "/bin/true"
-	if _, err := os.Stat(trueBin); err != nil {
+	if _, err = os.Stat(trueBin); err != nil {
 		if _, err2 := os.Stat("/usr/bin/true"); err2 == nil {
 			trueBin = "/usr/bin/true"
 		} else {
@@ -272,18 +276,6 @@ func CheckConfigFilesAndProfiles(cwd string) CheckResult {
 	return res
 }
 
-func resolveBindHost(p, homeDir, currentDir string) string {
-	if p == "" {
-		return ""
-	}
-	p = strings.ReplaceAll(p, config.HomeToken, homeDir)
-	p = util.ExpandHome(p)
-	if !filepath.IsAbs(p) && currentDir != "" {
-		p = filepath.Clean(filepath.Join(currentDir, p))
-	}
-	return filepath.Clean(p)
-}
-
 // CheckDeadBindMounts verifies that configured host directories in binds_rw and binds_ro exist.
 func CheckDeadBindMounts(cfg *config.Config, cwd string) CheckResult {
 	res := CheckResult{Name: "Stale / Dead Bind Mounts"}
@@ -297,7 +289,7 @@ func CheckDeadBindMounts(cfg *config.Config, cwd string) CheckResult {
 	var missing []string
 	inspect := func(entries []config.BindEntry) {
 		for _, b := range entries {
-			host := resolveBindHost(b.Host, homeDir, cwd)
+			host := bwrap.ResolveBindPath(b.Host, homeDir, cwd)
 			if host == "" {
 				continue
 			}
@@ -347,12 +339,12 @@ func collectMountedRoots(cfg *config.Config, wsRoot, cwd, homeDir string) []stri
 	roots := []string{wsRoot, cwd}
 	if cfg != nil {
 		for _, b := range cfg.BindsRW {
-			if h := resolveBindHost(b.Host, homeDir, cwd); h != "" {
+			if h := bwrap.ResolveBindPath(b.Host, homeDir, cwd); h != "" {
 				roots = append(roots, h)
 			}
 		}
 		for _, b := range cfg.BindsRO {
-			if h := resolveBindHost(b.Host, homeDir, cwd); h != "" {
+			if h := bwrap.ResolveBindPath(b.Host, homeDir, cwd); h != "" {
 				roots = append(roots, h)
 			}
 		}
@@ -367,8 +359,8 @@ func collectMountedRoots(cfg *config.Config, wsRoot, cwd, homeDir string) []stri
 	canonical := make([]string, 0, len(roots)*2)
 	for _, r := range roots {
 		canonical = append(canonical, r)
-		if real, err := filepath.EvalSymlinks(r); err == nil && real != r {
-			canonical = append(canonical, real)
+		if resolved, err := filepath.EvalSymlinks(r); err == nil && resolved != r {
+			canonical = append(canonical, resolved)
 		}
 	}
 	return canonical
@@ -470,7 +462,7 @@ func CheckWorkspaceSymlinks(cfg *config.Config, cwd string) CheckResult {
 	return res
 }
 
-func collectEffectiveMasks(cfg *config.Config, cwd, homeDir string) []string {
+func collectEffectiveMasks(cfg *config.Config, cwd string) []string {
 	var masks []string
 	if cfg == nil {
 		return masks
@@ -507,7 +499,7 @@ func CheckMountMaskingConflicts(cfg *config.Config, cwd string) CheckResult {
 	}
 
 	homeDir := util.HomeDir()
-	masks := collectEffectiveMasks(cfg, cwd, homeDir)
+	masks := collectEffectiveMasks(cfg, cwd)
 	var conflicts []string
 
 	checkList := func(entries []config.BindEntry) {
@@ -516,9 +508,9 @@ func CheckMountMaskingConflicts(cfg *config.Config, cwd string) CheckResult {
 			if dest == "" {
 				dest = b.Host
 			}
-			destResolved := resolveBindHost(dest, homeDir, cwd)
+			destResolved := bwrap.ResolveBindPath(dest, homeDir, cwd)
 			for _, m := range masks {
-				maskResolved := resolveBindHost(m, homeDir, cwd)
+				maskResolved := bwrap.ResolveBindPath(m, homeDir, cwd)
 				if destResolved == maskResolved || isPathUnder(destResolved, maskResolved) {
 					conflicts = append(conflicts, fmt.Sprintf("Bind target '%s' is shadowed by tmpfs mask '%s'", dest, m))
 					break
@@ -588,7 +580,7 @@ func CheckSSHAgent(cfg *config.Config, dialer DialFunc) CheckResult {
 }
 
 // RunAllDoctorChecks runs all seven diagnostics checks in standard order.
-func RunAllDoctorChecks(cfg *config.Config, cwd string, verbose bool) []CheckResult {
+func RunAllDoctorChecks(cfg *config.Config, cwd string) []CheckResult {
 	return []CheckResult{
 		CheckKernelUserns(nil),
 		CheckCriticalTools(nil),
@@ -642,7 +634,7 @@ func RenderDoctorReport(w io.Writer, results []CheckResult, colors DoctorColors)
 }
 
 // HandleDoctor executes the diagnostics suite and outputs the formatted health report.
-func HandleDoctor(verbose bool) error {
+func HandleDoctor(_ bool) error {
 	cwd, _ := os.Getwd()
 	globalCfg, _ := config.LoadFile(config.GlobalPath())
 	localPath := config.FindLocalPath(cwd)
@@ -653,7 +645,7 @@ func HandleDoctor(verbose bool) error {
 	mergedCfg := config.Merge(globalCfg, localCfg)
 
 	colors := initDoctorColors(shouldUseColor())
-	results := RunAllDoctorChecks(mergedCfg, cwd, verbose)
+	results := RunAllDoctorChecks(mergedCfg, cwd)
 	failed, _, _ := RenderDoctorReport(os.Stdout, results, colors)
 
 	if failed > 0 {

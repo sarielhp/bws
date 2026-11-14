@@ -67,16 +67,8 @@ func TestAddX11ArgsTightened(t *testing.T) {
 		}
 	}
 
-	foundDisplay := false
-	foundNoAtSpi := false
-	for i := 0; i < len(args)-1; i++ {
-		if args[i] == "--setenv" && args[i+1] == "DISPLAY" {
-			foundDisplay = true
-		}
-		if args[i] == "--setenv" && args[i+1] == "NO_AT_SPI" {
-			foundNoAtSpi = true
-		}
-	}
+	foundDisplay := hasSetenv(args, "DISPLAY")
+	foundNoAtSpi := hasSetenv(args, "NO_AT_SPI")
 	if !foundDisplay {
 		t.Error("expected DISPLAY setenv in addX11Args")
 	}
@@ -125,22 +117,14 @@ func TestAddDBusArgs(t *testing.T) {
 	addDBusArgs(&args, cfg, true)
 
 	foundBind := false
-	foundDBusEnv := false
-	foundXDGEnv := false
 
 	for i := 0; i < len(args)-2; i++ {
 		if args[i] == "--bind" && args[i+1] == "<filtered-dbus-proxy>" && args[i+2] == "/run/user/1234/bus" {
 			foundBind = true
 		}
 	}
-	for i := 0; i < len(args)-1; i++ {
-		if args[i] == "--setenv" && args[i+1] == "DBUS_SESSION_BUS_ADDRESS" {
-			foundDBusEnv = true
-		}
-		if args[i] == "--setenv" && args[i+1] == "XDG_RUNTIME_DIR" {
-			foundXDGEnv = true
-		}
-	}
+	foundDBusEnv := hasSetenv(args, "DBUS_SESSION_BUS_ADDRESS")
+	foundXDGEnv := hasSetenv(args, "XDG_RUNTIME_DIR")
 
 	if !foundBind {
 		t.Errorf("expected --bind <filtered-dbus-proxy> /run/user/1234/bus in addDBusArgs, got %v", args)
@@ -156,7 +140,7 @@ func TestAddDBusArgs(t *testing.T) {
 func TestDBusDisabled(t *testing.T) {
 	fakeBus := filepath.Join(t.TempDir(), "bus")
 	if err := os.WriteFile(fakeBus, []byte("fake"), 0600); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
 
@@ -178,7 +162,7 @@ func TestDBusDisabled(t *testing.T) {
 func TestDBusDisabledByDefault(t *testing.T) {
 	fakeBus := filepath.Join(t.TempDir(), "bus")
 	if err := os.WriteFile(fakeBus, []byte("fake"), 0600); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+fakeBus)
 
@@ -196,10 +180,8 @@ func TestNoUnconditionalSystemDBus(t *testing.T) {
 	cfg := &config.Config{}
 	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
 
-	for i := 0; i < len(args)-1; i++ {
-		if args[i] == "/run/dbus" {
-			t.Errorf("unconditional /run/dbus mount must not be present, found at arg index %d", i)
-		}
+	if findArgIndex(args, "/run/dbus") != -1 {
+		t.Error("unconditional /run/dbus mount must not be present")
 	}
 }
 
@@ -304,42 +286,21 @@ func TestBlockGHMasksDefault(t *testing.T) {
 	home := util.HomeDir()
 	ghBin := "/usr/bin/gh"
 	if fi, err := os.Stat(ghBin); err == nil && !fi.IsDir() {
-		found := false
-		for i := 0; i < len(args)-2; i++ {
-			if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == ghBin {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if findArgIndex(args, "--ro-bind-try", "/dev/null", ghBin) == -1 {
 			t.Errorf("expected %s to be masked with /dev/null by default in args: %v", ghBin, args)
 		}
 	}
 
 	ghConfig := filepath.Join(home, ".config", "gh")
 	if fi, err := os.Stat(ghConfig); err == nil && fi.IsDir() {
-		found := false
-		for i := 0; i < len(args)-1; i++ {
-			if args[i] == "--tmpfs" && args[i+1] == ghConfig {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if findArgIndex(args, "--tmpfs", ghConfig) == -1 {
 			t.Errorf("expected %s to be masked with --tmpfs by default in args: %v", ghConfig, args)
 		}
 	}
 
 	gitCreds := filepath.Join(home, ".git-credentials")
 	if fi, err := os.Stat(gitCreds); err == nil && !fi.IsDir() {
-		found := false
-		for i := 0; i < len(args)-2; i++ {
-			if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == gitCreds {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if findArgIndex(args, "--ro-bind-try", "/dev/null", gitCreds) == -1 {
 			t.Errorf("expected %s to be masked with /dev/null by default in args: %v", gitCreds, args)
 		}
 	}
@@ -356,24 +317,18 @@ func TestBlockGHDisabled(t *testing.T) {
 
 	home := util.HomeDir()
 	ghBin := "/usr/bin/gh"
-	for i := 0; i < len(args)-2; i++ {
-		if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == ghBin {
-			t.Errorf("%s should not be masked when block_gh is false", ghBin)
-		}
+	if findArgIndex(args, "--ro-bind-try", "/dev/null", ghBin) != -1 {
+		t.Errorf("%s should not be masked when block_gh is false", ghBin)
 	}
 
 	ghConfig := filepath.Join(home, ".config", "gh")
-	for i := 0; i < len(args)-1; i++ {
-		if args[i] == "--tmpfs" && args[i+1] == ghConfig {
-			t.Errorf("%s should not be masked when block_gh is false", ghConfig)
-		}
+	if findArgIndex(args, "--tmpfs", ghConfig) != -1 {
+		t.Errorf("%s should not be masked when block_gh is false", ghConfig)
 	}
 
 	gitCreds := filepath.Join(home, ".git-credentials")
-	for i := 0; i < len(args)-2; i++ {
-		if args[i] == "--ro-bind-try" && args[i+1] == "/dev/null" && args[i+2] == gitCreds {
-			t.Errorf("%s should not be masked when block_gh is false", gitCreds)
-		}
+	if findArgIndex(args, "--ro-bind-try", "/dev/null", gitCreds) != -1 {
+		t.Errorf("%s should not be masked when block_gh is false", gitCreds)
 	}
 }
 
@@ -415,14 +370,7 @@ func TestExplicitEnvAllowsForgeToken(t *testing.T) {
 	}
 	args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
 
-	found := false
-	for i := 0; i < len(args)-2; i++ {
-		if args[i] == "--setenv" && args[i+1] == "GH_TOKEN" && args[i+2] == "explicitly-allowed" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if findArgIndex(args, "--setenv", "GH_TOKEN", "explicitly-allowed") == -1 {
 		t.Error("expected GH_TOKEN to be set when explicitly declared in config.Env")
 	}
 }
@@ -518,4 +466,14 @@ func TestForgeMasksSkipSelectedTool(t *testing.T) {
 	if masks := collectForgeMasks(cfg, home); !slices.Contains(masks, "/usr/bin/gh") {
 		t.Error("explicit block_gh did not keep gh masked")
 	}
+}
+
+// hasSetenv reports whether args set the environment variable name.
+func hasSetenv(args []string, name string) bool {
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--setenv" && args[i+1] == name {
+			return true
+		}
+	}
+	return false
 }

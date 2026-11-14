@@ -20,7 +20,7 @@ func Explain(r *Resolution, registry map[string]*profile.Profile) (Origins, erro
 	out.addConfig(r.Global, "global: "+r.GlobalPath, r.Workspace)
 	merged := config.Merge(r.Global, r.Local)
 	if merged.Stack != "" {
-		if err := ApplyStack(merged, r.Workspace); err != nil {
+		if err := ApplyStack(merged); err != nil {
 			return nil, err
 		}
 	}

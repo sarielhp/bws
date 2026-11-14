@@ -39,8 +39,7 @@ Use `bws doctor` to inspect host prerequisites and configuration.
 ```bash
 git clone https://github.com/sarielhp/bws.git
 cd bws
-go build -o bws .
-./tools/install
+tools/install
 ```
 
 The installer places the binary in `~/bin/bws`. Ensure `~/bin` is in your
@@ -116,11 +115,12 @@ the [compound profile guide](docs/compound_profiles.md), and
 ## Development
 
 ```bash
-./tools/verify_build.sh
-./tools/audit_lines.rb
+tools/build          # build bin/bws
+tools/gate           # formatting, static analysis, tests, docs drift, build
+tools/gate --full    # adds race, govulncheck, gocritic, shadow, revive, dupl
 ```
 
-The verification script formats, vets, tests, builds, and checks that
+The gate follows the Go standards in `~/prog/standards/go` and checks that
 `docs/commands.md` matches the CLI surface. Optional long tests are available
 through `./tools/test_long`. See [AGENTS.md](AGENTS.md) for repository
 conventions and [the prioritized backlog](todo.md) for additional work.

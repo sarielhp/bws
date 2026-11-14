@@ -140,7 +140,7 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	}
 
 	var dbusProxy atomic.Pointer[dbus.Proxy]
-	sandboxDir, cleanup, err := setupSandboxHome(sl.cfg, currentDir, dryRun, verbose, func() *dbus.Proxy { return dbusProxy.Load() })
+	sandboxDir, cleanup, err := setupSandboxHome(sl.cfg, currentDir, dryRun, verbose, dbusProxy.Load)
 	if err != nil {
 		return err
 	}
@@ -288,78 +288,6 @@ func runConf(verbose bool, flags policy.Flags) error {
 
 	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, true, verbose)
 	cli.PrintInfo(bwrapArgs, sl.cfg, sl.globalPath, sl.localPath, currentDir)
-	return nil
-}
-
-func runSandboxCommand(name string, execArgs []string, force, verbose bool) error {
-	sl, err := loadConfigs(verbose)
-	if err != nil {
-		return err
-	}
-
-	cli.VerifyTools(false, false)
-	cli.VerifyBwrapUserns()
-
-	currentDir, err := safetyChecks(sl, force, verbose)
-	if err != nil {
-		return err
-	}
-
-	var sandboxDir string
-	var cleanup func()
-	var dbusProxy *dbus.Proxy
-
-	if sl.cfg.SandboxPath != "" {
-		sandboxDir = util.ExpandHome(sl.cfg.SandboxPath)
-		sandbox.Prepare(sl.cfg, sandboxDir)
-	} else {
-		var err error
-		sandboxDir, cleanup, err = sandbox.StageHome(sl.cfg, currentDir)
-		if err != nil {
-			return err
-		}
-		defer cleanup()
-	}
-
-	if config.FeatureEnabledDefault(sl.cfg, func(f *config.FeaturesConfig) *bool { return f.EnableDBus }, false) {
-		dbusProxy, _ = dbus.Start(sl.cfg, verbose)
-		if dbusProxy != nil {
-			defer dbusProxy.Close()
-		}
-	}
-
-	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, false, verbose)
-	defer ssh.StopSessionAgents()
-	if dbusProxy != nil && !dbusProxy.IsRaw() && dbusProxy.SocketPath() != "" {
-		bwrapArgs = append(bwrapArgs,
-			"--bind", dbusProxy.SocketPath(), dbusProxy.DestPath(),
-			"--setenv", "DBUS_SESSION_BUS_ADDRESS", fmt.Sprintf("unix:path=%s", dbusProxy.DestPath()),
-			"--setenv", "XDG_RUNTIME_DIR", dbusProxy.DestDir(),
-		)
-	}
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "[verbose] bwrap command:\n  bwrap %s\n", strings.Join(append(bwrapArgs, execArgs...), " "))
-	}
-
-	cmd := exec.Command("bwrap", append(bwrapArgs, execArgs...)...)
-	output, err := cmd.Output()
-	if dbusProxy != nil {
-		_ = dbusProxy.Close()
-	}
-	if err != nil {
-		return fmt.Errorf("test failed: %s did not load correctly:\n%s", name, string(output))
-	}
-
-	switch name {
-	case "opencode":
-		fmt.Printf("OpenCode version inside sandbox: %s", string(output))
-	case "quarto":
-		fmt.Printf("Quarto version inside sandbox: %s", string(output))
-	case "uv":
-		fmt.Printf("uv version inside sandbox: %s", string(output))
-	}
-	fmt.Println("Everything is fine.")
 	return nil
 }
 

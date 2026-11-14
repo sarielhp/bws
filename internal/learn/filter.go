@@ -21,7 +21,7 @@ var defaultFilteredPrefixes = []string{
 	"/usr",
 	"/run/systemd",
 	"/run/udev",
-	"/tmp",
+	"/tmp", // tmp-exempt: paths under /tmp are filtered out, not created
 	"/var/tmp",
 }
 

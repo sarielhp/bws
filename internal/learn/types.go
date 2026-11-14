@@ -11,9 +11,13 @@ import (
 type AccessMode int
 
 const (
-	AccessNone      AccessMode = 0
-	AccessRead      AccessMode = 1 << 0
-	AccessWrite     AccessMode = 1 << 1
+	// AccessNone means the path was not opened.
+	AccessNone AccessMode = 0
+	// AccessRead means the path was read.
+	AccessRead AccessMode = 1 << 0
+	// AccessWrite means the path was written.
+	AccessWrite AccessMode = 1 << 1
+	// AccessReadWrite means the path was both read and written.
 	AccessReadWrite AccessMode = AccessRead | AccessWrite
 )
 

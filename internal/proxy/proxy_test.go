@@ -9,11 +9,11 @@ import (
 )
 
 func TestProxyConnectAndHTTP(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("proxied-response"))
 		if err != nil {
-			// ignore error in test mock
+			t.Fatal(err)
 		}
 	}))
 	defer ts.Close()
@@ -52,7 +52,7 @@ func TestProxyConnectAndHTTP(t *testing.T) {
 }
 
 func TestProxyHTTPSequentialRequestsNoLeak(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}))

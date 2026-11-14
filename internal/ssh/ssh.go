@@ -26,6 +26,9 @@ var (
 
 const agentStartTimeout = 3 * time.Second
 
+// maxSocketPath is the longest Unix socket path Linux accepts (sun_path minus its NUL).
+const maxSocketPath = 107
+
 // StartSessionAgent starts a private ssh-agent for one sandbox session and
 // loads exactly the given keys. Each session gets its own socket, so
 // concurrent sandboxes never see each other's keys, and default identities
@@ -40,7 +43,14 @@ func StartSessionAgent(keys []string) string {
 		fmt.Fprintf(os.Stderr, "[bws] Warning: SSH agent disabled: %v\n", err)
 		return ""
 	}
-	a := &Agent{dir: dir, sock: filepath.Join(dir, "agent.sock")}
+	// The socket is bound at the same path inside the sandbox, and a Unix
+	// socket path is limited to 107 bytes, so its name is kept short.
+	a := &Agent{dir: dir, sock: filepath.Join(dir, "s")}
+	if len(a.sock) > maxSocketPath {
+		_ = os.RemoveAll(dir)
+		fmt.Fprintf(os.Stderr, "[bws] Warning: SSH agent disabled: socket path %s is longer than %d bytes; use a shorter TMPDIR\n", a.sock, maxSocketPath)
+		return ""
+	}
 	a.cmd = exec.Command("ssh-agent", "-D", "-a", a.sock)
 	// Own process group so terminal signals do not reach it; Pdeathsig
 	// stops it if bws dies without running its cleanup.

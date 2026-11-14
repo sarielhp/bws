@@ -157,10 +157,10 @@ func HandleStackSave(name, title, desc string, force, noVerify bool) error {
 		return err
 	}
 	root, localPath := config.FindWorkspaceRoot(cwd)
-	if fi, err := os.Stat(localPath); err != nil || fi.IsDir() {
+	if fi, statErr := os.Stat(localPath); statErr != nil || fi.IsDir() {
 		return fmt.Errorf("genesis invariant violation: 'bws stack save' requires an active, existing bws workspace (no %s found)", localPath)
 	}
-	if err := stack.ValidateName(name); err != nil {
+	if err = stack.ValidateName(name); err != nil {
 		return err
 	}
 	if existing, _ := stack.Get(name); existing != nil && !force {
@@ -176,13 +176,13 @@ func HandleStackSave(name, title, desc string, force, noVerify bool) error {
 		return err
 	}
 
-	profiles, err := resolveConstituentProfiles(resolution, registry)
+	profiles, err := resolveConstituentProfiles(resolution)
 	if err != nil {
 		return err
 	}
 
 	if !noVerify {
-		if err := verifyConstituentProfiles(resolution.Config, cwd, profiles, registry); err != nil {
+		if err = verifyConstituentProfiles(resolution.Config, cwd, profiles, registry); err != nil {
 			return err
 		}
 	}
@@ -225,7 +225,7 @@ func HandleStackSave(name, title, desc string, force, noVerify bool) error {
 	return nil
 }
 
-func resolveConstituentProfiles(r *policy.Resolution, reg map[string]*profile.Profile) ([]string, error) {
+func resolveConstituentProfiles(r *policy.Resolution) ([]string, error) {
 	var names []string
 	if r.Local != nil && r.Local.Stack != "" {
 		baseStk, err := stack.Get(r.Local.Stack)
@@ -345,14 +345,14 @@ func HandleStackUpdate(dryRun, yes bool) error {
 	}
 
 	if !yes && IsInteractiveTTY(int(os.Stdin.Fd())) {
-		if err := confirmPolicy(os.Stdin, os.Stderr, "Apply upstream stack update to this workspace?"); err != nil {
+		if err = confirmPolicy(os.Stdin, os.Stderr, "Apply upstream stack update to this workspace?"); err != nil {
 			return err
 		}
 	}
 
 	backupPath := localPath + ".bak"
 	priorBak, _ := config.PolicyBytes(backupPath)
-	if err := config.AtomicPolicyWrite(backupPath, before, priorBak); err != nil {
+	if err = config.AtomicPolicyWrite(backupPath, before, priorBak); err != nil {
 		return fmt.Errorf("creating backup %s: %w", backupPath, err)
 	}
 	fmt.Printf("Created configuration backup: %s\n", backupPath)

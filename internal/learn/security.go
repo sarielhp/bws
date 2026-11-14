@@ -66,11 +66,12 @@ func IsSensitivePath(p, homeDir string) bool {
 		cleanHome := filepath.Clean(homeDir)
 		for _, sensitive := range sensitivePathPrefixes {
 			var expanded string
-			if sensitive == "~" {
+			switch {
+			case sensitive == "~":
 				expanded = cleanHome
-			} else if strings.HasPrefix(sensitive, "~/") {
+			case strings.HasPrefix(sensitive, "~/"):
 				expanded = filepath.Join(cleanHome, sensitive[2:])
-			} else {
+			default:
 				expanded = sensitive
 			}
 			cleanP := filepath.Clean(p)

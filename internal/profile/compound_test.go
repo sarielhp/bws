@@ -20,7 +20,7 @@ func TestCompoundDetectionRankingAndGroups(t *testing.T) {
 		"multi":    {Name: "multi", Kind: "compound", Detect: &DetectSpec{AllOf: []DetectSpec{{Files: []string{"go.mod"}}, {Files: []string{"package.json"}}}}},
 		"hint":     {Name: "hint", Kind: "compound", Detect: &DetectSpec{DirContains: []string{"oc"}}},
 	}
-	evidence := &detect.Evidence{Root: "/tmp/project", Entries: []detect.Entry{{Path: "go.mod"}, {Path: "main.go"}}}
+	evidence := &detect.Evidence{Root: "/work/project", Entries: []detect.Entry{{Path: "go.mod"}, {Path: "main.go"}}}
 	for range 20 {
 		got, err := Suggestions(evidence, registry, true)
 		if err != nil {
@@ -115,7 +115,7 @@ func TestCompoundConflicts(t *testing.T) {
 }
 
 func TestHostConditionalPermissionReview(t *testing.T) {
-	tool := &Profile{Name: "tool", Source: "global", Rules: []ProfileRule{
+	tool := &Profile{Name: "tool", Source: "global", Rules: []Rule{
 		{Match: &MatchCondition{Arch: []string{runtime.GOARCH}}, Env: map[string]string{"MODE": "host"}},
 	}}
 	p := &Profile{Name: "stack", Kind: "compound", Requires: []string{"tool"}}

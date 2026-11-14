@@ -72,12 +72,12 @@ func TestBuildBwsArgs(t *testing.T) {
 
 func TestPromptTriageEOF(t *testing.T) {
 	// Must return cleanly on EOF without hanging or looping
-	promptTriage(strings.NewReader(""), "/tmp", "base-sha", "main", "bws-agent-test")
+	promptTriage(strings.NewReader(""), t.TempDir(), "base-sha", "main", "bws-agent-test")
 }
 
 func TestPromptTriageInvalidAttempts(t *testing.T) {
 	// 3 invalid attempts should exit cleanly
-	promptTriage(strings.NewReader("invalid\nbad\nwrong\n"), "/tmp", "base-sha", "main", "bws-agent-test")
+	promptTriage(strings.NewReader("invalid\nbad\nwrong\n"), t.TempDir(), "base-sha", "main", "bws-agent-test")
 }
 
 func TestSensitiveFilesExcluded(t *testing.T) {

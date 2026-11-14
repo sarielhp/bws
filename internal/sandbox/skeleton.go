@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -14,12 +15,18 @@ import (
 	"bws/internal/util"
 )
 
+// DefaultTmuxConf is the built-in .tmux.conf of the sandbox home.
+//
 //go:embed embedded_skeleton/tmux.conf
 var DefaultTmuxConf string
 
+// DefaultBashrc is the built-in .bashrc of the sandbox home.
+//
 //go:embed embedded_skeleton/bashrc
 var DefaultBashrc string
 
+// DefaultProfile is the built-in .profile of the sandbox home.
+//
 //go:embed embedded_skeleton/profile
 var DefaultProfile string
 
@@ -39,14 +46,17 @@ func SkeletonFileMappings() []SkeletonMapping {
 	}
 }
 
+// GlobalSkeletonDir returns ~/.config/bws/skeleton, the user's sandbox dotfiles.
 func GlobalSkeletonDir() string {
-	return filepath.Join(config.ConfigDir(), "skeleton")
+	return filepath.Join(config.Dir(), "skeleton")
 }
 
+// LocalSkeletonDir returns the workspace skeleton directory under cwd.
 func LocalSkeletonDir(cwd string) string {
 	return filepath.Join(cwd, ".bw", "skeleton")
 }
 
+// EnsureGlobalSkeleton writes any missing built-in dotfiles into GlobalSkeletonDir.
 func EnsureGlobalSkeleton() error {
 	dir := GlobalSkeletonDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -64,6 +74,8 @@ func EnsureGlobalSkeleton() error {
 	return nil
 }
 
+// StageHome creates a temporary sandbox home from the skeletons and returns it
+// with a function that removes it.
 func StageHome(cfg *config.Config, currentDir string) (string, func(), error) {
 	if err := EnsureGlobalSkeleton(); err != nil {
 		return "", nil, err
@@ -160,12 +172,13 @@ func replicateHomeSymlinks(stageDir, home string) {
 	}
 }
 
+// precreateMountpoints creates, in the staged home, the directories and empty
+// files that the workspace, binds and masks under home are mounted onto.
 func precreateMountpoints(cfg *config.Config, stageDir, currentDir, home string) {
 	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
 	for _, d := range []string{currentDir, wsRoot} {
-		if d != "" && strings.HasPrefix(d, home+"/") {
-			rel := strings.TrimPrefix(d, home+"/")
-			_ = os.MkdirAll(filepath.Join(stageDir, rel), 0755)
+		if rel, ok := strings.CutPrefix(d, home+"/"); ok {
+			_ = os.MkdirAll(filepath.Join(stageDir, rel), 0755) // best effort: bwrap reports a missing mount point
 		}
 	}
 
@@ -178,55 +191,49 @@ func precreateMountpoints(cfg *config.Config, stageDir, currentDir, home string)
 		return filepath.Clean(p)
 	}
 
-	allEntries := append(append([]config.BindEntry{}, cfg.BindsRW...), cfg.BindsRO...)
-	for _, b := range allEntries {
+	for _, b := range slices.Concat(cfg.BindsRW, cfg.BindsRO) {
 		dest := b.Sandbox
 		if dest == "" {
 			dest = b.Host
 		}
-		dest = resolvePath(dest)
-		if strings.HasPrefix(dest, home+"/") {
-			rel := strings.TrimPrefix(dest, home+"/")
-			target := filepath.Join(stageDir, rel)
-			host := resolvePath(b.Host)
-			if fi, err := os.Stat(host); err == nil {
-				if fi.IsDir() {
-					_ = os.MkdirAll(target, 0755)
-				} else {
-					_ = os.MkdirAll(filepath.Dir(target), 0755)
-					if _, err := os.Stat(target); os.IsNotExist(err) {
-						_ = os.WriteFile(target, []byte{}, 0644)
-					}
-				}
-			}
-		}
+		stageMountpoint(stageDir, home, resolvePath(dest), resolvePath(b.Host))
 	}
 
-	maskList := append([]string{}, cfg.Mask...)
+	masks := slices.Clone(cfg.Mask)
 	if config.HistoryMaskEnabled(cfg) {
-		maskList = append(maskList, config.DefaultHistoryMasks...)
+		masks = append(masks, config.DefaultHistoryMasks...)
 	}
-	seenMask := make(map[string]bool)
-	for _, m := range maskList {
+	seen := make(map[string]bool)
+	for _, m := range masks {
 		expanded := resolvePath(m)
-		if seenMask[expanded] {
-			continue
+		if !seen[expanded] {
+			seen[expanded] = true
+			stageMountpoint(stageDir, home, expanded, expanded)
 		}
-		seenMask[expanded] = true
-		if strings.HasPrefix(expanded, home+"/") {
-			rel := strings.TrimPrefix(expanded, home+"/")
-			target := filepath.Join(stageDir, rel)
-			if fi, err := os.Stat(expanded); err == nil {
-				if fi.IsDir() {
-					_ = os.MkdirAll(target, 0755)
-				} else {
-					_ = os.MkdirAll(filepath.Dir(target), 0755)
-					if _, err := os.Stat(target); os.IsNotExist(err) {
-						_ = os.WriteFile(target, []byte{}, 0644)
-					}
-				}
-			}
-		}
+	}
+}
+
+// stageMountpoint creates the mount point for dest inside the staged home when
+// dest is under home: a directory or an empty file, matching the host path.
+// Nothing is created when the host path does not exist. Errors are ignored:
+// bwrap reports a mount point it cannot use.
+func stageMountpoint(stageDir, home, dest, host string) {
+	rel, ok := strings.CutPrefix(dest, home+"/")
+	if !ok {
+		return
+	}
+	fi, err := os.Stat(host)
+	if err != nil {
+		return
+	}
+	target := filepath.Join(stageDir, rel)
+	if fi.IsDir() {
+		_ = os.MkdirAll(target, 0755)
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(target), 0755)
+	if _, err := os.Stat(target); os.IsNotExist(err) {
+		_ = os.WriteFile(target, []byte{}, 0644)
 	}
 }
 

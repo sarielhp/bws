@@ -34,10 +34,6 @@ func loadConfigs(verbose bool) (*sandboxLaunch, error) {
 	return &sandboxLaunch{cfg: resolved.Config, globalCfg: resolved.Global, localCfg: resolved.Local, globalPath: resolved.GlobalPath, localPath: resolved.LocalPath}, nil
 }
 
-func applyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
-	return policy.ApplyProfiles(cfg, currentDir, verbose)
-}
-
 func safetyChecks(sl *sandboxLaunch, force, verbose bool) (string, error) {
 	currentDir, err := os.Getwd()
 	if err != nil {

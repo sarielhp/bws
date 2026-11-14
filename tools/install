@@ -1,31 +1,22 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+require_relative 'tooling'
+require_relative 'integrations'
 
-BIN_DIR="${HOME}/bin"
-mkdir -p "$BIN_DIR"
+HELP = <<~TEXT
+  Usage: tools/install
 
-echo "=== Building bws ==="
-rm -f "$BIN_DIR/bws" "$BIN_DIR/bw"
-go build -o "$BIN_DIR/bws" .
-echo ""
+  Build, then copy each artifact to its INSTALL_TARGETS destination from
+  tools/settings.rb and verify the copy's contents and permissions. Then
+  copy the agent integrations (tools/integrations.rb) for tools present here.
 
-echo "Installed bws to $BIN_DIR/bws"
-ls -la "$BIN_DIR/bws"
+  Options:
+    -h, --help  Show this help; nothing is run.
+TEXT
 
-# Install Antigravity global skill if ~/.gemini/config exists
-if [ -d "${HOME}/.gemini/config" ]; then
-    mkdir -p "${HOME}/.gemini/config/skills"
-    rm -rf "${HOME}/.gemini/config/skills/bws"
-    cp -r "${ROOT}/integrations/skills/bws" "${HOME}/.gemini/config/skills/bws"
-    echo "Installed Antigravity skill to ~/.gemini/config/skills/bws"
-fi
-
-# Install OpenCode commands if ~/.config/opencode exists
-if [ -d "${HOME}/.config/opencode" ]; then
-    mkdir -p "${HOME}/.config/opencode/command"
-    cp -r "${ROOT}/integrations/opencode/command/"* "${HOME}/.config/opencode/command/"
-    echo "Installed OpenCode slash commands to ~/.config/opencode/command/"
-fi
+Tooling.entry(HELP) do
+  abort 'Usage: tools/install' unless ARGV.empty?
+  Tooling.install
+  Integrations.install
+end

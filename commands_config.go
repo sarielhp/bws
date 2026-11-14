@@ -19,7 +19,7 @@ func configShowCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Co
 		UsageLine:        "bws config show [-g | -l]",
 		Args:             clihelp.NoArgs,
 		OptionsValidator: glValidator,
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			cli.HandleConfigShow(f.global, f.local)
 			return nil
 		},
@@ -91,7 +91,7 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 			UsageLine:        "bws config edit [-g | -l]",
 			Args:             clihelp.NoArgs,
 			OptionsValidator: glValidator,
-			Run: func(ctx *clihelp.Context) error {
+			Run: func(_ *clihelp.Context) error {
 				cli.HandleConfigEdit(f.global, f.local)
 				return nil
 			},
@@ -102,7 +102,7 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 			Description: "Print active configuration file paths",
 			UsageLine:   "bws config where",
 			Args:        clihelp.NoArgs,
-			Run: func(ctx *clihelp.Context) error {
+			Run: func(_ *clihelp.Context) error {
 				cli.HandleConfigWhere()
 				return nil
 			},
@@ -116,7 +116,7 @@ func configFileCmds(f *appFlags, glValidator clihelp.OptionsValidator) []clihelp
 			UsageLine:        "bws config reset [-g | -l]",
 			Args:             clihelp.NoArgs,
 			OptionsValidator: glValidator,
-			Run: func(ctx *clihelp.Context) error {
+			Run: func(_ *clihelp.Context) error {
 				cli.HandleConfigReset(f.global, f.local)
 				return nil
 			},

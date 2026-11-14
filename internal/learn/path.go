@@ -40,11 +40,12 @@ func CanonicalPath(p, homeDir string) string {
 
 	if homeDir != "" {
 		cleanHome := filepath.Clean(homeDir)
-		if clean == "~" || clean == "@@HOME@@" {
+		switch {
+		case clean == "~" || clean == "@@HOME@@":
 			clean = cleanHome
-		} else if strings.HasPrefix(clean, "~/") {
+		case strings.HasPrefix(clean, "~/"):
 			clean = filepath.Join(cleanHome, clean[2:])
-		} else if strings.HasPrefix(clean, "@@HOME@@/") {
+		case strings.HasPrefix(clean, "@@HOME@@/"):
 			clean = filepath.Join(cleanHome, strings.TrimPrefix(clean, "@@HOME@@/"))
 		}
 	}

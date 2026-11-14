@@ -105,13 +105,13 @@ func TestAddBindArrayElementOnGeneratedDefault(t *testing.T) {
 	if err := WriteTrustedFile(path, []byte(generateDefaultConfig())); err != nil {
 		t.Fatal(err)
 	}
-	for _, host := range []string{"/tmp/bin/x", "/tmp/bin/y"} {
+	for _, host := range []string{"/srv/bin/x", "/srv/bin/y"} {
 		if err := AddBindArrayElement(path, "binds_ro", `"`+host+`"`); err != nil {
 			t.Fatalf("append %s: %v", host, err)
 		}
 	}
 	data, _ := os.ReadFile(path)
-	if strings.Contains(string(data), `"],"/tmp/bin/x"`) {
+	if strings.Contains(string(data), `"],"/srv/bin/x"`) {
 		t.Fatalf("entry joined to previous row:\n%s", data)
 	}
 	cfg, err := Parse(data, path)
@@ -122,7 +122,7 @@ func TestAddBindArrayElementOnGeneratedDefault(t *testing.T) {
 	for _, b := range cfg.BindsRO {
 		hosts[b.Host] = true
 	}
-	if !hosts["/tmp/bin/x"] || !hosts["/tmp/bin/y"] {
+	if !hosts["/srv/bin/x"] || !hosts["/srv/bin/y"] {
 		t.Fatalf("appended entries missing: %v", hosts)
 	}
 }

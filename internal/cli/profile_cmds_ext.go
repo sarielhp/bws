@@ -18,6 +18,7 @@ import (
 	"golang.org/x/term"
 )
 
+// HandleProfileTest runs the named profile's verification tests in a sandbox.
 func HandleProfileTest(name string, verbose bool) error {
 	cwd, _ := os.Getwd()
 	registry, err := profile.LoadRegistry(cwd)
@@ -43,10 +44,10 @@ func HandleProfileTest(name string, verbose bool) error {
 		}
 	}
 	localPath := config.LocalPath()
-	if fi, err := os.Stat(localPath); err == nil && !fi.IsDir() {
-		localCfg, err := config.LoadLocalFile(localPath)
-		if err != nil {
-			return err
+	if fi, statErr := os.Stat(localPath); statErr == nil && !fi.IsDir() {
+		localCfg, statErr := config.LoadLocalFile(localPath)
+		if statErr != nil {
+			return statErr
 		}
 		baseCfg = config.Merge(baseCfg, localCfg)
 	}
@@ -217,7 +218,7 @@ func fetchRemoteProfile(name, targetDir string) (bool, error) {
 }
 
 // HandleProfileFetch downloads a profile from GitHub repository or synthesizes it.
-func HandleProfileFetch(name string, global, local, force bool) error {
+func HandleProfileFetch(name string, _, local, force bool) error {
 	cleanName := strings.ToLower(strings.TrimSpace(name))
 	if cleanName == "" {
 		return fmt.Errorf("profile name cannot be empty")
@@ -248,7 +249,7 @@ func HandleProfileFetch(name string, global, local, force bool) error {
 
 	// Fall back to synthesis
 	fmt.Printf("Profile %s not found in remote catalog; attempting synthesis...\n", ColorProfile(cleanName))
-	return HandleProfileNew(cleanName, global, local, force)
+	return HandleProfileNew(cleanName, local, force)
 }
 
 // HandleProfileUpdate updates all locally installed global profiles from the remote repository.
@@ -307,14 +308,15 @@ func wrapText(text string, indent, maxWidth int) string {
 
 	for _, w := range words {
 		wLen := len(w)
-		if curWidth == 0 {
+		switch {
+		case curWidth == 0:
 			curLine.WriteString(w)
 			curWidth = wLen
-		} else if curWidth+1+wLen <= maxWidth-indent {
+		case curWidth+1+wLen <= maxWidth-indent:
 			curLine.WriteByte(' ')
 			curLine.WriteString(w)
 			curWidth += 1 + wLen
-		} else {
+		default:
 			lines = append(lines, curLine.String())
 			curLine.Reset()
 			curLine.WriteString(w)
@@ -327,8 +329,4 @@ func wrapText(text string, indent, maxWidth int) string {
 
 	indentStr := strings.Repeat(" ", indent)
 	return strings.Join(lines, "\n"+indentStr)
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

@@ -171,7 +171,7 @@ func planCmd(f *appFlags) clihelp.Command {
 			"and the assembled bwrap invocation, without launching the sandbox.",
 		UsageLine: "bws plan",
 		Args:      clihelp.NoArgs,
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return runConf(f.verbose, policyFlags(f))
 		},
 	}
@@ -186,7 +186,7 @@ func doctorCmd(f *appFlags) clihelp.Command {
 			"prerequisites such as bwrap, the SSH agent, and required host tools.",
 		UsageLine: "bws doctor",
 		Args:      clihelp.NoArgs,
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return cli.HandleDoctor(f.verbose)
 		},
 	}

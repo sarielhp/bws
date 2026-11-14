@@ -33,11 +33,7 @@ func TestNativeHelpRouting(t *testing.T) {
 // TestNormalizeArgs_Passthrough checks the rewrites bws still needs: the learn
 // subcommand's "--" separator, and nothing else.
 func TestNormalizeArgs_Passthrough(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []string
-		expected []string
-	}{
+	tests := []normCase{
 		{
 			name:     "learn inserts dash-dash before the traced command",
 			input:    []string{"learn", "bash"},
@@ -94,22 +90,11 @@ func TestNormalizeArgs_Passthrough(t *testing.T) {
 			expected: []string{"status", "-v"},
 		},
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := normalizeArgs(tc.input)
-			if !reflect.DeepEqual(got, tc.expected) {
-				t.Errorf("normalizeArgs(%v) = %v, want %v", tc.input, got, tc.expected)
-			}
-		})
-	}
+	checkNormalize(t, "normalizeArgs", normalizeArgs, tests)
 }
 
 func TestNormalizeConfigSet(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []string
-		expected []string
-	}{
+	tests := []normCase{
 		{
 			name:     "negative integer value",
 			input:    []string{"config", "set", "max_file_count", "-1"},
@@ -142,11 +127,24 @@ func TestNormalizeConfigSet(t *testing.T) {
 		},
 	}
 
+	checkNormalize(t, "normalizeConfigSet", normalizeConfigSet, tests)
+}
+
+// normCase is one argument-normalization case.
+type normCase struct {
+	name     string
+	input    []string
+	expected []string
+}
+
+// checkNormalize runs fn, named fnName, over the cases.
+func checkNormalize(t *testing.T, fnName string, fn func([]string) []string, tests []normCase) {
+	t.Helper()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := normalizeConfigSet(tc.input)
+			got := fn(tc.input)
 			if !reflect.DeepEqual(got, tc.expected) {
-				t.Errorf("normalizeConfigSet(%v) = %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("%s(%v) = %v, want %v", fnName, tc.input, got, tc.expected)
 			}
 		})
 	}

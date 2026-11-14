@@ -1,7 +1,9 @@
 {
   "target": ".",
-  "build_cmd": "tools/install",
-  "audit_cmd": "/home/sariel/prog/standards/workflow/bin/audit",
-  "guidelines": "Adhere strictly to AGENTS.md guidelines",
-  "max_diff_lines": 800
+  "gate_cmd": "tools/gate",
+  "build_cmd": "tools/build",
+  "gate_includes_build": true,
+  "guidelines": "Follow project AGENTS.md and the applicable language standards: nesting depth <= 4; Go/Rust decision branches <= 15; Ruby cognitive complexity <= 15; language-specific function/method and file tiers.",
+  "max_diff_lines": 800,
+  "push": false
 }

@@ -65,29 +65,17 @@ func HandleProfileReview(name string, accept bool) error {
 		return err
 	}
 	p := *original
-	if err := profile.Pin(&p, registry); err != nil {
+	if err = profile.Pin(&p, registry); err != nil {
 		return err
 	}
-	var changes []string
-	for k, v := range p.Reviewed {
-		if old, ok := original.Reviewed[k]; !ok || old != v {
-			changes = append(changes, k)
-		}
-	}
-	for k := range original.Reviewed {
-		if _, ok := p.Reviewed[k]; !ok {
-			changes = append(changes, k+" (removed)")
-		}
-	}
-	sort.Strings(changes)
-	fmt.Printf("Dependency changes for %s: %s\n", name, strings.Join(changes, ", "))
+	fmt.Printf("Dependency changes for %s: %s\n", name, strings.Join(reviewedChanges(original.Reviewed, p.Reviewed), ", "))
 	printPermissionChanges(original.ReviewedPermissions, p.ReviewedPermissions)
 	registry[name] = &p
 	registry[p.Name] = &p
 	for _, alias := range p.Aliases {
 		registry[alias] = &p
 	}
-	if err := printCompoundDetails(&p, registry); err != nil {
+	if err = printCompoundDetails(&p, registry); err != nil {
 		return err
 	}
 	if !accept {
@@ -120,4 +108,22 @@ func printPermissionChanges(before, after []string) {
 		}
 	}
 	fmt.Println("Environment values are hidden; dependency fingerprints also track changes to values and other metadata.")
+}
+
+// reviewedChanges lists, sorted, the dependencies whose pins differ between
+// the old and new approvals, marking those no longer present as removed.
+func reviewedChanges[V comparable](old, cur map[string]V) []string {
+	var changes []string
+	for k, v := range cur {
+		if prev, ok := old[k]; !ok || prev != v {
+			changes = append(changes, k)
+		}
+	}
+	for k := range old {
+		if _, ok := cur[k]; !ok {
+			changes = append(changes, k+" (removed)")
+		}
+	}
+	sort.Strings(changes)
+	return changes
 }

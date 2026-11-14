@@ -161,20 +161,21 @@ func printResolvedProfile(resolved *profile.ResolvedProfile) error {
 
 // PrintSynthesisSource displays the source intelligence found for profile synthesis.
 func PrintSynthesisSource(name string, info profile.SynthesisInfo) {
-	if info.HomebrewFormula && info.FirejailProfile {
+	switch {
+	case info.HomebrewFormula && info.FirejailProfile:
 		fmt.Printf("Synthesizing profile for %q from Homebrew and Firejail...\n", name)
-	} else if info.HomebrewFormula {
+	case info.HomebrewFormula:
 		fmt.Printf("Synthesizing profile for %q from Homebrew formula...\n", name)
-	} else if info.FirejailProfile {
+	case info.FirejailProfile:
 		fmt.Printf("Synthesizing profile for %q from Firejail profile...\n", name)
-	} else {
+	default:
 		fmt.Printf("No upstream recipes found in Homebrew or Firejail for %q.\n", name)
 	}
 }
 
 // HandleProfileNew generates a new profile by querying Homebrew and Firejail intelligence.
 // Verifies that the tool is installed in the system ($PATH) before writing the profile unless force is true.
-func HandleProfileNew(name string, global, local, force bool) error {
+func HandleProfileNew(name string, local, force bool) error {
 	if err := profile.ValidateName(name); err != nil {
 		return err
 	}

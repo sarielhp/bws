@@ -42,7 +42,7 @@ func binCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
 				Description: "List all configured executable binaries exposed in the sandbox",
 				UsageLine:   "bws bin list",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					cli.HandleBinList()
 					return nil
 				},

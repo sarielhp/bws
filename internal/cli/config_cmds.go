@@ -148,9 +148,7 @@ func HandleConfigSet(key, value string, global, local bool) {
 				os.Exit(1)
 			}
 		} else {
-			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-				// explicitly ignored
-			}
+			_ = os.MkdirAll(filepath.Dir(path), 0755) // WriteTrustedFile below reports a missing directory
 			if err := config.WriteTrustedFile(path, []byte("{\n}\n")); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
@@ -224,30 +222,6 @@ func HandleConfigUnset(key string, global, local bool) {
 // HandleConfigPush copies global configuration & theme files to a remote host via SCP.
 func HandleConfigPush(destination string) {
 	HandleSCP([]string{destination})
-}
-
-func HandleConfigShowGlobal() {
-	HandleConfigShow(true, false)
-}
-
-func HandleConfigShowLocal() {
-	HandleConfigShow(false, true)
-}
-
-func HandleConfigInitGlobal() {
-	HandleConfigReset(true, false)
-}
-
-func HandleConfigInitLocal() {
-	HandleConfigReset(false, true)
-}
-
-func HandleConfigEditGlobal() {
-	HandleConfigEdit(true, false)
-}
-
-func HandleConfigEditLocal() {
-	HandleConfigEdit(false, true)
 }
 
 func resetGlobalConfig(path string) error {

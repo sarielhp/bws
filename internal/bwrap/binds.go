@@ -17,7 +17,9 @@ type bindItem struct {
 	ro   bool
 }
 
-func resolveBindPath(p, homeDir, currentDir string) string {
+// ResolveBindPath expands @@HOME@@ and ~ in a configured bind path and makes
+// a relative path absolute against currentDir.
+func ResolveBindPath(p, homeDir, currentDir string) string {
 	if p == "" {
 		return ""
 	}
@@ -45,8 +47,8 @@ func collectBinds(entries []config.BindEntry, homeDir, currentDir, sandboxDir st
 		if dest == "" {
 			dest = b.Host
 		}
-		dest = resolveBindPath(dest, homeDir, currentDir)
-		host := resolveBindPath(b.Host, homeDir, currentDir)
+		dest = ResolveBindPath(dest, homeDir, currentDir)
+		host := ResolveBindPath(b.Host, homeDir, currentDir)
 		if !ro && sandboxDir != "" && host == sandboxDir && dest == homeDir {
 			continue
 		}

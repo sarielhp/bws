@@ -15,8 +15,8 @@ type MatchCondition struct {
 	ProbePaths []string `json:"probe_paths,omitempty"`
 }
 
-// ProfileRule contains conditional overrides when matching rules apply.
-type ProfileRule struct {
+// Rule contains conditional overrides when matching rules apply.
+type Rule struct {
 	Match   *MatchCondition   `json:"match,omitempty"`
 	Path    []string          `json:"path,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
@@ -82,7 +82,7 @@ func detectLinuxDistro() string {
 }
 
 // MatchRule checks if a rule matches the provided host context.
-func MatchRule(rule ProfileRule, ctx MatchContext) bool {
+func MatchRule(rule Rule, ctx MatchContext) bool {
 	if rule.Match == nil {
 		return true
 	}

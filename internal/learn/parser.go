@@ -215,7 +215,8 @@ func extractQuotedStrings(args string) []string {
 	for i := 0; i < len(args); i++ {
 		c := args[i]
 		if inQuote {
-			if escaped {
+			switch {
+			case escaped:
 				switch c {
 				case 'n':
 					buf.WriteByte('\n')
@@ -232,13 +233,13 @@ func extractQuotedStrings(args string) []string {
 					buf.WriteByte(c)
 				}
 				escaped = false
-			} else if c == '\\' {
+			case c == '\\':
 				escaped = true
-			} else if c == '"' {
+			case c == '"':
 				inQuote = false
 				result = append(result, buf.String())
 				buf.Reset()
-			} else {
+			default:
 				buf.WriteByte(c)
 			}
 		} else if c == '"' {

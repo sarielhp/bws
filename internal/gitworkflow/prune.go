@@ -26,7 +26,7 @@ type PruneResult struct {
 	PrunedDirs      []string
 }
 
-// Prune deletes merged (or all if All=true) bws-agent branches and /tmp/bws/agent_* temp dirs.
+// Prune deletes merged (or all if All=true) bws-agent branches and leftover agent_* temp dirs.
 func Prune(opts PruneOptions) error {
 	return PruneInDir("", opts)
 }
@@ -51,7 +51,7 @@ func PruneInDir(dir string, opts PruneOptions) error {
 	if opts.TempDir != "" {
 		baseDirs = []string{opts.TempDir}
 	} else {
-		baseDirs = []string{util.UserTempDirBase(), "/tmp/bws"}
+		baseDirs = append([]string{util.TempPath("agent")}, legacyAgentDirs()...)
 	}
 
 	pruneTempDirs(baseDirs, repoRoot, opts, result)
@@ -186,4 +186,11 @@ func printPruneReport(w io.Writer, res *PruneResult, opts PruneOptions, baseTemp
 			fmt.Fprintln(w, "No bws-agent branches or temp directories to prune.")
 		}
 	}
+}
+
+// legacyAgentDirs are where releases before 0.3.78 kept agent clones:
+// <tmpdir>/bws-<uid> and <tmpdir>/bws. They are only searched for leftovers.
+func legacyAgentDirs() []string {
+	sysTmp := filepath.Dir(filepath.Dir(filepath.Dir(util.TempPath("agent"))))
+	return []string{filepath.Join(sysTmp, fmt.Sprintf("bws-%d", os.Getuid())), filepath.Join(sysTmp, "bws")}
 }

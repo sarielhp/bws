@@ -16,13 +16,13 @@ func setupTestRepo(t *testing.T) string {
 		t.Fatalf("git init failed: %v", err)
 	}
 	if err := runCmd(dir, "git", "config", "user.email", "agent@example.com"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(dir, "git", "config", "user.name", "Agent Tester"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(dir, "git", "config", "commit.gpgsign", "false"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 
 	// Create initial commit on main
@@ -31,10 +31,10 @@ func setupTestRepo(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if err := runCmd(dir, "git", "add", "README.md"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(dir, "git", "commit", "-m", "initial commit"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 
 	return dir
@@ -66,53 +66,50 @@ func TestListNotInGitRepo(t *testing.T) {
 
 func TestListBranchesAndFiltering(t *testing.T) {
 	repoDir := setupTestRepo(t)
+	base := currentBranch(t, repoDir)
 
 	// 1. Create a merged branch: bws-agent-merged-1
 	if err := runCmd(repoDir, "git", "checkout", "-b", "bws-agent-merged-1"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	file1 := filepath.Join(repoDir, "feature1.txt")
 	if err := os.WriteFile(file1, []byte("feature 1"), 0644); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(repoDir, "git", "add", "feature1.txt"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(repoDir, "git", "commit", "-m", "add feature 1"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	// Switch back to master/main and merge it
-	mainBranch, _ := getCurrentBranch(repoDir)
-	if err := runCmd(repoDir, "git", "checkout", "master"); err != nil {
-		// explicitly ignored in test
-	}
-	if err := runCmd(repoDir, "git", "checkout", "main"); err != nil {
-		// explicitly ignored in test
+	if err := runCmd(repoDir, "git", "checkout", base); err != nil {
+		t.Fatal(err)
 	}
 	if err := runCmd(repoDir, "git", "merge", "bws-agent-merged-1"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 
 	// 2. Create an unmerged branch: bws-agent-wip-2
 	if err := runCmd(repoDir, "git", "checkout", "-b", "bws-agent-wip-2"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	file2 := filepath.Join(repoDir, "wip.txt")
 	if err := os.WriteFile(file2, []byte("wip work"), 0644); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(repoDir, "git", "add", "wip.txt"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 	if err := runCmd(repoDir, "git", "commit", "-m", "work in progress"); err != nil {
-		// explicitly ignored in test
+		t.Fatal(err)
 	}
 
 	// Switch back to main branch
 	curr, _ := getCurrentBranch(repoDir)
 	if curr == "bws-agent-wip-2" {
-		if err := runCmd(repoDir, "git", "checkout", mainBranch); err != nil {
-			// explicitly ignored in test
+		if err := runCmd(repoDir, "git", "checkout", base); err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -166,4 +163,14 @@ func TestListBranchesAndFiltering(t *testing.T) {
 	if strings.Contains(outUnmerged, "bws-agent-merged-1") {
 		t.Errorf("did not expect merged branch in --unmerged output, got:\n%s", outUnmerged)
 	}
+}
+
+// currentBranch returns the branch checked out in repoDir.
+func currentBranch(t *testing.T, repoDir string) string {
+	t.Helper()
+	branch, err := getCurrentBranch(repoDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return branch
 }

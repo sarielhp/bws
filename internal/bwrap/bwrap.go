@@ -104,41 +104,18 @@ func addSandboxHomeBind(sandboxDir, homeDir string, args *[]string, dryRun, verb
 	}
 }
 
+// addPassEnvArgs passes the host variables named by cfg.PassEnv into the
+// sandbox, and unsets forge tokens unless the environment is already cleared.
 func addPassEnvArgs(cfg *config.Config, args *[]string, verbose bool) {
 	for _, pattern := range cfg.PassEnv {
+		note := "passed"
 		if strings.HasSuffix(pattern, "*") {
-			prefix := strings.TrimSuffix(pattern, "*")
-			for _, envItem := range os.Environ() {
-				parts := strings.SplitN(envItem, "=", 2)
-				if len(parts) == 2 && strings.HasPrefix(parts[0], prefix) {
-					if isBlockedForgeToken(parts[0]) && !isExplicitInEnv(cfg, parts[0]) {
-						continue
-					}
-					*args = append(*args, "--setenv", parts[0], parts[1])
-					if verbose {
-						fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (passed wildcard)\n", parts[0], parts[1])
-					}
-				}
-			}
-		} else {
-			if pattern == "PATH" {
-				continue
-			}
-			if isBlockedForgeToken(pattern) && !isExplicitInEnv(cfg, pattern) {
-				continue
-			}
-			val := os.Getenv(pattern)
-			if pattern == "LC_ALL" && val == "" {
-				val = os.Getenv("LANG")
-			}
-			if pattern == "LOGNAME" && val == "" {
-				val = os.Getenv("USER")
-			}
-			if val != "" {
-				*args = append(*args, "--setenv", pattern, val)
-				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (passed)\n", pattern, val)
-				}
+			note = "passed wildcard"
+		}
+		for _, kv := range passedEnv(cfg, pattern) {
+			*args = append(*args, "--setenv", kv[0], kv[1])
+			if verbose {
+				fmt.Fprintf(os.Stderr, "[verbose]   --setenv %s=%s (%s)\n", kv[0], kv[1], note)
 			}
 		}
 	}
@@ -149,13 +126,45 @@ func addPassEnvArgs(cfg *config.Config, args *[]string, verbose bool) {
 		}
 		return c.System.Clearenv
 	}, false)
-	if !clearenv {
-		for _, token := range blockedForgeTokens {
-			if !isExplicitInEnv(cfg, token) {
-				*args = append(*args, "--unsetenv", token)
-			}
+	if clearenv {
+		return
+	}
+	for _, token := range blockedForgeTokens {
+		if !isExplicitInEnv(cfg, token) {
+			*args = append(*args, "--unsetenv", token)
 		}
 	}
+}
+
+// passedEnv returns the name/value pairs a pass_env pattern selects: every
+// host variable with the prefix for "PREFIX*", otherwise the one variable
+// (LC_ALL falls back to LANG and LOGNAME to USER). PATH, empty values and
+// forge tokens not set explicitly in env are never passed.
+func passedEnv(cfg *config.Config, pattern string) [][2]string {
+	allowed := func(name string) bool {
+		return !isBlockedForgeToken(name) || isExplicitInEnv(cfg, name)
+	}
+	if prefix, ok := strings.CutSuffix(pattern, "*"); ok {
+		var out [][2]string
+		for _, envItem := range os.Environ() {
+			name, val, found := strings.Cut(envItem, "=")
+			if found && strings.HasPrefix(name, prefix) && allowed(name) {
+				out = append(out, [2]string{name, val})
+			}
+		}
+		return out
+	}
+	if pattern == "PATH" || !allowed(pattern) {
+		return nil
+	}
+	val := os.Getenv(pattern)
+	if val == "" {
+		val = os.Getenv(map[string]string{"LC_ALL": "LANG", "LOGNAME": "USER"}[pattern])
+	}
+	if val == "" {
+		return nil
+	}
+	return [][2]string{{pattern, val}}
 }
 
 func addCustomEnvArgs(cfg *config.Config, homeDir string, args *[]string, verbose bool) {
@@ -305,12 +314,15 @@ func addStandardMounts(cfg *config.Config, sandboxDir, currentDir string, args *
 	}
 
 	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableX11 }) && os.Getenv("DISPLAY") != "" {
-		*args = append(*args, "--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix")
+		*args = append(*args, "--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix") // tmp-exempt: the host X11 socket directory
 	}
 
 	addNetworkMounts(sandboxDir, args)
 }
 
+// BuildArgs returns the bwrap arguments for a sandbox whose home is staged in
+// sandboxDir and whose working directory is currentDir. A dry run builds the
+// same list with placeholders and starts nothing (no ssh-agent, no temp dirs).
 func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbose bool) []string {
 	var args []string
 	homeDir := util.HomeDir()
@@ -341,15 +353,15 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 }
 
 // sandboxTmpArgs returns the mount for the sandbox /tmp. It prefers a private
-// host directory under /tmp/bws-<UID>; if that cannot be created it falls back
+// host directory under util.TempPath("sandbox"); if that cannot be created it falls back
 // to an ephemeral tmpfs rather than a predictable shared path.
 func sandboxTmpArgs(dryRun bool) []string {
 	if dryRun {
-		return []string{"--bind", "/tmp/bws/SANDBOX_TMP", "/tmp"}
+		return []string{"--bind", "<sandbox-tmp>", "/tmp"} // tmp-exempt: /tmp inside the sandbox
 	}
 	if tmp, err := util.UserTempDir("sandbox"); err == nil {
-		return []string{"--bind", tmp, "/tmp"}
+		return []string{"--bind", tmp, "/tmp"} // tmp-exempt: /tmp inside the sandbox
 	}
 	fmt.Fprintf(os.Stderr, "Warning: cannot create a private directory for /tmp; using a tmpfs for /tmp\n")
-	return []string{"--tmpfs", "/tmp"}
+	return []string{"--tmpfs", "/tmp"} // tmp-exempt: /tmp inside the sandbox
 }

@@ -33,11 +33,11 @@ func TestStageHomeLayering(t *testing.T) {
 	defer os.RemoveAll(stageDir)
 
 	// Copy global
-	if err := copyDirectoryContents(mockGlobalSkel, stageDir); err != nil {
+	if err = copyDirectoryContents(mockGlobalSkel, stageDir); err != nil {
 		t.Fatalf("copyDirectoryContents global failed: %v", err)
 	}
 	// Overlay local
-	if err := copyDirectoryContents(mockLocalSkel, stageDir); err != nil {
+	if err = copyDirectoryContents(mockLocalSkel, stageDir); err != nil {
 		t.Fatalf("copyDirectoryContents local failed: %v", err)
 	}
 
@@ -47,7 +47,7 @@ func TestStageHomeLayering(t *testing.T) {
 			"GOPATH": "/test/go",
 		},
 	}
-	if err := appendDynamicConfig(cfg, filepath.Join(stageDir, ".bashrc")); err != nil {
+	if err = appendDynamicConfig(cfg, filepath.Join(stageDir, ".bashrc")); err != nil {
 		t.Fatalf("appendDynamicConfig failed: %v", err)
 	}
 

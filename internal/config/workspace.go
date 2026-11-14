@@ -9,7 +9,7 @@ import (
 
 // ValidateWorkspace checks the directory actually exposed by automatic mounts.
 func ValidateWorkspace(dir string, limit int, force bool) error {
-	real, err := filepath.EvalSymlinks(dir)
+	workspace, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		return fmt.Errorf("resolving workspace: %w", err)
 	}
@@ -22,7 +22,7 @@ func ValidateWorkspace(dir string, limit int, force bool) error {
 		bin = resolved
 	}
 	for _, blocked := range []struct{ path, label string }{{"/", "/"}, {home, "~/"}, {bin, "~/bin/"}} {
-		if real == blocked.path {
+		if workspace == blocked.path {
 			return fmt.Errorf("running the sandbox from %s is blocked", blocked.label)
 		}
 	}

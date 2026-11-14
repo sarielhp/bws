@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bws/internal/testutil"
 	"fmt"
 	"net"
 	"os"
@@ -39,8 +40,7 @@ func TestCLIDBusFlagsAndPlan(t *testing.T) {
 	}
 	ensureGlobalConfig(t)
 
-	fakeDir := t.TempDir()
-	fakeSock := filepath.Join(fakeDir, "bus")
+	fakeSock := filepath.Join(testutil.ShortSocketDir(t), "bus")
 	l, err := net.Listen("unix", fakeSock)
 	if err != nil {
 		t.Fatalf("failed to create unix socket: %v", err)
@@ -92,7 +92,7 @@ func TestCLIAgyProfileDBus(t *testing.T) {
 	}
 	ensureGlobalConfig(t)
 
-	fakeDir := t.TempDir()
+	fakeDir := testutil.ShortSocketDir(t)
 	fakeSock := filepath.Join(fakeDir, "bus")
 	l, err := net.Listen("unix", fakeSock)
 	if err != nil {
@@ -104,8 +104,8 @@ func TestCLIAgyProfileDBus(t *testing.T) {
 
 	workDir := t.TempDir()
 	cmdInit := exec.Command(bwPath, "init", "-f", "-p", "agy", workDir)
-	if out, err := cmdInit.CombinedOutput(); err != nil {
-		t.Fatalf("init with agy profile failed: %v\n%s", err, string(out))
+	if out, initErr := cmdInit.CombinedOutput(); initErr != nil {
+		t.Fatalf("init with agy profile failed: %v\n%s", initErr, string(out))
 	}
 
 	cmdPlan := exec.Command(bwPath, "plan")

@@ -10,7 +10,7 @@ import (
 
 // TrustDir is host-only state recording reviewed local configuration contents.
 func TrustDir() string {
-	return filepath.Join(ConfigDir(), "trusted")
+	return filepath.Join(Dir(), "trusted")
 }
 
 func trustRecord(path string) (string, error) {
@@ -99,10 +99,10 @@ func IsLocalPolicy(path string) bool {
 func TrustWorkspace(dir string) error {
 	root, path := FindWorkspaceRoot(dir)
 	if _, err := os.Stat(path); err == nil {
-		if _, err := LoadFile(path); err != nil {
+		if _, err = LoadFile(path); err != nil {
 			return err
 		}
-		if err := TrustFile(path); err != nil {
+		if err = TrustFile(path); err != nil {
 			return err
 		}
 	} else if !os.IsNotExist(err) {

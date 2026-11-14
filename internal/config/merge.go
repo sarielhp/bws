@@ -2,13 +2,9 @@ package config
 
 import "slices"
 
-func boolPtrVal(b *bool) bool {
-	if b != nil {
-		return *b
-	}
-	return false
-}
-
+// Merge combines the global and local configurations. Maps are merged with
+// local values winning, lists are unioned with global entries first, and
+// binds are keyed by host path per list.
 func Merge(global, local *Config) *Config {
 	global, local = Clone(global), Clone(local)
 	if global == nil && local == nil {
@@ -147,6 +143,7 @@ func mergeSystem(global, local *SystemConfig) *SystemConfig {
 	return &r
 }
 
+// MergeFeatures returns global with every feature that local sets overriding it.
 func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local == nil {
 		return global
@@ -155,53 +152,27 @@ func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 		return local
 	}
 	r := *global
-	if local.EnableSSH != nil {
-		r.EnableSSH = local.EnableSSH
+	for _, f := range []struct{ dst, src **bool }{
+		{&r.EnableSSH, &local.EnableSSH}, {&r.AutoRepoDeployKey, &local.AutoRepoDeployKey},
+		{&r.EnableX11, &local.EnableX11}, {&r.EnableDBus, &local.EnableDBus},
+		{&r.AllowRawDBus, &local.AllowRawDBus}, {&r.EnableWSL, &local.EnableWSL},
+		{&r.EnableEtcAutoBind, &local.EnableEtcAutoBind}, {&r.EnableProxy, &local.EnableProxy},
+		{&r.NoNet, &local.NoNet}, {&r.UnshareNet, &local.UnshareNet},
+		{&r.MaskHistory, &local.MaskHistory}, {&r.BlockGH, &local.BlockGH},
+		{&r.ProtectGit, &local.ProtectGit},
+	} {
+		if *f.src != nil {
+			*f.dst = *f.src
+		}
 	}
 	if local.SSHKeys != nil {
 		r.SSHKeys = local.SSHKeys
 	}
-	if local.AutoRepoDeployKey != nil {
-		r.AutoRepoDeployKey = local.AutoRepoDeployKey
-	}
-	if local.EnableX11 != nil {
-		r.EnableX11 = local.EnableX11
-	}
-	if local.EnableDBus != nil {
-		r.EnableDBus = local.EnableDBus
-	}
 	if local.DBusTalk != nil {
 		r.DBusTalk = local.DBusTalk
 	}
-	if local.AllowRawDBus != nil {
-		r.AllowRawDBus = local.AllowRawDBus
-	}
-	if local.EnableWSL != nil {
-		r.EnableWSL = local.EnableWSL
-	}
-	if local.EnableEtcAutoBind != nil {
-		r.EnableEtcAutoBind = local.EnableEtcAutoBind
-	}
-	if local.EnableProxy != nil {
-		r.EnableProxy = local.EnableProxy
-	}
-	if local.NoNet != nil {
-		r.NoNet = local.NoNet
-	}
-	if local.UnshareNet != nil {
-		r.UnshareNet = local.UnshareNet
-	}
 	if local.AutoInit != "" {
 		r.AutoInit = local.AutoInit
-	}
-	if local.MaskHistory != nil {
-		r.MaskHistory = local.MaskHistory
-	}
-	if local.BlockGH != nil {
-		r.BlockGH = local.BlockGH
-	}
-	if local.ProtectGit != nil {
-		r.ProtectGit = local.ProtectGit
 	}
 	if local.DeployKeyRepo != "" {
 		r.DeployKeyRepo = local.DeployKeyRepo
@@ -226,6 +197,7 @@ func mergeEnv(global, local map[string]string) map[string]string {
 	return r
 }
 
+// GetBool returns the setting getter reads from cfg, or defaultVal when it is unset.
 func GetBool(cfg *Config, getter func(*Config) *bool, defaultVal bool) bool {
 	if cfg == nil {
 		return defaultVal
@@ -237,21 +209,12 @@ func GetBool(cfg *Config, getter func(*Config) *bool, defaultVal bool) bool {
 	return defaultVal
 }
 
-func GetString(cfg *Config, getter func(*Config) *string, defaultVal string) string {
-	if cfg == nil {
-		return defaultVal
-	}
-	s := getter(cfg)
-	if s != nil {
-		return *s
-	}
-	return defaultVal
-}
-
+// FeatureEnabled reports whether a feature is on; features default to on.
 func FeatureEnabled(cfg *Config, getter func(*FeaturesConfig) *bool) bool {
 	return FeatureEnabledDefault(cfg, getter, true)
 }
 
+// FeatureEnabledDefault reports whether a feature is on, using defaultVal when it is unset.
 func FeatureEnabledDefault(cfg *Config, getter func(*FeaturesConfig) *bool, defaultVal bool) bool {
 	if cfg == nil || cfg.Features == nil {
 		return defaultVal

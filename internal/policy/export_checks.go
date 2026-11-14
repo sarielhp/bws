@@ -95,7 +95,7 @@ func machinePaths(c *config.Config, root string) []string {
 			continue
 		}
 		standard := false
-		for _, prefix := range []string{"/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32", "/etc", "/run", "/dev", "/proc", "/sys", "/tmp", "/var/lib/texmf", "/var/cache/fontconfig"} {
+		for _, prefix := range []string{"/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32", "/etc", "/run", "/dev", "/proc", "/sys", "/tmp", "/var/lib/texmf", "/var/cache/fontconfig"} { // tmp-exempt: system prefixes compared, not created
 			if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
 				standard = true
 				break

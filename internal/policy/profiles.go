@@ -4,48 +4,19 @@ import (
 	"bws/internal/config"
 	"bws/internal/profile"
 	"fmt"
+	"slices"
 	"strings"
 )
 
-func mergeResolvedProfile(cfg *config.Config, resolved *profile.ResolvedProfile, seenPassEnv, seenMask, seenCopy, seenRW, seenRO, seenPath map[string]bool) {
-	for _, pe := range resolved.PassEnv {
-		if !seenPassEnv[pe] {
-			seenPassEnv[pe] = true
-			cfg.PassEnv = append(cfg.PassEnv, pe)
-		}
-	}
-	for _, m := range resolved.Mask {
-		if !seenMask[m] {
-			seenMask[m] = true
-			cfg.Mask = append(cfg.Mask, m)
-		}
-	}
-	for _, c := range resolved.Copy {
-		if !seenCopy[c] {
-			seenCopy[c] = true
-			cfg.Copy = append(cfg.Copy, c)
-		}
-	}
-	for _, b := range resolved.BindsRW {
-		key := b[0] + "->" + b[1]
-		if !seenRW[key] {
-			seenRW[key] = true
-			cfg.BindsRW = append(cfg.BindsRW, config.BindEntry{Host: b[0], Sandbox: b[1]})
-		}
-	}
-	for _, b := range resolved.BindsRO {
-		key := b[0] + "->" + b[1]
-		if !seenRO[key] {
-			seenRO[key] = true
-			cfg.BindsRO = append(cfg.BindsRO, config.BindEntry{Host: b[0], Sandbox: b[1]})
-		}
-	}
-	for _, pt := range resolved.Path {
-		if !seenPath[pt] {
-			seenPath[pt] = true
-			cfg.Path = append(cfg.Path, pt)
-		}
-	}
+// mergeResolvedProfile adds a resolved profile's settings to cfg. List entries
+// already present are skipped and existing env values win.
+func mergeResolvedProfile(cfg *config.Config, resolved *profile.ResolvedProfile) {
+	cfg.PassEnv = appendNew(cfg.PassEnv, resolved.PassEnv...)
+	cfg.Mask = appendNew(cfg.Mask, resolved.Mask...)
+	cfg.Copy = appendNew(cfg.Copy, resolved.Copy...)
+	cfg.Path = appendNew(cfg.Path, resolved.Path...)
+	cfg.BindsRW = appendNewBinds(cfg.BindsRW, resolved.BindsRW)
+	cfg.BindsRO = appendNewBinds(cfg.BindsRO, resolved.BindsRO)
 	for k, v := range resolved.Env {
 		if cfg.Env == nil {
 			cfg.Env = make(map[string]string)
@@ -66,9 +37,33 @@ func mergeResolvedProfile(cfg *config.Config, resolved *profile.ResolvedProfile,
 	}
 }
 
-func ApplyProfiles(cfg *config.Config, currentDir string, verbose bool) error {
+// appendNew appends the items not already in list, keeping order.
+func appendNew[T comparable](list []T, items ...T) []T {
+	for _, item := range items {
+		if !slices.Contains(list, item) {
+			list = append(list, item)
+		}
+	}
+	return list
+}
+
+// appendNewBinds appends profile binds whose host and sandbox pair is not
+// already bound.
+func appendNewBinds(list []config.BindEntry, binds [][]string) []config.BindEntry {
+	for _, b := range binds {
+		exists := slices.ContainsFunc(list, func(e config.BindEntry) bool { return e.Host == b[0] && e.Sandbox == b[1] })
+		if !exists {
+			list = append(list, config.BindEntry{Host: b[0], Sandbox: b[1]})
+		}
+	}
+	return list
+}
+
+// ApplyProfiles applies cfg's stack and selected profiles to cfg, resolving
+// them from the registry visible from currentDir.
+func ApplyProfiles(cfg *config.Config, currentDir string) error {
 	if cfg.Stack != "" {
-		if err := ApplyStack(cfg, currentDir); err != nil {
+		if err := ApplyStack(cfg); err != nil {
 			return err
 		}
 	}
@@ -99,46 +94,15 @@ func ApplyRegistry(cfg *config.Config, registry map[string]*profile.Profile) err
 		return err
 	}
 
-	seenRW := make(map[string]bool)
-	for _, b := range cfg.BindsRW {
-		seenRW[b.Host+"->"+b.Sandbox] = true
-	}
-	seenRO := make(map[string]bool)
-	for _, b := range cfg.BindsRO {
-		seenRO[b.Host+"->"+b.Sandbox] = true
-	}
-	seenPath := make(map[string]bool)
-	for _, p := range cfg.Path {
-		seenPath[p] = true
-	}
-	seenPassEnv := make(map[string]bool)
-	for _, pe := range cfg.PassEnv {
-		seenPassEnv[pe] = true
-	}
-	seenMask := make(map[string]bool)
-	for _, m := range cfg.Mask {
-		seenMask[m] = true
-	}
-	seenCopy := make(map[string]bool)
-	for _, c := range cfg.Copy {
-		seenCopy[c] = true
-	}
-
 	var allResolved []string
-	seenResolved := make(map[string]bool)
 
 	for _, pName := range cfg.Profiles {
 		resolved, err := profile.ResolveProfile(pName, registry, ctx)
 		if err != nil {
 			return fmt.Errorf("resolving profile %q: %w", pName, err)
 		}
-		for _, rName := range resolved.Profiles {
-			if !seenResolved[rName] {
-				seenResolved[rName] = true
-				allResolved = append(allResolved, rName)
-			}
-		}
-		mergeResolvedProfile(cfg, resolved, seenPassEnv, seenMask, seenCopy, seenRW, seenRO, seenPath)
+		allResolved = appendNew(allResolved, resolved.Profiles...)
+		mergeResolvedProfile(cfg, resolved)
 		if registry[pName].Kind == "compound" {
 			if cfg.Env == nil {
 				cfg.Env = map[string]string{}

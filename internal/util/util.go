@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// CommandExists reports whether cmd is an executable file on PATH.
 func CommandExists(cmd string) bool {
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		p := filepath.Join(dir, cmd)
@@ -18,6 +19,7 @@ func CommandExists(cmd string) bool {
 	return false
 }
 
+// EnsureBwrap returns an error with installation instructions when bwrap is missing.
 func EnsureBwrap() error {
 	if CommandExists("bwrap") {
 		return nil
@@ -44,9 +46,11 @@ var junkDirs = map[string]bool{
 	".bw":          true,
 }
 
+// CountFiles counts files under dir, skipping VCS, dependency and cache
+// directories, and stops once the count passes limit.
 func CountFiles(dir string, limit int) int {
 	count := 0
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
 		if err != nil {
 			return filepath.SkipDir
 		}
@@ -64,6 +68,8 @@ func CountFiles(dir string, limit int) int {
 	return count
 }
 
+// CopyIfNewer copies the regular file src to dest when dest is missing or older,
+// and reports whether it copied.
 func CopyIfNewer(src, dest string) (copied bool) {
 	fi, err := os.Stat(src)
 	if err != nil || !fi.Mode().IsRegular() {
@@ -99,6 +105,7 @@ func HomeDir() string {
 	return "/"
 }
 
+// ExpandHome replaces a leading ~ in path with the home directory.
 func ExpandHome(path string) string {
 	if strings.HasPrefix(path, "~/") {
 		return filepath.Join(HomeDir(), path[2:])
@@ -107,24 +114,4 @@ func ExpandHome(path string) string {
 		return HomeDir()
 	}
 	return path
-}
-
-// UserTempDirBase returns the base per-user temporary directory path /tmp/bws-<UID>.
-func UserTempDirBase() string {
-	return filepath.Join(os.TempDir(), fmt.Sprintf("bws-%d", os.Getuid()))
-}
-
-// UserTempDir creates and returns an ephemeral temporary directory scoped to the
-// current user's UID (e.g. /tmp/bws-<UID>/<sub_*>), falling back to os.TempDir()/bws_<sub_*>
-// if the per-user base cannot be created or accessed with appropriate permissions.
-func UserTempDir(sub string) (string, error) {
-	base := UserTempDirBase()
-	if err := os.MkdirAll(base, 0700); err == nil {
-		if fi, err := os.Stat(base); err == nil && fi.IsDir() && fi.Mode().Perm()&0077 == 0 {
-			if tmp, err := os.MkdirTemp(base, sub+"_"); err == nil {
-				return tmp, nil
-			}
-		}
-	}
-	return os.MkdirTemp("", "bws_"+sub+"_")
 }

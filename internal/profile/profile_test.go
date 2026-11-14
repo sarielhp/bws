@@ -80,7 +80,7 @@ func TestMatchRule(t *testing.T) {
 	wslTrue := true
 	wslFalse := false
 
-	ruleWSL := ProfileRule{
+	ruleWSL := Rule{
 		Match: &MatchCondition{WSL: &wslTrue, Distro: []string{"ubuntu"}},
 	}
 
@@ -94,7 +94,7 @@ func TestMatchRule(t *testing.T) {
 		t.Errorf("expected rule NOT to match on native Linux")
 	}
 
-	ruleNonWSL := ProfileRule{
+	ruleNonWSL := Rule{
 		Match: &MatchCondition{WSL: &wslFalse},
 	}
 	if MatchRule(ruleNonWSL, ctxWSL) {

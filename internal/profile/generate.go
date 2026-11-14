@@ -220,17 +220,16 @@ func fetchFirejail(client *http.Client, cleanName string) ([]string, []string, [
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		if strings.HasPrefix(line, "whitelist ") {
+		switch {
+		case strings.HasPrefix(line, "whitelist "):
 			path := strings.TrimSpace(strings.TrimPrefix(line, "whitelist "))
 			fjWhitelists = append(fjWhitelists, path)
-		} else if strings.HasPrefix(line, "read-only ") {
+		case strings.HasPrefix(line, "read-only "):
 			path := strings.TrimSpace(strings.TrimPrefix(line, "read-only "))
 			fjReadOnlys = append(fjReadOnlys, path)
-		} else if strings.HasPrefix(line, "keep-var ") {
+		case strings.HasPrefix(line, "keep-var "):
 			varName := strings.TrimSpace(strings.TrimPrefix(line, "keep-var "))
-			for _, v := range strings.Fields(varName) {
-				fjKeepVars = append(fjKeepVars, v)
-			}
+			fjKeepVars = append(fjKeepVars, strings.Fields(varName)...)
 		}
 	}
 
@@ -298,8 +297,8 @@ func isSensitiveEnvVar(name string) bool {
 }
 
 func convertFirejailPath(raw string) []string {
-	clean := strings.Replace(raw, "${HOME}", "~", -1)
-	clean = strings.Replace(clean, "$HOME", "~", -1)
+	clean := strings.ReplaceAll(raw, "${HOME}", "~")
+	clean = strings.ReplaceAll(clean, "$HOME", "~")
 	clean = strings.TrimSpace(clean)
 
 	if strings.HasPrefix(clean, "~") {

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"bws/internal/config"
+	"bws/internal/testutil"
 	"bws/internal/util"
 )
 
@@ -67,8 +68,7 @@ func TestStartAndCloseProxyWithRealSocket(t *testing.T) {
 		t.Skip("xdg-dbus-proxy not installed, skipping live proxy test")
 	}
 
-	fakeDir := t.TempDir()
-	fakeSock := filepath.Join(fakeDir, "bus")
+	fakeSock := filepath.Join(testutil.ShortSocketDir(t), "bus")
 	l, err := net.Listen("unix", fakeSock)
 	if err != nil {
 		t.Fatalf("failed to create unix socket: %v", err)

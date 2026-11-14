@@ -60,73 +60,43 @@ func TestNestedMountOrderingWorkspacePrecedesChildMounts(t *testing.T) {
 	}
 }
 
-func TestNestedMountOrderingROInsideRW(t *testing.T) {
-	tmpDir := t.TempDir()
-	parentHost := filepath.Join(tmpDir, "host_parent")
-	childHost := filepath.Join(tmpDir, "host_child")
-	_ = os.MkdirAll(parentHost, 0755)
-	_ = os.MkdirAll(childHost, 0755)
+func TestNestedMountOrdering(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		parentRW   bool
+		childDest  string
+		parentFlag string
+		childFlag  string
+	}{
+		{"RO inside RW", true, "/opt/app/readonly_config", "--bind", "--ro-bind"},
+		{"RW inside RO", false, "/opt/app/writable_cache", "--ro-bind", "--bind"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			parentHost := filepath.Join(tmpDir, "host_parent")
+			childHost := filepath.Join(tmpDir, "host_child")
+			for _, dir := range []string{parentHost, childHost} {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			parent := []config.BindEntry{{Host: parentHost, Sandbox: "/opt/app"}}
+			child := []config.BindEntry{{Host: childHost, Sandbox: tc.childDest}}
+			cfg := &config.Config{BindsRW: child, BindsRO: parent}
+			if tc.parentRW {
+				cfg.BindsRW, cfg.BindsRO = parent, child
+			}
 
-	parentDest := "/opt/app"
-	childDest := "/opt/app/readonly_config"
-
-	cfg := &config.Config{
-		BindsRW: []config.BindEntry{
-			{Host: parentHost, Sandbox: parentDest},
-		},
-		BindsRO: []config.BindEntry{
-			{Host: childHost, Sandbox: childDest},
-		},
-	}
-
-	sandboxDir := t.TempDir()
-	currentDir := t.TempDir()
-	args := BuildArgs(cfg, sandboxDir, currentDir, true, false)
-
-	idxParent := findArgIndex(args, "--bind", parentHost, parentDest)
-	idxChild := findArgIndex(args, "--ro-bind", childHost, childDest)
-
-	if idxParent == -1 || idxChild == -1 {
-		t.Fatalf("failed to find parent (%d) or child (%d) mount in args: %v", idxParent, idxChild, args)
-	}
-
-	if idxParent >= idxChild {
-		t.Errorf("parent RW mount (%d) must precede child RO mount (%d)", idxParent, idxChild)
-	}
-}
-
-func TestNestedMountOrderingRWInsideRO(t *testing.T) {
-	tmpDir := t.TempDir()
-	parentHost := filepath.Join(tmpDir, "host_parent")
-	childHost := filepath.Join(tmpDir, "host_child")
-	_ = os.MkdirAll(parentHost, 0755)
-	_ = os.MkdirAll(childHost, 0755)
-
-	parentDest := "/opt/app"
-	childDest := "/opt/app/writable_cache"
-
-	cfg := &config.Config{
-		BindsRO: []config.BindEntry{
-			{Host: parentHost, Sandbox: parentDest},
-		},
-		BindsRW: []config.BindEntry{
-			{Host: childHost, Sandbox: childDest},
-		},
-	}
-
-	sandboxDir := t.TempDir()
-	currentDir := t.TempDir()
-	args := BuildArgs(cfg, sandboxDir, currentDir, true, false)
-
-	idxParent := findArgIndex(args, "--ro-bind", parentHost, parentDest)
-	idxChild := findArgIndex(args, "--bind", childHost, childDest)
-
-	if idxParent == -1 || idxChild == -1 {
-		t.Fatalf("failed to find parent (%d) or child (%d) mount in args: %v", idxParent, idxChild, args)
-	}
-
-	if idxParent >= idxChild {
-		t.Errorf("parent RO mount (%d) must precede child RW mount (%d)", idxParent, idxChild)
+			args := BuildArgs(cfg, t.TempDir(), t.TempDir(), true, false)
+			idxParent := findArgIndex(args, tc.parentFlag, parentHost, "/opt/app")
+			idxChild := findArgIndex(args, tc.childFlag, childHost, tc.childDest)
+			if idxParent == -1 || idxChild == -1 {
+				t.Fatalf("failed to find parent (%d) or child (%d) mount in args: %v", idxParent, idxChild, args)
+			}
+			if idxParent >= idxChild {
+				t.Errorf("parent %s mount (%d) must precede child %s mount (%d)", tc.parentFlag, idxParent, tc.childFlag, idxChild)
+			}
+		})
 	}
 }
 
@@ -166,7 +136,7 @@ func TestBaseParentMountsPrecedeUserBindsAndMasksLast(t *testing.T) {
 	tmpDir := t.TempDir()
 	userHost := filepath.Join(tmpDir, "user_host")
 	_ = os.MkdirAll(userHost, 0755)
-	userDest := "/tmp/custom_sub"
+	userDest := "/tmp/custom_sub" // tmp-exempt: sample path, nothing is created
 
 	cfg := &config.Config{
 		BindsRO: []config.BindEntry{
@@ -178,7 +148,7 @@ func TestBaseParentMountsPrecedeUserBindsAndMasksLast(t *testing.T) {
 	currentDir := t.TempDir()
 	args := BuildArgs(cfg, sandboxDir, currentDir, true, false)
 
-	idxTmp := findArgIndex(args, "/tmp")
+	idxTmp := findArgIndex(args, "/tmp") // tmp-exempt: sample path, nothing is created
 	idxUser := findArgIndex(args, userDest)
 
 	if idxTmp == -1 || idxUser == -1 {

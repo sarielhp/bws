@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -39,34 +40,10 @@ func TestPathUsage(t *testing.T) {
 	}
 }
 func TestPathList(t *testing.T) {
-	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
-		t.Skip("binary not built, skipping")
-	}
-	ensureGlobalConfig(t)
-
-	cmd := exec.Command(bwPath, "path", "list")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws path list failed: %v\n%s", err, string(output))
-	}
-	if !containsStr(string(output), "[g]") {
-		t.Errorf("expected [g] in output, got %q", string(output))
-	}
+	expectGlobalCmd(t, "[g]", "path", "list")
 }
 func TestConfShowGlobal(t *testing.T) {
-	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
-		t.Skip("binary not built, skipping")
-	}
-	ensureGlobalConfig(t)
-
-	cmd := exec.Command(bwPath, "config", "show", "-g")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws config show -g failed: %v\n%s", err, string(output))
-	}
-	if !containsStr(string(output), "share_net") {
-		t.Errorf("expected config content, got %q", string(output))
-	}
+	expectGlobalCmd(t, "share_net", "config", "show", "-g")
 }
 func TestConfShowLocalMissing(t *testing.T) {
 	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
@@ -85,19 +62,7 @@ func TestConfShowLocalMissing(t *testing.T) {
 	}
 }
 func TestConfigResetGlobal(t *testing.T) {
-	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
-		t.Skip("binary not built, skipping")
-	}
-	ensureGlobalConfig(t)
-
-	cmd := exec.Command(bwPath, "config", "reset", "-g")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("bws config reset -g failed: %v\n%s", err, string(output))
-	}
-	if !containsStr(string(output), "Created") {
-		t.Errorf("expected creation confirmation, got %q", string(output))
-	}
+	expectGlobalCmd(t, "Created", "config", "reset", "-g")
 }
 
 func TestMountAddRelativePinhole(t *testing.T) {
@@ -134,5 +99,22 @@ func TestMountAddRelativePinhole(t *testing.T) {
 	}
 	if !containsStr(string(data), "../prefix.tex") {
 		t.Errorf("expected ../prefix.tex in local config, got: %s", string(data))
+	}
+}
+
+// expectGlobalCmd runs bws with args against an existing global config and
+// checks that it succeeds and prints want.
+func expectGlobalCmd(t *testing.T, want string, args ...string) {
+	t.Helper()
+	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
+		t.Skip("binary not built, skipping")
+	}
+	ensureGlobalConfig(t)
+	output, err := exec.Command(bwPath, args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("bws %s failed: %v\n%s", strings.Join(args, " "), err, output)
+	}
+	if !containsStr(string(output), want) {
+		t.Errorf("bws %s: expected %q in output, got %q", strings.Join(args, " "), want, output)
 	}
 }

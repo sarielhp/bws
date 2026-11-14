@@ -57,7 +57,7 @@ type Profile struct {
 	Features   *config.FeaturesConfig `json:"features,omitempty"`
 	Detect     *DetectSpec            `json:"detect,omitempty"`
 	Tests      []TestSpec             `json:"tests,omitempty"`
-	Rules      []ProfileRule          `json:"rules,omitempty"`
+	Rules      []Rule                 `json:"rules,omitempty"`
 	Source     string                 `json:"source,omitempty"` // "embedded", "global", "local"
 }
 
@@ -89,30 +89,38 @@ func LocalProfilesDir(projectDir string) string {
 	return filepath.Join(root, ".bws", "profiles")
 }
 
+// loadEmbeddedProfiles registers the profiles built into the binary under
+// their names and aliases; an unreadable or nameless entry is skipped.
+func loadEmbeddedProfiles(registry map[string]*Profile) {
+	entries, err := fs.ReadDir(embeddedProfilesFS, "embedded_profiles")
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := embeddedProfilesFS.ReadFile("embedded_profiles/" + entry.Name())
+		if err != nil {
+			continue
+		}
+		var p Profile
+		if err := json.Unmarshal(data, &p); err != nil || p.Name == "" {
+			continue
+		}
+		p.Source = "embedded"
+		registry[p.Name] = &p
+		for _, alias := range p.Aliases {
+			registry[alias] = &p
+		}
+	}
+}
+
 // LoadRegistry loads all embedded, global, and local project profiles.
 func LoadRegistry(projectDir string) (map[string]*Profile, error) {
 	registry := make(map[string]*Profile)
 
-	// 1. Embedded profiles
-	embeddedEntries, err := fs.ReadDir(embeddedProfilesFS, "embedded_profiles")
-	if err == nil {
-		for _, entry := range embeddedEntries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
-				data, err := embeddedProfilesFS.ReadFile("embedded_profiles/" + entry.Name())
-				if err == nil {
-					var p Profile
-					if err := json.Unmarshal(data, &p); err == nil && p.Name != "" {
-						p.Source = "embedded"
-						pCopy := p
-						registry[p.Name] = &pCopy
-						for _, alias := range p.Aliases {
-							registry[alias] = &pCopy
-						}
-					}
-				}
-			}
-		}
-	}
+	loadEmbeddedProfiles(registry)
 
 	// 2. Global profiles (~/.config/bws/profiles)
 	globalDir := GlobalProfilesDir()
@@ -243,28 +251,9 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 		if err := CheckReviewed(p, registry); err != nil {
 			return nil, err
 		}
-		if res.Description == "" && p.Description != "" {
-			res.Description = p.Description
-		}
-		if p.UnshareNet || p.NoNet {
-			res.UnshareNet = true
-		}
-		if p.Features != nil {
-			res.Features = config.MergeFeatures(res.Features, p.Features)
-		}
-
-		if err := mergeProfileValues(res, p); err != nil {
+		if err := res.addProfile(pName, p, ctx); err != nil {
 			return nil, err
 		}
-		for _, r := range p.Rules {
-			if MatchRule(r, ctx) {
-				if err := mergeProfileValues(res, &Profile{Name: pName, Path: r.Path, Env: r.Env, BindsRW: r.BindsRW, BindsRO: r.BindsRO}); err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		res.Tests = append(res.Tests, p.Tests...)
 	}
 	if expected := registry[name].ReviewedPolicy; expected != "" {
 		digest, err := PermissionDigest(res)
@@ -276,6 +265,34 @@ func ResolveProfile(name string, registry map[string]*Profile, ctx MatchContext)
 		}
 	}
 	return res, nil
+}
+
+// addProfile merges profile p, registered as name, into a resolution: its
+// description (the first one wins), network and feature settings, values,
+// the rules matching ctx, and its tests.
+func (res *ResolvedProfile) addProfile(name string, p *Profile, ctx MatchContext) error {
+	if res.Description == "" {
+		res.Description = p.Description
+	}
+	if p.UnshareNet || p.NoNet {
+		res.UnshareNet = true
+	}
+	if p.Features != nil {
+		res.Features = config.MergeFeatures(res.Features, p.Features)
+	}
+	if err := mergeProfileValues(res, p); err != nil {
+		return err
+	}
+	for _, r := range p.Rules {
+		if !MatchRule(r, ctx) {
+			continue
+		}
+		if err := mergeProfileValues(res, &Profile{Name: name, Path: r.Path, Env: r.Env, BindsRW: r.BindsRW, BindsRO: r.BindsRO}); err != nil {
+			return err
+		}
+	}
+	res.Tests = append(res.Tests, p.Tests...)
+	return nil
 }
 
 func appendUniqueStrings(dst *[]string, values []string) {

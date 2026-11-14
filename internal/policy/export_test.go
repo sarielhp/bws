@@ -55,7 +55,7 @@ func TestExportRoundTripAndPurity(t *testing.T) {
 	if _, ok := plan.Profile.Env["BWS_ACTIVE_PROFILES"]; ok {
 		t.Fatal("exported runtime variable")
 	}
-	if _, err := os.Stat(config.ConfigDir()); !os.IsNotExist(err) {
+	if _, err := os.Stat(config.Dir()); !os.IsNotExist(err) {
 		t.Fatal("export wrote host state")
 	}
 }

@@ -34,6 +34,8 @@ func arrayElementExtra(arr *hujson.Array) hujson.Extra {
 	return hujson.Extra("\n  ")
 }
 
+// EditJSONC applies fn to the parsed JSONC file at path, keeping comments and
+// formatting, and writes the result back as a trusted file.
 func EditJSONC(path string, fn func(root *hujson.Value) error) error {
 	data, err := os.ReadFile(path)
 	if IsLocalPolicy(path) && err == nil {
@@ -56,6 +58,7 @@ func EditJSONC(path string, fn func(root *hujson.Value) error) error {
 	return WriteTrustedFile(path, out)
 }
 
+// SetArrayValue replaces the string array stored under key, creating it if needed.
 func SetArrayValue(path, key string, newElements []string) error {
 	return EditJSONC(path, func(root *hujson.Value) error {
 		obj, ok := root.Value.(*hujson.Object)
@@ -89,6 +92,7 @@ func SetArrayValue(path, key string, newElements []string) error {
 	})
 }
 
+// AddArrayElement appends a string to the array under key unless it is present.
 func AddArrayElement(path, key, element string) error {
 	return EditJSONC(path, func(root *hujson.Value) error {
 		obj, ok := root.Value.(*hujson.Object)
@@ -118,6 +122,8 @@ func AddArrayElement(path, key, element string) error {
 	})
 }
 
+// AddBindArrayElement appends entry, a JSON bind (string or [host, sandbox]
+// pair), to the bind array under key.
 func AddBindArrayElement(path, key, entry string) error {
 	return EditJSONC(path, func(root *hujson.Value) error {
 		obj, ok := root.Value.(*hujson.Object)
@@ -153,6 +159,7 @@ func AddBindArrayElement(path, key, entry string) error {
 	})
 }
 
+// RemoveArrayElement removes the string match from the array under key.
 func RemoveArrayElement(path, key, match string) error {
 	return EditJSONC(path, func(root *hujson.Value) error {
 		obj, ok := root.Value.(*hujson.Object)
@@ -183,6 +190,8 @@ func RemoveArrayElement(path, key, match string) error {
 	})
 }
 
+// RemoveBindElement removes the binds whose host is hostPath from the array
+// under key and reports whether one was found.
 func RemoveBindElement(path, key, hostPath string) (bool, error) {
 	found := false
 	err := EditJSONC(path, func(root *hujson.Value) error {
@@ -214,18 +223,6 @@ func RemoveBindElement(path, key, hostPath string) (bool, error) {
 		return ErrNoChange
 	})
 	return found, err
-}
-
-func LoadFileWithHuJSON(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	standardized, err := hujson.Standardize(data)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JSON/JSONC in %s: %w", path, err)
-	}
-	return standardized, nil
 }
 
 // elementHost returns the host path of an array entry: the string itself, or

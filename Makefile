@@ -1,21 +1,38 @@
-.PHONY: build test lint clean install audit
+BIN_NAME := bin/bws
 
+# Copy or include; use tools/commit directly for messages with shell metacharacters.
+.PHONY: all build gate check ci lint snapshot commit bump install release test audit review static-analysis clean long
+all: build
 build:
-	go build -o bws .
-
-test:
-	go vet ./...
-	go test ./...
-
+	tools/build
+gate:
+	tools/gate
+check:
+	tools/check
+ci:
+	tools/gate --full
 lint:
-	staticcheck ./...
-
-audit:
-	./tools/audit_lines.rb
-
+	tools/lint
+snapshot:
+	tools/snapshot $(ARGS)
+commit:
+	tools/commit "$(msg)"
+bump:
+	tools/bump
 install:
-	./tools/install
-
+	tools/install
+release:
+	tools/release $(ARGS)
+test:
+	go test -timeout 180s ./...
+audit:
+	go-audit --strict --quiet .
+review: static-analysis
+static-analysis:
+	go-static-analysis
 clean:
-	rm -f bws
 	go clean
+	rm -f $(BIN_NAME)
+
+long:
+	tools/test_long

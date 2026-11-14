@@ -42,20 +42,9 @@ func BuildInitPlanWithStack(root string, stackName string, names []string, flags
 		return nil, err
 	}
 
-	var approval *config.ProfileApproval
-	if stackName != "" {
-		stk, err := stack.Get(stackName)
-		if err != nil {
-			return nil, fmt.Errorf("resolving stack %q: %w", stackName, err)
-		}
-		digest, err := stack.Digest(stk)
-		if err != nil {
-			return nil, err
-		}
-		approval = &config.ProfileApproval{
-			Source: stk.Source,
-			SHA256: digest,
-		}
+	approval, err := stackApproval(stackName)
+	if err != nil {
+		return nil, err
 	}
 
 	cfg := &config.Config{
@@ -484,4 +473,21 @@ func presetProfiles(name string) ([]string, error) {
 		return nil, fmt.Errorf("unknown preset %q", name)
 	}
 	return names, nil
+}
+
+// stackApproval pins the named stack's source and digest, or returns nil when
+// no stack is selected.
+func stackApproval(stackName string) (*config.ProfileApproval, error) {
+	if stackName == "" {
+		return nil, nil
+	}
+	stk, err := stack.Get(stackName)
+	if err != nil {
+		return nil, fmt.Errorf("resolving stack %q: %w", stackName, err)
+	}
+	digest, err := stack.Digest(stk)
+	if err != nil {
+		return nil, err
+	}
+	return &config.ProfileApproval{Source: stk.Source, SHA256: digest}, nil
 }

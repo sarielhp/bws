@@ -1,6 +1,9 @@
+// Command bws launches programs, typically AI coding agents, inside an
+// unprivileged bubblewrap sandbox configured from composable profiles.
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"os"
 	"os/exec"
@@ -12,7 +15,11 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-var Version = "0.3.77"
+// Version is the release version, kept in VERSION and bumped by tools/bump.
+var Version = strings.TrimSpace(versionFile)
+
+//go:embed VERSION
+var versionFile string
 
 // rootPersistentOptions is the set of flags available to every command,
 // organised into help-page groups.

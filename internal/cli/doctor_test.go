@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"bws/internal/config"
+	"bws/internal/testutil"
 )
 
 func TestCheckKernelUserns(t *testing.T) {
@@ -42,7 +43,7 @@ func TestCheckKernelUserns(t *testing.T) {
 
 func TestCheckCriticalTools(t *testing.T) {
 	// All tools exist
-	mockLookupAll := func(name string) bool {
+	mockLookupAll := func(_ string) bool {
 		return true
 	}
 	res := CheckCriticalTools(mockLookupAll)
@@ -103,8 +104,8 @@ func TestCheckDeadBindMounts(t *testing.T) {
 
 	cfg := &config.Config{
 		BindsRW: []config.BindEntry{
-			{Host: existingPath, Sandbox: "/tmp/a"},
-			{Host: nonExistentPath, Sandbox: "/tmp/b"},
+			{Host: existingPath, Sandbox: "/srv/a"},
+			{Host: nonExistentPath, Sandbox: "/srv/b"},
 		},
 	}
 
@@ -119,7 +120,7 @@ func TestCheckDeadBindMounts(t *testing.T) {
 	// Now with all existing binds
 	cfgValid := &config.Config{
 		BindsRW: []config.BindEntry{
-			{Host: existingPath, Sandbox: "/tmp/a"},
+			{Host: existingPath, Sandbox: "/srv/a"},
 		},
 	}
 	resValid := CheckDeadBindMounts(cfgValid, tmpDir)
@@ -163,9 +164,9 @@ func TestCheckMountMaskingConflicts(t *testing.T) {
 
 	// Bind target matches a masked directory
 	cfg := &config.Config{
-		Mask: []string{"/tmp/masked_dir"},
+		Mask: []string{"/srv/masked_dir"},
 		BindsRW: []config.BindEntry{
-			{Host: "/tmp/some_host", Sandbox: "/tmp/masked_dir/subfile"},
+			{Host: "/srv/some_host", Sandbox: "/srv/masked_dir/subfile"},
 		},
 	}
 
@@ -179,9 +180,9 @@ func TestCheckMountMaskingConflicts(t *testing.T) {
 
 	// No conflicts
 	cfgClean := &config.Config{
-		Mask: []string{"/tmp/other_dir"},
+		Mask: []string{"/srv/other_dir"},
 		BindsRW: []config.BindEntry{
-			{Host: "/tmp/some_host", Sandbox: "/tmp/unmasked_dir"},
+			{Host: "/srv/some_host", Sandbox: "/srv/unmasked_dir"},
 		},
 	}
 	resClean := CheckMountMaskingConflicts(cfgClean, tmpDir)
@@ -217,8 +218,7 @@ func TestCheckSSHAgent(t *testing.T) {
 	}
 
 	// 3. SSH enabled, socket file exists and responsive
-	sockDir := t.TempDir()
-	sockPath := filepath.Join(sockDir, "test_agent.sock")
+	sockPath := filepath.Join(testutil.ShortSocketDir(t), "agent.sock")
 	ln, err := net.Listen("unix", sockPath)
 	if err != nil {
 		t.Fatalf("failed to create unix socket listener: %v", err)
@@ -232,7 +232,7 @@ func TestCheckSSHAgent(t *testing.T) {
 	}
 
 	// 4. SSH enabled, socket unresponsive (mock dialer returns error)
-	mockFailDial := func(network, address string, timeout time.Duration) (net.Conn, error) {
+	mockFailDial := func(_, _ string, _ time.Duration) (net.Conn, error) {
 		return nil, errors.New("connection refused")
 	}
 	res = CheckSSHAgent(cfgEnabled, mockFailDial)

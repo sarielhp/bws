@@ -180,7 +180,7 @@ func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestFetchHomebrewFormulaBoundedRead(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		chunk := bytes.Repeat([]byte(" "), 1024*1024)
 		for i := 0; i < 6; i++ {
@@ -190,7 +190,7 @@ func TestFetchHomebrewFormulaBoundedRead(t *testing.T) {
 	defer ts.Close()
 
 	client := &http.Client{
-		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		Transport: roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
 			return http.Get(ts.URL)
 		}),
 	}

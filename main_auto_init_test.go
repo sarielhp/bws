@@ -11,6 +11,7 @@ import (
 
 	"bws/internal/config"
 	"bws/internal/policy"
+	"bws/internal/testutil"
 )
 
 func setupGlobalConfigWithAutoInit(t *testing.T, autoInit string) string {
@@ -105,59 +106,15 @@ func TestAutoInitNoInitFlagSkips(t *testing.T) {
 		t.Skip("binary not built, skipping")
 	}
 	ensureGlobalConfig(t)
-
-	tmpDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module testpkg\n"), 0644); err != nil {
-		t.Fatalf("failed to write go.mod: %v", err)
-	}
-
-	var stderr bytes.Buffer
-	cmd := exec.Command(bwPath, "--no-init", "--no-ssh", "--", "true")
-	cmd.Dir = tmpDir
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("bws failed: %v, stderr: %s", err, stderr.String())
-	}
-
-	if containsStr(stderr.String(), "Auto-configured") {
-		t.Errorf("expected --no-init to suppress auto-configuration, got: %s", stderr.String())
-	}
-
-	configPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
-	if _, err := os.Stat(configPath); err == nil {
-		t.Errorf("expected .bws/config.jsonc NOT to exist when --no-init passed")
-	}
+	expectNoAutoInit(t, "", "go.mod", "module testpkg\n", "--no-init", "--no-init", "--no-ssh", "--", "true")
 }
 
 func TestAutoInitNeverConfigSkips(t *testing.T) {
 	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
 		t.Skip("binary not built, skipping")
 	}
-
-	customHome := setupGlobalConfigWithAutoInit(t, "never")
-
-	tmpDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(tmpDir, "Cargo.toml"), []byte("[package]\nname = \"test\"\n"), 0644); err != nil {
-		t.Fatalf("failed to write Cargo.toml: %v", err)
-	}
-
-	var stderr bytes.Buffer
-	cmd := exec.Command(bwPath, "--no-ssh", "--", "true")
-	cmd.Dir = tmpDir
-	cmd.Env = append(os.Environ(), "HOME="+customHome)
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("bws failed: %v, stderr: %s", err, stderr.String())
-	}
-
-	if containsStr(stderr.String(), "Auto-configured") {
-		t.Errorf("expected auto_init 'never' to suppress auto-configuration, got: %s", stderr.String())
-	}
-
-	configPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
-	if _, err := os.Stat(configPath); err == nil {
-		t.Errorf("expected .bws/config.jsonc NOT to exist when auto_init is never")
-	}
+	home := setupGlobalConfigWithAutoInit(t, "never")
+	expectNoAutoInit(t, home, "Cargo.toml", "[package]\nname = \"test\"\n", "auto_init 'never'", "--no-ssh", "--", "true")
 }
 
 func TestAutoInitForceFlagSkips(t *testing.T) {
@@ -165,58 +122,42 @@ func TestAutoInitForceFlagSkips(t *testing.T) {
 		t.Skip("binary not built, skipping")
 	}
 	ensureGlobalConfig(t)
-
-	tmpDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module testpkg\n"), 0644); err != nil {
-		t.Fatalf("failed to write go.mod: %v", err)
-	}
-
-	var stderr bytes.Buffer
-	cmd := exec.Command(bwPath, "-f", "--no-ssh", "--", "true")
-	cmd.Dir = tmpDir
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("bws failed: %v, stderr: %s", err, stderr.String())
-	}
-
-	if containsStr(stderr.String(), "Auto-configured") {
-		t.Errorf("expected -f to suppress auto-configuration, got: %s", stderr.String())
-	}
-
-	configPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
-	if _, err := os.Stat(configPath); err == nil {
-		t.Errorf("expected .bws/config.jsonc NOT to exist when -f passed")
-	}
+	expectNoAutoInit(t, "", "go.mod", "module testpkg\n", "-f", "-f", "--no-ssh", "--", "true")
 }
 
+// TestAutoInitPromptNonTTYSkips relies on exec.Command giving bws a stdin
+// that is not a terminal.
 func TestAutoInitPromptNonTTYSkips(t *testing.T) {
 	if _, err := os.Stat(bwPath); os.IsNotExist(err) {
 		t.Skip("binary not built, skipping")
 	}
+	home := setupGlobalConfigWithAutoInit(t, "prompt")
+	expectNoAutoInit(t, home, "package.json", "{\"name\": \"test\"}\n", "auto_init 'prompt' on a non-TTY", "--no-ssh", "--", "true")
+}
 
-	customHome := setupGlobalConfigWithAutoInit(t, "prompt")
-
+// expectNoAutoInit runs bws with args in a new workspace holding the project
+// file marker and checks that it neither auto-configures nor writes
+// .bws/config.jsonc; why names the cause in failures. An empty home keeps the
+// test's HOME.
+func expectNoAutoInit(t *testing.T, home, marker, contents, why string, args ...string) {
+	t.Helper()
 	tmpDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte("{\"name\": \"test\"}\n"), 0644); err != nil {
-		t.Fatalf("failed to write package.json: %v", err)
-	}
+	testutil.WriteFile(t, filepath.Join(tmpDir, marker), contents)
 
 	var stderr bytes.Buffer
-	// In exec.Command without pseudo-terminal, stdin is not a TTY
-	cmd := exec.Command(bwPath, "--no-ssh", "--", "true")
+	cmd := exec.Command(bwPath, args...)
 	cmd.Dir = tmpDir
-	cmd.Env = append(os.Environ(), "HOME="+customHome)
+	if home != "" {
+		cmd.Env = append(os.Environ(), "HOME="+home)
+	}
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("bws failed: %v, stderr: %s", err, stderr.String())
 	}
-
 	if containsStr(stderr.String(), "Auto-configured") {
-		t.Errorf("expected auto_init 'prompt' on non-TTY to skip auto-configuration, got: %s", stderr.String())
+		t.Errorf("expected %s to suppress auto-configuration, got: %s", why, stderr.String())
 	}
-
-	configPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
-	if _, err := os.Stat(configPath); err == nil {
-		t.Errorf("expected .bws/config.jsonc NOT to exist when prompt on non-TTY")
+	if _, err := os.Stat(filepath.Join(tmpDir, ".bws", "config.jsonc")); err == nil {
+		t.Errorf("expected .bws/config.jsonc NOT to exist with %s", why)
 	}
 }

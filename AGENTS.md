@@ -1,17 +1,13 @@
 # AI agent guidelines for `bws` (Bubblewrap sandbox launcher)
 ## Quick commands
 ```bash
-make                          # build + test + lint (via Makefile)
-./tools/verify_build.sh       # go vet + go test + go build + docs drift check
-go vet ./...                  # static analysis
-go test ./...                 # run all tests
-./tools/test_long             # run all long tests (opt-in)
-./tools/audit_lines.rb        # audit function (80 max) & file limits (800 warn / 1100 max)
-./tools/check_docs_drift.rb   # verify docs/commands.md matches the CLI (--strict)
-./tools/bump_version.sh       # increment patch, commit, push
-./tools/bump_version.sh 0.2.0 # set explicit version, commit, push
-./tools/snapshot.sh           # commit all with message & push
-./tools/install               # build and install to ~/bin/bws
+rtk proxy tools/build          # build bin/bws
+rtk proxy tools/gate           # fast gate: gofmt, mod tidy, vet, staticcheck, go-audit, temp-file check, tests, docs drift, build
+rtk proxy tools/gate --full    # adds race, govulncheck, gocritic, shadow, revive, dupl
+rtk proxy tools/lint           # static checks only
+./tools/test_long              # long tests (opt-in, build tag `long`)
+./tools/check_docs_drift.rb --strict --binary bin/bws   # docs/commands.md vs the CLI
+rtk proxy tools/install        # requested installation to ~/bin/bws (plus agent integrations)
 ```
 
 ## Project structure
@@ -19,21 +15,23 @@ go test ./...                 # run all tests
 bws/
 ├── main.go                  # Entry point: clihelp App/Command tree, dispatch
 ├── go.mod / go.sum
-├── Makefile                 # Build, test, lint targets
+├── Makefile                 # Thin wrapper over tools/ (build, gate, ci, install, release, long)
+├── VERSION                  # Release version, embedded with //go:embed
 ├── README.md                # Main documentation
 ├── profiles/                # Capability & Security Profiles catalog
 │   ├── README.md            # Detailed profiles catalog documentation
 │   └── *.json               # Profile definitions (embedded in binary)
 ├── tools/                   # Developer automation scripts
-│   ├── verify_build.sh      # vet + test + build + docs drift check
+│   ├── settings.rb          # Project settings: artifacts, checks, version, install targets
+│   ├── tooling.rb           # Shared gate/build/release implementation (standards template)
+│   ├── tmp_space.rb         # <tmpdir>/<user>/bws/ temporary tree for Ruby tools
+│   ├── build, gate, check, lint, snapshot, commit, bump, release, install
+│   ├── integrations.rb      # Antigravity skill and OpenCode commands, copied by install
 │   ├── check_docs_drift.rb  # verify docs/commands.md against `bws inventory`
 │   ├── test_long            # run all long tests individually
-│   ├── audit_lines.rb       # enforce 80-line func & 800/1100-line file limits
-│   ├── bump_version.sh      # bump version, commit, push
 │   ├── outline_symbols.sh   # sorted index of exported symbols
 │   ├── show_symbol.sh       # show a symbol's declaration
-│   ├── snapshot.sh          # commit all + push
-│   └── install              # build and install to ~/bin/bws
+│   └── review_cycle.json    # review-cycle configuration
 └── internal/
     ├── config/              # JSONC loading, @@HOME@@ token, global+local merge
     ├── profile/             # Profile engine, dependency resolution, test runner
@@ -41,7 +39,8 @@ bws/
     ├── bwrap/               # Building bwrap argument list, path masking, mounts
     ├── ssh/                 # SSH agent lifecycle, auto deploy keys via gh
     ├── cli/                 # Subcommand handlers (init-dev, profile, conf, cbind)
-    └── util/                # File counting, command detection, path helpers
+    ├── util/                # File counting, command detection, path helpers, temp tree
+    └── testutil/            # Helpers shared by test suites
 ```
 
 ## Conventions
@@ -62,38 +61,37 @@ bws/
 - **clihelp handlers** return errors; the framework prints them with `clihelp.PrintError`.
 
 ## Before committing
-1. Run `go vet ./...` — no warnings.
-2. Run `./tools/verify_build.sh` — all tests pass, binary compiles, and the docs drift check passes.
-3. Run `./tools/audit_lines.rb` — no function exceeds 80 lines and files remain within 300–700 lines (warn > 800, max 1100).
-4. Run `./tools/bump_version.sh` — every code change bumps the version (and auto-commits/pushes to git).
-5. Commit messages follow conventional style: `area: description` or `Type(scope): description`.
-   Examples: `feat(safety): block root directory`, `fix(bwrap): correct X11 socket order`, `chore: bump version to 0.1.1`.
+1. Run `rtk proxy tools/gate` (use `--full` before a release); it must pass without baseline changes.
+2. Commit only when asked, through `rtk proxy tools/commit <message>`; release through `rtk proxy tools/release <message>`, which bumps `VERSION`, pushes and installs.
+3. Commit messages follow conventional style: `area: description` or `Type(scope): description`.
+   Examples: `feat(safety): block root directory`, `fix(bwrap): correct X11 socket order`.
 
 ## Testing
 - **`*_test.go` alongside every package**.
 - **Table-driven tests** for config merging, bwrap arg building.
 - **Integration tests** in `main_test.go` exercise the built binary for safety checks and --info output.
-- **Run `go vet ./...` and `go test ./...`** before pushing.
+- **Unix sockets in tests** go in `testutil.ShortSocketDir(t)`: `t.TempDir()` under the gate's TMPDIR exceeds the 107-byte socket path limit.
 
 ## Hard constraints
-- **Function limit**: Hard limit of **80 lines** per function. Decompose long functions in place.
-- **File sizing**: Recommended **300–700 lines**, warning over **800 lines**, hard limit **1100 lines**. Never split a file through a function body.
+- **Go standards**: follow `~/prog/standards/go/GUIDELINES.md`. Nesting depth ≤ 4, decision branches ≤ 15 per function.
+- **Function limits by tier** (enforced by `go-audit --strict`): standard logic 110 lines, declarative builders 160, dispatchers 200, table-driven tests 250. Decompose long functions in place.
+- **File sizing**: hard limit **1100 lines** (1600 for `*_test.go`). Never split a file through a function body.
+- **Temporary files** live under `<tmpdir>/<user>/bws/<purpose>/` via `util.TempPath`, `util.UserTempDir` or `util.UserTempFile`. Never call `os.TempDir()` elsewhere or write a literal `/tmp` path without `tmp-exempt: <reason>`.
 - **No `log.Fatalf` in handlers** — only in `main.go` for startup-only errors.
 - **No `ioutil`** (deprecated since Go 1.16) — use `os` and `io` directly.
 - **No external dependencies for trivial things**.
-- **Bump version** on every code change via `./tools/bump_version.sh` (auto-commits and pushes).
 - **Config path is fixed** — `~/.config/bws/config.jsonc`. Local override: `.bws/config.jsonc` in the current directory.
 
 ## Build & distribution
-- **`Makefile` with targets**: `build`, `test`, `lint`, `clean`.
-- **`go build -o bws .`** produces a single static binary.
-- **Version** is in `main.go` as `var Version = "X.Y.Z"`. Updated via `tools/bump_version.sh`.
+- **`rtk proxy tools/build`** produces `bin/bws`; `tools/install` copies it to `~/bin/bws`.
+- **Version** lives in `VERSION`, embedded into `main.Version`, and is bumped by `tools/bump` or `tools/release`.
+- **Toolchain** is pinned by the `toolchain` line in `go.mod`.
 
 ## Code style
-- **`gofumpt`** for formatting (fallback to `go fmt`).
+- **`gofmt -s`** formatting (checked by the gate).
 - **No naked returns** except in trivial getters.
 - **Explicit error checks** — no ignoring errors.
-- **Comments on exported symbols** only.
+- **Doc comments** on every package and exported symbol (revive checks them).
 - **Avoid `init()`** — use explicit initialization in `main()`.
 
 ## Documentation & writing standards
@@ -116,17 +114,6 @@ bws/
 - Don't embed the default config as a Go string literal — use `//go:embed`.
 - Don't duplicate configuration keys — merge logic lives in `internal/config/merge.go` with tests.
 
-## Scripts catalog
-| Script | Purpose |
-|---|---|
-| `verify_build.sh` | `go fmt` → `go vet` → `go test` → `go build` → `check_docs_drift.rb --strict` |
-| `check_docs_drift.rb` | verify `docs/commands.md` matches the CLI (`bws inventory`); `--strict` fails on undocumented commands |
-| `audit_lines.rb` | audit function lengths (80 max) and file lengths (800 warn / 1100 max) |
-| `bump_version.sh [v]` | increment patch (or set explicit version), commit, push |
-| `outline_symbols.sh` | sorted index of all Go types, functions, constants, vars |
-| `show_symbol.sh <sym>` | display declaration lines for a named symbol |
-| `snapshot.sh [msg]` | `git add -A && git commit -m "<msg>" && git push` |
-
 ## Documentation drift check
 
 `docs/commands.md` is hand-written and drifts whenever the CLI changes. The build
@@ -134,31 +121,68 @@ prevents that: the hidden `bws inventory` command emits a JSON tree of the whole
 command surface (names, aliases, per-command flags, globals), and
 `tools/check_docs_drift.rb` diffs it against the `` `bws ...` `` headings and
 option tables in `docs/commands.md`. It fails on a documented command or flag
-that does not exist, and (in `--strict`, used by `verify_build.sh`) on a real
+that does not exist, and (in `--strict`, used by the gate) on a real
 command with no heading. Hidden commands are excluded from the inventory.
 
 To add a command: give it a `` ### `bws <name>` `` heading with an option table,
-then run `./tools/check_docs_drift.rb --strict`. Run it via `./tools/verify_build.sh`.
+then run `rtk proxy tools/gate`, which runs `./tools/check_docs_drift.rb --strict --binary bin/bws`.
 
-## Autonomous Review Cycle (`tools/review_cycle`)
+## Go tooling and authorization
 
-Single-command orchestration executing adversarial review, sandbox remediation, and quality gate verification.
-The orchestrator and its `audit` runner live outside this repository; only the
-local configuration (`tools/review_cycle.json`) is checked in here.
+Follow the Go [GUIDELINES](~/prog/standards/go/GUIDELINES.md) and
+[RATIONALE](~/prog/standards/go/RATIONALE.md). Read `tools/settings.rb` for this
+project's artifact layout, checks, version mode, and declared installation targets.
 
-### Pipeline Execution Phases:
-1. **Audit**: Runs multi-lens audit (`tools/audit`), producing `<reports-dir>/<NUM>_<profile>.md`.
-2. **Remediation**: Dispatches sandbox agent (`bws gw` + `agy-run-wild`) to create `<reports-dir>/<NUM>_<profile>_plan.md`, apply fixes, author regression tests, and squash-merge.
-3. **Quality Gate & Rollback**: Runs quality gate (auto-detected or `--gate-cmd`). If sandbox or gate fails, automatically rolls back workspace to pre-cycle commit.
-4. **Verification & Summary**: Inspects diff footprint (`--max-diff-lines`), runs differential re-audit on patch (`tools/audit`), and generates `<reports-dir>/<NUM>_summary.md`.
-5. **Archive & Push**: Moves artifacts to `<reports-dir>/archive/`, records `<reports-dir>/state.json`, and pushes to remote (`--no-push` to bypass).
+Use the exact command forms when applicable:
 
-### 4:2:1 Pyramid Cadence & 6-Lens Balancing:
-Rotates models: `[Flash, Flash, Tier 1, Flash, Flash, Tier 1, Tier 2]` (4 Gemini Flash : 2 Claude/Codex : 1 Opus).
-Round-robins across the 6 audit lenses (`systems`, `security`, `correctness`, `resilience`, `performance`, `cli`).
-Because gcd(6, 7) = 1, every lens is audited by every model tier over a 42-cycle non-repeating sequence.
+| Command | Use |
+|---|---|
+| `rtk proxy tools/build` | Repository-local build |
+| `rtk proxy tools/gate` or `rtk proxy tools/check` | Fast gate; add `--full` for release verification |
+| `rtk proxy tools/lint` | Static feedback |
+| `rtk proxy tools/snapshot [message]` | Local checkpoint without gate/push |
+| `rtk proxy tools/commit [--full] <message>` | Requested gated local commit |
+| `rtk proxy tools/bump` | Requested version bump and verified push |
+| `rtk proxy tools/bump --resume` | Resume an inspected failed push without bumping again |
+| `rtk proxy tools/install` | Requested installation to declared targets |
+| `rtk proxy tools/release [--no-install] <message>` | Requested release; installs to the declared targets via tools/install unless `--no-install` |
 
-### Invariants:
-- Enforce repository sizing and architectural invariants (e.g. AGENTS.md).
-- Transactional rollback on failure: no broken code left on working branch.
-- Mandatory regression test for every remediated defect.
+Run routine build, lint, test, and gate checks for authorized work. Existing
+command approval allows execution; it does not authorize unrelated commits,
+releases, installations, or changes outside the task. Reuse authorization already
+given in the session. Keep sandboxing and manual approval review enabled; these
+scripts do not change approval settings or writable roots. Bootstrap analysis
+tools separately when authorized. Never enlarge a baseline to hide a new finding.
+
+Create every temporary file under `<tmpdir>/<user>/<project>/` (standards README,
+"Temporary and cached files"): through `ProjectTmp` (`tools/tmp_space.rb`) in Ruby, or the
+language's call with an explicit base under that tree. Never use the system
+temporary directory directly or name a literal `/tmp` path; the gate rejects it
+unless the line says `tmp-exempt: <reason>`. Files reused across runs are caches,
+not temporary files: put them under `$XDG_CACHE_HOME/<project>/`.
+
+## Autonomous review cycle (`review-cycle`)
+
+The engine and review-audit live in ~/prog/26/ruby/review_cycle and run from PATH. The repository contract is ~/prog/standards/workflow/README.md; project choices belong in tools/review_cycle.json. Read project/language guidelines, agent instructions, and tooling settings before remediation.
+
+| Command | Effect |
+|---|---|
+| `rtk proxy review-cycle --doctor` | Check host and configured sandbox prerequisites. |
+| `rtk proxy review-cycle --setup` | Requested onboarding: configure local bws profiles/tools and project review files. |
+| `rtk proxy review-cycle --no-push` | Requested audit/remediation with local commits, gate/build, and differential verification. |
+| `rtk proxy review-cycle --loop --no-push` | Bounded loop across lenses; default maximum seven cycles. |
+| `rtk proxy review-cycle --push` | Authorized upstream publication with remote SHA verification. |
+| `rtk proxy review-cycle --status` | Inspect rotation and history. |
+| `rtk proxy review-cycle --dry-run --no-push` | Audit/report without remediation or commits; writes reports/logs and runs pre-flight checks. |
+
+Declare executable tools/gate and tools/build. Adopt all language helpers, entry points, and settings. The canonical gate owns analyzers, tests, and one build; tools/check delegates to it. Build validates repository artifacts and never installs or changes Git. Compiler/dependency caches may be external. Custom gates need a checked separate build unless gate_includes_build:true declares they include it.
+
+The pipeline audits a lens, dispatches sandbox remediation, inspects its diff, runs the post-merge gate/build and differential audit, then writes summary/archive/state artifacts. Invalid configuration, missing commands, failed verification, and failed Git operations stop the run. Remediation or verification failures roll back to the cycle base with pre-existing untracked-file preservation. Ignored output/cache changes and external effects remain outside rollback.
+
+Every differential finding blocks completion. --skip-diff-audit records local needs_review, exits nonzero, and prevents publication. Engine evidence overrides agent-authored verification claims in summaries. Preserve regression coverage and add appropriate defect tests. Missing test edits remain advisory; --strict-tests rejects detected test weakening and --strict-diff rejects oversized diffs. Neither proves complete coverage.
+
+Commits remain local by default; inspect existing explicit push:true settings and use --no-push when needed. Authorized publication requires a remote branch upstream and one push URL, pushes the exact intended commit, and verifies its destination SHA. Publication failures exit nonzero and retain verified local commits; inspect the remote before retrying. Batched pushes follow the same policy.
+
+Review commits do not contain lifecycle structured verification or create release tags. Run the full project gate before authorized publication or use tools/bump/tools/release. Install only through the explicitly authorized project installation workflow.
+
+Command approval permits execution, not unrelated work. Reuse session authorization. Keep sandboxing and manual approval review enabled; never enlarge writable roots, modify approval rules, install dependencies, or publish merely because these instructions are present.

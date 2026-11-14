@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -43,7 +44,7 @@ func Start() (*Server, error) {
 
 	go func() {
 		if err := s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			// ignore or log server error
+			fmt.Fprintf(os.Stderr, "[bws] proxy stopped: %v\n", err)
 		}
 	}()
 
@@ -133,10 +134,10 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	transport := &http.Transport{
 		DisableKeepAlives: true,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
 			dialer := &net.Dialer{Timeout: 15 * time.Second}
-			conn, err := dialer.DialContext(ctx, "tcp4", addr)
-			if err != nil {
+			conn, dialErr := dialer.DialContext(ctx, "tcp4", addr)
+			if dialErr != nil {
 				return dialer.DialContext(ctx, "tcp", addr)
 			}
 			return conn, nil
@@ -157,8 +158,5 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		// Log or ignore if connection is closed
-	}
+	_, _ = io.Copy(w, resp.Body) // the client may close the connection early; nothing is left to report to
 }

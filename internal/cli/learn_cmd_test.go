@@ -56,7 +56,7 @@ func TestHandleDeltaDispatch_EmptyDelta_NonVerbose(t *testing.T) {
 	delta := &learn.Delta{}
 
 	out, err := captureStdout(t, func() error {
-		return handleDeltaDispatch(res, delta, "/tmp/dummy.jsonc", "", false, false, false, false)
+		return handleDeltaDispatch(res, delta, filepath.Join(t.TempDir(), "dummy.jsonc"), "", false, false, false, false)
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -81,7 +81,7 @@ func TestHandleDeltaDispatch_EmptyDelta_Verbose(t *testing.T) {
 	delta := &learn.Delta{}
 
 	out, err := captureStdout(t, func() error {
-		return handleDeltaDispatch(res, delta, "/tmp/dummy.jsonc", "", false, false, false, true)
+		return handleDeltaDispatch(res, delta, filepath.Join(t.TempDir(), "dummy.jsonc"), "", false, false, false, true)
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -108,7 +108,7 @@ func TestHandleDeltaDispatch_SecurityAlerts_NonVerbose(t *testing.T) {
 	}
 
 	out, err := captureStdout(t, func() error {
-		return handleDeltaDispatch(res, delta, "/tmp/dummy.jsonc", "", false, false, false, false)
+		return handleDeltaDispatch(res, delta, filepath.Join(t.TempDir(), "dummy.jsonc"), "", false, false, false, false)
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -133,7 +133,7 @@ func TestHandleDeltaDispatch_NonEmptyDelta_DryRun(t *testing.T) {
 
 	// Non-verbose dry-run
 	outNonVerbose, err := captureStdout(t, func() error {
-		return handleDeltaDispatch(res, delta, "/tmp/dummy.jsonc", "", false, false, true, false)
+		return handleDeltaDispatch(res, delta, filepath.Join(t.TempDir(), "dummy.jsonc"), "", false, false, true, false)
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -150,7 +150,7 @@ func TestHandleDeltaDispatch_NonEmptyDelta_DryRun(t *testing.T) {
 
 	// Verbose dry-run
 	outVerbose, err := captureStdout(t, func() error {
-		return handleDeltaDispatch(res, delta, "/tmp/dummy.jsonc", "", false, false, true, true)
+		return handleDeltaDispatch(res, delta, filepath.Join(t.TempDir(), "dummy.jsonc"), "", false, false, true, true)
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

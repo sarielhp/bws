@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"bws/internal/config"
+	"bws/internal/testutil"
 )
 
 func TestDisabledSSHDoesNotBindAgent(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	sock := filepath.Join(t.TempDir(), "agent.sock")
+	sock := filepath.Join(testutil.ShortSocketDir(t), "agent.sock")
 	listener, err := net.Listen("unix", sock)
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +46,7 @@ func TestHomeAndWorkspaceMountOrdering(t *testing.T) {
 			continue
 		}
 		switch args[i+2] {
-		case "/tmp":
+		case "/tmp": // tmp-exempt: sample path, nothing is created
 			tmpIndex = i
 		case home:
 			homeIndex = i

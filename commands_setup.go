@@ -31,7 +31,7 @@ func setupCmd(f *appFlags) clihelp.Command {
 			{Line: "bws setup", Description: "Choose interactively, then start"},
 			{Line: "bws setup -w latex,emacs,claude,codex --no-start", Description: "Choose without the screen"},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			err := cli.RunSetup(cli.SetupOptions{TargetDir: ".", With: f.with})
 			if errors.Is(err, cli.ErrSetupCancelled) {
 				fmt.Fprintln(os.Stderr, "[bws] "+err.Error())

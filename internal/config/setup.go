@@ -47,7 +47,7 @@ func ApplySetup(path string, sel SetupSelection) error {
 		}
 		setInObject(obj, "profiles", profiles)
 		setInObject(obj, "reviewed_profiles", reviewed)
-		features, err := childObject(obj, "features")
+		features, err := ensureChildObject(obj, "features")
 		if err != nil {
 			return err
 		}
@@ -72,8 +72,8 @@ func jsonValue(v any) (hujson.Value, error) {
 	return hujson.Parse(data)
 }
 
-// childObject returns obj[key] as an object, creating it when absent.
-func childObject(obj *hujson.Object, key string) (*hujson.Object, error) {
+// ensureChildObject returns obj[key] as an object, creating it when absent.
+func ensureChildObject(obj *hujson.Object, key string) (*hujson.Object, error) {
 	for i := range obj.Members {
 		if string(obj.Members[i].Name.Value.(hujson.Literal)) != `"`+key+`"` {
 			continue

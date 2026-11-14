@@ -300,7 +300,7 @@ func Run(opts Options) error {
 
 	sandboxErr := runSandboxSession(tempDir, opts, branchName)
 
-	if err := exportAndFetch(hostRepo, tempDir, branchName, opts.Export); err != nil {
+	if err = exportAndFetch(hostRepo, tempDir, branchName, opts.Export); err != nil {
 		cancelCleanup()
 		return fmt.Errorf("%w\nAgent workspace preserved at: %s", err, tempDir)
 	}
@@ -330,7 +330,7 @@ func sandboxResult(err error) error {
 }
 
 func exportAndFetch(hostRepo, cloneDir, branch string, export func(string, string, io.Writer) error) error {
-	bundle, err := os.CreateTemp("", "bws-agent-*.bundle")
+	bundle, err := util.UserTempFile("agent", "bws-agent-*.bundle")
 	if err != nil {
 		return err
 	}

@@ -103,9 +103,9 @@ func TestStackDigestDeterminism(t *testing.T) {
 		Description: "A custom dev environment",
 		Category:    "Testing",
 		Profiles:    []string{"editor", "git"},
-		Source:      "/tmp/old/path.json",
+		Source:      "/srv/old/path.json",
 		Provenance: &Provenance{
-			SourceWorkspace: "/tmp/old/workspace",
+			SourceWorkspace: "/srv/old/workspace",
 			SavedAt:         time.Now().Add(-1 * time.Hour),
 			VerifiedDigest:  "old-digest",
 		},
@@ -117,9 +117,9 @@ func TestStackDigestDeterminism(t *testing.T) {
 		Description: "A custom dev environment",
 		Category:    "Testing",
 		Profiles:    []string{"editor", "git"},
-		Source:      "/tmp/new/path.json",
+		Source:      "/srv/new/path.json",
 		Provenance: &Provenance{
-			SourceWorkspace: "/tmp/new/workspace",
+			SourceWorkspace: "/srv/new/workspace",
 			SavedAt:         time.Now(),
 			VerifiedDigest:  "new-digest",
 		},
@@ -239,7 +239,7 @@ func TestSaveUserStackAtomicClean(t *testing.T) {
 		t.Fatalf("SaveUserStack failed: %v", err)
 	}
 
-	if _, err := os.Stat(path); err != nil {
+	if _, err = os.Stat(path); err != nil {
 		t.Fatalf("expected target stack file to exist: %v", err)
 	}
 

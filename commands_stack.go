@@ -41,7 +41,7 @@ func stackListCmd() clihelp.Command {
 			{Line: "bws stack list -c runtime", Description: "List stacks in 'runtime' category"},
 			{Line: "bws stack list --json", Description: "Output stacks in JSON format"},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return cli.HandleStackList(category, jsonOutput)
 		},
 	}
@@ -91,7 +91,7 @@ func stackSaveCmd(f *appFlags) clihelp.Command {
 	}
 }
 
-func stackUpdateCmd(f *appFlags) clihelp.Command {
+func stackUpdateCmd(_ *appFlags) clihelp.Command {
 	var dryRun bool
 	var yes bool
 	return clihelp.Command{
@@ -110,7 +110,7 @@ func stackUpdateCmd(f *appFlags) clihelp.Command {
 			{Line: "bws stack update", Description: "Pull and review upstream stack updates"},
 			{Line: "bws stack update -n", Description: "Dry run preview of upstream updates"},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			return cli.HandleStackUpdate(dryRun, yes)
 		},
 	}

@@ -69,9 +69,9 @@ func TestParseTraceLine_Files(t *testing.T) {
 		},
 		{
 			name:        "creat call",
-			line:        `1001 creat("/tmp/newfile.txt", 0644) = 5`,
+			line:        `1001 creat("/tmp/newfile.txt", 0644) = 5`, // tmp-exempt: sample path, nothing is created
 			wantName:    "creat",
-			wantPaths:   []string{"/tmp/newfile.txt"},
+			wantPaths:   []string{"/tmp/newfile.txt"}, // tmp-exempt: sample path, nothing is created
 			wantMode:    AccessWrite,
 			wantSuccess: true,
 		},
@@ -85,9 +85,9 @@ func TestParseTraceLine_Files(t *testing.T) {
 		},
 		{
 			name:        "rename file",
-			line:        `1001 rename("/tmp/a", "/tmp/b") = 0`,
+			line:        `1001 rename("/tmp/a", "/tmp/b") = 0`, // tmp-exempt: sample path, nothing is created
 			wantName:    "rename",
-			wantPaths:   []string{"/tmp/a", "/tmp/b"},
+			wantPaths:   []string{"/tmp/a", "/tmp/b"}, // tmp-exempt: sample path, nothing is created
 			wantMode:    AccessWrite,
 			wantSuccess: true,
 		},

@@ -150,6 +150,8 @@ func runBindAdd(hostPath, sandboxPath string, rw, global, local bool) error {
 	return nil
 }
 
+// HandleBindAdd adds a bind mount to the global or local configuration and
+// exits on error.
 func HandleBindAdd(hostPath, sandboxPath string, rw, global, local bool) {
 	printWorkspaceBanner(global)
 	if err := runBindAdd(hostPath, sandboxPath, rw, global, local); err != nil {
@@ -158,6 +160,7 @@ func HandleBindAdd(hostPath, sandboxPath string, rw, global, local bool) {
 	}
 }
 
+// HandleMountAdd is HandleBindAdd under the mount command name.
 func HandleMountAdd(hostPath, sandboxPath string, rw, global, local bool) {
 	HandleBindAdd(hostPath, sandboxPath, rw, global, local)
 }
@@ -208,6 +211,8 @@ func runBindDel(hostPath string, global, local bool) error {
 	return nil
 }
 
+// HandleBindDel removes the bind mount for hostPath from the global or local
+// configuration and exits on error.
 func HandleBindDel(hostPath string, global, local bool) {
 	if err := runBindDel(hostPath, global, local); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -215,14 +220,17 @@ func HandleBindDel(hostPath string, global, local bool) {
 	}
 }
 
+// HandleMountDel is HandleBindDel under the mount command name.
 func HandleMountDel(hostPath string, global, local bool) {
 	HandleBindDel(hostPath, global, local)
 }
 
+// HandleMountList is HandleBindList under the mount command name.
 func HandleMountList() {
 	HandleBindList()
 }
 
+// HandleBindList prints the bind mounts of the global and local configurations.
 func HandleBindList() {
 	globalPath := config.GlobalPath()
 	localPath := config.LocalPath()
@@ -245,30 +253,28 @@ func HandleBindList() {
 		}
 
 		fmt.Printf("%s bind mounts (%s):\n", pair.label, pair.path)
-		if len(cfg.BindsRW) > 0 {
-			fmt.Println("  Read-Write:")
-			for _, b := range cfg.BindsRW {
-				if b.Sandbox != "" && b.Sandbox != b.Host {
-					fmt.Printf("    %s -> %s\n", b.Host, b.Sandbox)
-				} else {
-					fmt.Printf("    %s\n", b.Host)
-				}
-			}
-		}
-		if len(cfg.BindsRO) > 0 {
-			fmt.Println("  Read-Only:")
-			for _, b := range cfg.BindsRO {
-				if b.Sandbox != "" && b.Sandbox != b.Host {
-					fmt.Printf("    %s -> %s\n", b.Host, b.Sandbox)
-				} else {
-					fmt.Printf("    %s\n", b.Host)
-				}
-			}
-		}
+		printBindList("Read-Write", cfg.BindsRW)
+		printBindList("Read-Only", cfg.BindsRO)
 		printed = true
 	}
 	if !printed {
 		fmt.Println("No bind mounts configured.")
+	}
+}
+
+// printBindList prints one titled list of binds, showing the sandbox path
+// when it differs from the host path; an empty list prints nothing.
+func printBindList(title string, binds []config.BindEntry) {
+	if len(binds) == 0 {
+		return
+	}
+	fmt.Printf("  %s:\n", title)
+	for _, b := range binds {
+		if b.Sandbox != "" && b.Sandbox != b.Host {
+			fmt.Printf("    %s -> %s\n", b.Host, b.Sandbox)
+		} else {
+			fmt.Printf("    %s\n", b.Host)
+		}
 	}
 }
 

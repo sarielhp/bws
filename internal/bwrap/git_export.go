@@ -18,7 +18,7 @@ func GitExportArgs(cloneDir, branch string) []string {
 		"--ro-bind", "/bin", "/bin",
 		"--ro-bind", "/lib", "/lib",
 		"--ro-bind-try", "/lib64", "/lib64",
-		"--tmpfs", "/tmp", "--tmpfs", "/home", "--tmpfs", "/etc",
+		"--tmpfs", "/tmp", "--tmpfs", "/home", "--tmpfs", "/etc", // tmp-exempt: mount targets inside the sandbox
 		"--proc", "/proc", "--dev", "/dev",
 		"--bind", cloneDir, "/workspace", "--chdir", "/workspace",
 		"--tmpfs", "/workspace/.bws",

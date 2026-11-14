@@ -10,7 +10,7 @@ import (
 
 // ApplyStack resolves cfg.Stack if configured: verifies approval fingerprint,
 // merges base profiles before local profiles, and applies stack features/env.
-func ApplyStack(cfg *config.Config, currentDir string) error {
+func ApplyStack(cfg *config.Config) error {
 	if cfg == nil || strings.TrimSpace(cfg.Stack) == "" {
 		return nil
 	}

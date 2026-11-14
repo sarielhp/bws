@@ -47,7 +47,7 @@ func TestMaskPathsAreAbsolute(t *testing.T) {
 
 func TestSandboxTmpArgsNeverPredictable(t *testing.T) {
 	args := sandboxTmpArgs(false)
-	if slices.Contains(args, "/tmp/bws/SANDBOX_TMP") {
+	if slices.Contains(args, "<sandbox-tmp>") {
 		t.Fatalf("real run used the fixed fallback path: %v", args)
 	}
 }

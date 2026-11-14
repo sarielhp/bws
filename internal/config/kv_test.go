@@ -35,7 +35,7 @@ func TestConfigKVSetGetUnset(t *testing.T) {
 	}
 
 	// Test setting top-level number
-	if err := SetConfigKV(confPath, "max_file_count", "25000"); err != nil {
+	if err = SetConfigKV(confPath, "max_file_count", "25000"); err != nil {
 		t.Fatalf("SetConfigKV max_file_count failed: %v", err)
 	}
 	val, err = GetConfigKV(confPath, "max_file_count")

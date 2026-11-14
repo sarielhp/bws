@@ -54,7 +54,7 @@ func TestResolveDeployRepoRefusesRewrittenOrigin(t *testing.T) {
 	run("init", "-q")
 	run("remote", "add", "origin", "git@github.com:owner/project.git")
 
-	if got, err := ResolveDeployRepo("", filepath.Join(ws)); err != nil || got != "owner/project" {
+	if got, err := ResolveDeployRepo("", ws); err != nil || got != "owner/project" {
 		t.Fatalf("first use = %q, %v", got, err)
 	}
 	if got, err := ResolveDeployRepo("", ws); err != nil || got != "owner/project" {

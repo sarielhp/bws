@@ -10,7 +10,7 @@ func TestIsInsideTmux(t *testing.T) {
 		t.Errorf("expected IsInsideTmux() = false when TMUX is empty")
 	}
 
-	t.Setenv("TMUX", "/tmp/tmux-1000/default,123,0")
+	t.Setenv("TMUX", "/tmp/tmux-1000/default,123,0") // tmp-exempt: sample path, nothing is created
 	if !IsInsideTmux() {
 		t.Errorf("expected IsInsideTmux() = true when TMUX is set")
 	}

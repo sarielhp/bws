@@ -54,7 +54,7 @@ func TestInitDevWriteAndBackup(t *testing.T) {
 	}
 
 	configPath := filepath.Join(tmpDir, ".bws", "config.jsonc")
-	if _, err := os.Stat(configPath); err != nil {
+	if _, err = os.Stat(configPath); err != nil {
 		t.Fatalf(".bws/config.jsonc was not created: %v", err)
 	}
 

@@ -26,7 +26,7 @@ func TestPathFiltering(t *testing.T) {
 		{"etc hosts", "/etc/hosts", nil, true},
 		{"etc fonts", "/etc/fonts/fonts.conf", nil, true},
 		{"etc custom", "/etc/custom/app.conf", nil, true},
-		{"tmp file", "/tmp/tempfile.dat", nil, true},
+		{"tmp file", "/tmp/tempfile.dat", nil, true}, // tmp-exempt: sample path, nothing is created
 		{"var tmp file", "/var/tmp/temp.dat", nil, true},
 		{"home root", "/home/user", nil, true},
 		{"workspace root", "/home/user/myproject", nil, true},
@@ -168,7 +168,7 @@ func TestAnalyzeTraceLines(t *testing.T) {
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/config.toml", O_RDONLY) = 4`,
 		`1001 openat(AT_FDCWD, "/home/user/.config/mytool/state.db", O_RDWR|O_CREAT, 0644) = 5`,
 		`1001 connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.216.34")}, 16) = 0`,
-		`1001 connect(4, {sa_family=AF_UNIX, sun_path="/tmp/ssh-abcdef/agent.1234"}, 110) = 0`,
+		`1001 connect(4, {sa_family=AF_UNIX, sun_path="/tmp/ssh-abcdef/agent.1234"}, 110) = 0`, // tmp-exempt: sample path, nothing is created
 		`1001 access("../../../book.tex", R_OK) = -1 ENOENT (No such file or directory)`,
 		`1001 openat(AT_FDCWD, "/home/user/nonexistent.dat", O_RDONLY) = -1 ENOENT (No such file or directory)`,
 	}

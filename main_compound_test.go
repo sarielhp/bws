@@ -14,6 +14,7 @@ import (
 	"bws/internal/config"
 	"bws/internal/policy"
 	"bws/internal/profile"
+	"bws/internal/testutil"
 )
 
 func compoundCommand(t *testing.T, dir string, args ...string) (string, string, error) {
@@ -24,16 +25,6 @@ func compoundCommand(t *testing.T, dir string, args ...string) (string, string, 
 	cmd.Stdout, cmd.Stderr = &out, &errOut
 	err := cmd.Run()
 	return out.String(), errOut.String(), err
-}
-
-func compoundFile(t *testing.T, path, contents string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func compoundHome(t *testing.T) {
@@ -48,7 +39,7 @@ func TestCompoundSaveSuggestAndInit(t *testing.T) {
 	compoundHome(t)
 	first, second := t.TempDir(), t.TempDir()
 	for _, root := range []string{first, second} {
-		compoundFile(t, filepath.Join(root, "go.mod"), "module example")
+		testutil.WriteFile(t, filepath.Join(root, "go.mod"), "module example")
 	}
 	out, errOut, err := compoundCommand(t, first, "init", "--profile", "go,git", "--no-ssh")
 	if err != nil {
@@ -63,7 +54,7 @@ func TestCompoundSaveSuggestAndInit(t *testing.T) {
 		t.Fatalf("suggest: %v %s", err, errOut)
 	}
 	var report cli.SuggestionReport
-	if err := json.Unmarshal([]byte(out), &report); err != nil {
+	if err = json.Unmarshal([]byte(out), &report); err != nil {
 		t.Fatal(err)
 	}
 	found := false
@@ -75,7 +66,7 @@ func TestCompoundSaveSuggestAndInit(t *testing.T) {
 	if !found {
 		t.Fatalf("saved profile not suggested: %s", out)
 	}
-	compoundFile(t, filepath.Join(second, "package.json"), "{}")
+	testutil.WriteFile(t, filepath.Join(second, "package.json"), "{}")
 	out, errOut, err = compoundCommand(t, second, "init", "--profile", "go-agent")
 	if err != nil {
 		t.Fatalf("second init: %v %s %s", err, out, errOut)
@@ -98,7 +89,7 @@ func TestCompoundSaveSuggestAndInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := compoundCommand(t, second, "init"); err != nil {
+	if _, _, err = compoundCommand(t, second, "init"); err != nil {
 		t.Fatal(err)
 	}
 	after, err := os.ReadFile(config.FindLocalPath(second))
@@ -113,7 +104,7 @@ func TestCompoundSaveSuggestAndInit(t *testing.T) {
 func TestCompoundDryRunsAndAmbiguity(t *testing.T) {
 	compoundHome(t)
 	root := t.TempDir()
-	compoundFile(t, filepath.Join(root, "go.mod"), "module example")
+	testutil.WriteFile(t, filepath.Join(root, "go.mod"), "module example")
 	before := snapshotTree(t, os.Getenv("HOME"))
 	out, errOut, err := compoundCommand(t, root, "profile", "save", "preview", "--dry-run")
 	if err != nil {
@@ -167,13 +158,13 @@ func TestCompoundDependencyReview(t *testing.T) {
 	compoundHome(t)
 	root := t.TempDir()
 	toolPath := filepath.Join(profile.GlobalProfilesDir(), "tool.json")
-	compoundFile(t, toolPath, `{"name":"tool","env":{"MODE":"first"}}`)
+	testutil.WriteFile(t, toolPath, `{"name":"tool","env":{"MODE":"first"}}`)
 	out, errOut, err := compoundCommand(t, root, "profile", "compose", "stack", "--profiles", "tool", "--match", "go.mod")
 	if err != nil {
 		t.Fatalf("compose: %v %s %s", err, out, errOut)
 	}
-	compoundFile(t, toolPath, `{"name":"tool","env":{"MODE":"second"},"binds_rw":[["/opt/new","/opt/new"]]}`)
-	if _, _, err := compoundCommand(t, root, "init", "--profile", "stack"); err == nil {
+	testutil.WriteFile(t, toolPath, `{"name":"tool","env":{"MODE":"second"},"binds_rw":[["/opt/new","/opt/new"]]}`)
+	if _, _, err = compoundCommand(t, root, "init", "--profile", "stack"); err == nil {
 		t.Fatal("accepted stale dependency")
 	}
 	path := filepath.Join(profile.GlobalProfilesDir(), "stack.json")
@@ -206,12 +197,12 @@ func TestCompoundDependencyReview(t *testing.T) {
 func TestCompoundUntrustedInputAndBadNames(t *testing.T) {
 	compoundHome(t)
 	root := t.TempDir()
-	for _, name := range []string{"../escape", "/tmp/escape", ".", "bad/name"} {
+	for _, name := range []string{"../escape", "/abs/escape", ".", "bad/name"} {
 		if _, _, err := compoundCommand(t, root, "profile", "save", name); err == nil {
 			t.Errorf("accepted %q", name)
 		}
 	}
-	compoundFile(t, filepath.Join(root, ".bws", "config.jsonc"), `{"profiles":["go"]}`)
+	testutil.WriteFile(t, filepath.Join(root, ".bws", "config.jsonc"), `{"profiles":["go"]}`)
 	before := snapshotTree(t, os.Getenv("HOME"))
 	if _, _, err := compoundCommand(t, root, "profile", "save", "untrusted"); err == nil {
 		t.Fatal("exported untrusted config")
@@ -225,7 +216,7 @@ func TestRunAutoInitAndNoInit(t *testing.T) {
 	compoundHome(t)
 	for _, skip := range []bool{false, true} {
 		root := t.TempDir()
-		compoundFile(t, filepath.Join(root, "go.mod"), "module example")
+		testutil.WriteFile(t, filepath.Join(root, "go.mod"), "module example")
 		args := []string{"run", "--no-ssh"}
 		if skip {
 			args = append(args, "--no-init")

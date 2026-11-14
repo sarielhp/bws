@@ -30,57 +30,28 @@ type ProfileSaveOptions struct {
 	Flags             policy.Flags
 }
 
+// profileSave is a profile export ready to preview and write.
+type profileSave struct {
+	target     string
+	before     []byte
+	resolution *policy.Resolution
+	registry   map[string]*profile.Profile
+	plan       *policy.ExportPlan
+}
+
 // HandleProfileSave exports effective policy or composes explicit dependencies.
 func HandleProfileSave(opts ProfileSaveOptions) error {
-	cwd, err := os.Getwd()
+	save, err := planProfileSave(opts)
 	if err != nil {
 		return err
 	}
-	target, err := profile.Target(opts.Name, cwd, opts.Local)
-	if err != nil {
-		return err
-	}
-	before, err := config.PolicyBytes(target)
-	if err != nil {
-		return err
-	}
-	if before != nil && !opts.Force {
-		return fmt.Errorf("profile %q already exists; use --force to overwrite", opts.Name)
-	}
-	resolution, err := policy.Load(cwd)
-	if err != nil {
-		return err
-	}
-	opts.Flags.Apply(resolution.Config)
-	registry, err := profile.LoadRegistry(cwd)
-	if err != nil {
-		return err
-	}
-	target, before, err = checkedProfileDestination(target, registry, opts)
-	if err != nil {
-		return err
-	}
-	plan, err := prepareProfileSave(resolution, registry, opts)
-	if err != nil {
-		return err
-	}
-	if !opts.Local {
-		for name, dep := range plan.Profile.Reviewed {
-			if dep.Source == "local" {
-				return fmt.Errorf("global profile would depend on workspace-local %q; use --flatten for portability, or save --local", name)
-			}
-		}
-	}
-	if err := configureSaveDetection(plan.Profile, resolution.Workspace, opts); err != nil {
-		return err
-	}
-	printSavePreview(target, resolution, plan, before)
+	printSavePreview(save.target, save.resolution, save.plan, save.before)
 	if len(opts.Profiles) == 0 {
-		if err := printSaveOrigins(resolution, registry); err != nil {
+		if err = printSaveOrigins(save.resolution, save.registry); err != nil {
 			return err
 		}
 	}
-	data, err := json.MarshalIndent(plan.Profile, "", "  ")
+	data, err := json.MarshalIndent(save.plan.Profile, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -88,7 +59,7 @@ func HandleProfileSave(opts ProfileSaveOptions) error {
 		_, err = os.Stdout.Write(append(data, '\n'))
 		return err
 	}
-	if err := acknowledgeExport(plan, opts); err != nil {
+	if err := acknowledgeExport(save.plan, opts); err != nil {
 		return err
 	}
 	if !opts.Yes && IsInteractiveTTY(int(os.Stdin.Fd())) {
@@ -96,11 +67,55 @@ func HandleProfileSave(opts ProfileSaveOptions) error {
 			return err
 		}
 	}
-	if err := config.AtomicPolicyWrite(target, append(data, '\n'), before); err != nil {
+	if err := config.AtomicPolicyWrite(save.target, append(data, '\n'), save.before); err != nil {
 		return err
 	}
-	fmt.Printf("Saved environment snapshot as profile %q (%s).\nNot activated. Initialize another project with: bws init --profile %s\n", opts.Name, target, opts.Name)
+	fmt.Printf("Saved environment snapshot as profile %q (%s).\nNot activated. Initialize another project with: bws init --profile %s\n", opts.Name, save.target, opts.Name)
 	return nil
+}
+
+// planProfileSave resolves the destination and builds the profile to save,
+// refusing to overwrite without --force and a global profile that would
+// depend on a workspace-local one.
+func planProfileSave(opts ProfileSaveOptions) (*profileSave, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	target, err := profile.Target(opts.Name, cwd, opts.Local)
+	if err != nil {
+		return nil, err
+	}
+	before, err := config.PolicyBytes(target)
+	if err != nil {
+		return nil, err
+	}
+	if before != nil && !opts.Force {
+		return nil, fmt.Errorf("profile %q already exists; use --force to overwrite", opts.Name)
+	}
+	save := &profileSave{}
+	if save.resolution, err = policy.Load(cwd); err != nil {
+		return nil, err
+	}
+	opts.Flags.Apply(save.resolution.Config)
+	if save.registry, err = profile.LoadRegistry(cwd); err != nil {
+		return nil, err
+	}
+	if save.target, save.before, err = checkedProfileDestination(target, save.registry, opts); err != nil {
+		return nil, err
+	}
+	if save.plan, err = prepareProfileSave(save.resolution, save.registry, opts); err != nil {
+		return nil, err
+	}
+	for name, dep := range save.plan.Profile.Reviewed {
+		if !opts.Local && dep.Source == "local" {
+			return nil, fmt.Errorf("global profile would depend on workspace-local %q; use --flatten for portability, or save --local", name)
+		}
+	}
+	if err := configureSaveDetection(save.plan.Profile, save.resolution.Workspace, opts); err != nil {
+		return nil, err
+	}
+	return save, nil
 }
 
 func printSaveOrigins(r *policy.Resolution, registry map[string]*profile.Profile) error {

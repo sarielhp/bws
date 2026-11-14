@@ -57,25 +57,25 @@ func TestGetConfigKVUnquotesStrings(t *testing.T) {
 
 func TestAtomicWriteFileRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
-	real := filepath.Join(dir, "real.jsonc")
+	target := filepath.Join(dir, "real.jsonc")
 	link := filepath.Join(dir, "link.jsonc")
-	if err := os.WriteFile(real, []byte("old"), 0600); err != nil {
+	if err := os.WriteFile(target, []byte("old"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(real, link); err != nil {
+	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
 	if err := atomicWriteFile(link, []byte("new")); err == nil {
 		t.Fatal("expected error writing through symlink")
 	}
-	data, _ := os.ReadFile(real)
+	data, _ := os.ReadFile(target)
 	if string(data) != "old" {
 		t.Fatalf("symlink target was overwritten: got %q, want %q", string(data), "old")
 	}
 }
 
 func TestRemoveBindElementMatchesHostOnly(t *testing.T) {
-	p := writeTemp(t, `{"binds_ro": [["/tmp/opencode/database", "/data"], "/data/x", "/data"]}`)
+	p := writeTemp(t, `{"binds_ro": [["/srv/opencode/database", "/data"], "/data/x", "/data"]}`)
 	found, err := RemoveBindElement(p, "binds_ro", "/data")
 	if err != nil || !found {
 		t.Fatalf("found=%v err=%v", found, err)
@@ -84,7 +84,7 @@ func TestRemoveBindElementMatchesHostOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.BindsRO) != 2 || cfg.BindsRO[0].Host != "/tmp/opencode/database" {
+	if len(cfg.BindsRO) != 2 || cfg.BindsRO[0].Host != "/srv/opencode/database" {
 		t.Fatalf("wrong entries removed: %+v", cfg.BindsRO)
 	}
 }
@@ -98,8 +98,8 @@ func TestGenerateDefaultConfigEscapesHome(t *testing.T) {
 
 func TestConfigDirAbsoluteWithoutHome(t *testing.T) {
 	t.Setenv("HOME", "")
-	if !filepath.IsAbs(ConfigDir()) {
-		t.Fatalf("ConfigDir() = %q, want absolute", ConfigDir())
+	if !filepath.IsAbs(Dir()) {
+		t.Fatalf("Dir() = %q, want absolute", Dir())
 	}
 }
 
@@ -158,7 +158,7 @@ func TestRemoveBindElementNoChangeDoesNotRewriteOrBackup(t *testing.T) {
 	}
 
 	bakPath := p + ".bak"
-	if _, err := os.Stat(bakPath); !os.IsNotExist(err) {
+	if _, err = os.Stat(bakPath); !os.IsNotExist(err) {
 		t.Errorf("backup file should not be created on no-change remove")
 	}
 

@@ -306,29 +306,19 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 			continue
 		}
 		seen[expanded] = true
-
 		if fi, err := os.Stat(expanded); err == nil {
+			what := "file"
 			if fi.IsDir() {
-				*args = append(*args, "--tmpfs", expanded)
-				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked directory)\n", expanded)
-				}
-			} else {
-				*args = append(*args, "--ro-bind-try", "/dev/null", expanded)
-				if verbose {
-					fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked file)\n", expanded)
-				}
+				what = "directory"
 			}
+			appendMask(args, expanded, fi.IsDir(), what, verbose)
 		}
 	}
 
 	deployKeysDir := filepath.Join(homeDir, ".sandbox", "deploy_keys")
 	if fi, err := os.Stat(deployKeysDir); err == nil && fi.IsDir() && !seen[deployKeysDir] {
 		seen[deployKeysDir] = true
-		*args = append(*args, "--tmpfs", deployKeysDir)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked private deploy keys dir)\n", deployKeysDir)
-		}
+		appendMask(args, deployKeysDir, true, "private deploy keys dir", verbose)
 	}
 
 	wsRoot, _ := config.FindWorkspaceRoot(currentDir)
@@ -337,26 +327,36 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 		bwsDir := filepath.Join(dir, ".bws")
 		if fi, err := os.Stat(bwsDir); err == nil && fi.IsDir() && !seen[bwsDir] {
 			seen[bwsDir] = true
-			*args = append(*args, "--tmpfs", bwsDir)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked workspace .bws config dir)\n", bwsDir)
-			}
+			appendMask(args, bwsDir, true, "workspace .bws config dir", verbose)
 		}
 		bwsFile := filepath.Join(dir, ".bws.jsonc")
 		if fi, err := os.Stat(bwsFile); err == nil && !fi.IsDir() && !seen[bwsFile] {
 			seen[bwsFile] = true
-			*args = append(*args, "--ro-bind-try", "/dev/null", bwsFile)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked workspace .bws.jsonc config file)\n", bwsFile)
-			}
+			appendMask(args, bwsFile, false, "workspace .bws.jsonc config file", verbose)
 		}
+	}
+}
+
+// appendMask hides path inside the sandbox: an empty tmpfs over a directory,
+// /dev/null over a file. what names the mask in verbose output.
+func appendMask(args *[]string, path string, isDir bool, what string, verbose bool) {
+	if isDir {
+		*args = append(*args, "--tmpfs", path)
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[verbose]   --tmpfs %s (masked %s)\n", path, what)
+		}
+		return
+	}
+	*args = append(*args, "--ro-bind-try", "/dev/null", path)
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[verbose]   --ro-bind-try /dev/null %s (masked %s)\n", path, what)
 	}
 }
 
 // resolveMaskPath resolves a mask entry like a bind path and returns "" for
 // anything that is still not absolute, so it can never reach bwrap as a flag.
 func resolveMaskPath(p, homeDir, currentDir string) string {
-	resolved := resolveBindPath(p, homeDir, currentDir)
+	resolved := ResolveBindPath(p, homeDir, currentDir)
 	if !filepath.IsAbs(resolved) {
 		return ""
 	}

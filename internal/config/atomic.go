@@ -52,15 +52,15 @@ func AtomicPolicyWrite(path string, data, expected []byte) error {
 		return err
 	}
 	defer lock.Close()
-	if err := unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+	if err = unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		return fmt.Errorf("another policy write is in progress: %w", err)
 	}
 	defer unix.Flock(int(lock.Fd()), unix.LOCK_UN)
 	name := filepath.Base(path)
-	if err := checkExpected(root, name, expected); err != nil {
+	if err = checkExpected(root, name, expected); err != nil {
 		return err
 	}
-	if err := backupConfig(path); err != nil {
+	if err = backupConfig(path); err != nil {
 		return err
 	}
 	temp := fmt.Sprintf(".write-%x", rand.Text())
@@ -69,15 +69,15 @@ func AtomicPolicyWrite(path string, data, expected []byte) error {
 		return err
 	}
 	defer root.Remove(temp)
-	if _, err := f.Write(data); err != nil {
+	if _, err = f.Write(data); err != nil {
 		f.Close()
 		return err
 	}
-	if err := f.Sync(); err != nil {
+	if err = f.Sync(); err != nil {
 		f.Close()
 		return err
 	}
-	if err := f.Close(); err != nil {
+	if err = f.Close(); err != nil {
 		return err
 	}
 	if expected == nil {

@@ -50,7 +50,7 @@ func RunSetup(opts SetupOptions) error {
 	} else if err := runSetupTUI("bws setup — "+FormatWorkspace(root), s); err != nil {
 		return err
 	}
-	if err := saveSetup(root, path, before, s); err != nil {
+	if err := saveSetup(path, before, s); err != nil {
 		return err
 	}
 	saveSetupMemory(s)
@@ -58,7 +58,7 @@ func RunSetup(opts SetupOptions) error {
 	return nil
 }
 
-func saveSetup(root, path string, before []byte, s *setupState) error {
+func saveSetup(path string, before []byte, s *setupState) error {
 	names := s.profiles()
 	pins, err := profile.PinSelections(names, s.registry)
 	if err != nil {

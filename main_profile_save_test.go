@@ -65,7 +65,7 @@ func TestProfileSave(t *testing.T) {
 	}
 
 	var p map[string]interface{}
-	if err := json.Unmarshal(data, &p); err != nil {
+	if err = json.Unmarshal(data, &p); err != nil {
 		t.Fatalf("created profile is not valid JSON: %v", err)
 	}
 	if p["name"] != "snap-local" {

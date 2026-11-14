@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -105,93 +106,77 @@ func GetConfigKV(path, key string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing %s: %w", path, err)
 	}
-
 	obj, ok := ast.Value.(*hujson.Object)
 	if !ok {
 		return "", fmt.Errorf("root is not an object")
 	}
 
-	normalized := NormalizeKey(key)
-	parts := strings.Split(normalized, ".")
-
-	if len(parts) == 1 {
-		for _, m := range obj.Members {
-			if string(m.Name.Value.(hujson.Literal)) == `"`+parts[0]+`"` {
-				return renderValue(m.Value), nil
-			}
-		}
+	parts := strings.Split(NormalizeKey(key), ".")
+	if len(parts) > 1 {
+		obj = childObject(obj, parts[0])
+	}
+	m := findMember(obj, parts[len(parts)-1])
+	if m == nil {
 		return "", fmt.Errorf("key %q not found", key)
 	}
+	return renderValue(m.Value), nil
+}
 
-	parentKey := parts[0]
-	childKey := parts[1]
-	for _, m := range obj.Members {
-		if string(m.Name.Value.(hujson.Literal)) == `"`+parentKey+`"` {
-			if po, ok := m.Value.Value.(*hujson.Object); ok {
-				for _, cm := range po.Members {
-					if string(cm.Name.Value.(hujson.Literal)) == `"`+childKey+`"` {
-						return renderValue(cm.Value), nil
-					}
-				}
-			}
+// findMember returns obj's member called name, or nil. A nil obj has none.
+func findMember(obj *hujson.Object, name string) *hujson.ObjectMember {
+	if obj == nil {
+		return nil
+	}
+	for i := range obj.Members {
+		if string(obj.Members[i].Name.Value.(hujson.Literal)) == `"`+name+`"` {
+			return &obj.Members[i]
 		}
 	}
+	return nil
+}
 
-	return "", fmt.Errorf("key %q not found", key)
+// childObject returns the object stored under name in obj, or nil when
+// there is none or it is not an object.
+func childObject(obj *hujson.Object, name string) *hujson.Object {
+	m := findMember(obj, name)
+	if m == nil {
+		return nil
+	}
+	child, _ := m.Value.Value.(*hujson.Object)
+	return child
+}
+
+// removeMember deletes obj's member called name and reports whether it existed.
+func removeMember(obj *hujson.Object, name string) bool {
+	before := len(obj.Members)
+	obj.Members = slices.DeleteFunc(obj.Members, func(m hujson.ObjectMember) bool {
+		return string(m.Name.Value.(hujson.Literal)) == `"`+name+`"`
+	})
+	return len(obj.Members) != before
 }
 
 // UnsetConfigKV removes a key from a JSONC file.
 func UnsetConfigKV(path, key string) error {
-	normalized := NormalizeKey(key)
-	parts := strings.Split(normalized, ".")
-
+	parts := strings.Split(NormalizeKey(key), ".")
 	return EditJSONC(path, func(root *hujson.Value) error {
 		obj, ok := root.Value.(*hujson.Object)
 		if !ok {
 			return fmt.Errorf("root is not an object")
 		}
-
 		if len(parts) == 1 {
-			filtered := make([]hujson.ObjectMember, 0, len(obj.Members))
-			found := false
-			for _, m := range obj.Members {
-				if string(m.Name.Value.(hujson.Literal)) == `"`+parts[0]+`"` {
-					found = true
-					continue
-				}
-				filtered = append(filtered, m)
-			}
-			if !found {
+			if !removeMember(obj, parts[0]) {
 				return fmt.Errorf("key %q not found", key)
 			}
-			obj.Members = filtered
 			return nil
 		}
-
-		parentKey := parts[0]
-		childKey := parts[1]
-		for i := range obj.Members {
-			if string(obj.Members[i].Name.Value.(hujson.Literal)) == `"`+parentKey+`"` {
-				if po, ok := obj.Members[i].Value.Value.(*hujson.Object); ok {
-					filtered := make([]hujson.ObjectMember, 0, len(po.Members))
-					found := false
-					for _, cm := range po.Members {
-						if string(cm.Name.Value.(hujson.Literal)) == `"`+childKey+`"` {
-							found = true
-							continue
-						}
-						filtered = append(filtered, cm)
-					}
-					if !found {
-						return fmt.Errorf("key %q not found in %q", childKey, parentKey)
-					}
-					po.Members = filtered
-					return nil
-				}
-			}
+		parent := childObject(obj, parts[0])
+		if parent == nil {
+			return fmt.Errorf("key %q not found", key)
 		}
-
-		return fmt.Errorf("key %q not found", key)
+		if !removeMember(parent, parts[1]) {
+			return fmt.Errorf("key %q not found in %q", parts[1], parts[0])
+		}
+		return nil
 	})
 }
 

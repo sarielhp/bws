@@ -200,10 +200,10 @@ func TestRunSetupWithWritesTrustedConfig(t *testing.T) {
 		t.Errorf("profiles = %v", cfg.Profiles)
 	}
 
-	if err := config.SetConfigKV(path, "tmux_session_name", "paper"); err != nil {
+	if err = config.SetConfigKV(path, "tmux_session_name", "paper"); err != nil {
 		t.Fatal(err)
 	}
-	if err := RunSetup(SetupOptions{TargetDir: ws, With: []string{"latex", "codex"}}); err != nil {
+	if err = RunSetup(SetupOptions{TargetDir: ws, With: []string{"latex", "codex"}}); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err = config.LoadLocalFile(path)

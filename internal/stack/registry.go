@@ -1,11 +1,13 @@
 package stack
 
 import (
+	"cmp"
 	"embed"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -17,7 +19,7 @@ var embeddedStacksFS embed.FS
 
 // UserStacksDir returns the directory path for user-saved stacks (~/.config/bws/stacks).
 func UserStacksDir() string {
-	return filepath.Join(config.ConfigDir(), "stacks")
+	return filepath.Join(config.Dir(), "stacks")
 }
 
 // LoadEmbeddedStacks loads all curated seed stacks embedded in the binary.
@@ -131,11 +133,8 @@ func List(category string) ([]*Stack, error) {
 		}
 		result = append(result, stk)
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Category != result[j].Category {
-			return result[i].Category < result[j].Category
-		}
-		return result[i].Name < result[j].Name
+	slices.SortFunc(result, func(a, b *Stack) int {
+		return cmp.Or(strings.Compare(a.Category, b.Category), strings.Compare(a.Name, b.Name))
 	})
 	return result, nil
 }

@@ -164,7 +164,7 @@ func isBinaryAvailable(bin string, extraPaths []string) bool {
 
 	for _, p := range extraPaths {
 		expanded := util.ExpandHome(p)
-		target := strings.Replace(expanded, "@@HOME@@", util.HomeDir(), -1)
+		target := strings.ReplaceAll(expanded, "@@HOME@@", util.HomeDir())
 		full := target + "/" + bin
 		if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
 			return true

@@ -17,7 +17,7 @@ func TestProfileWritersRejectTraversalNames(t *testing.T) {
 	t.Chdir(t.TempDir())
 	bad := "../../../../tmp/escape"
 
-	if err := HandleProfileNew(bad, true, false, true); err == nil {
+	if err := HandleProfileNew(bad, false, true); err == nil {
 		t.Error("profile generate accepted a traversal name")
 	}
 	if err := HandleProfileFetch(bad, true, false, true); err == nil {
@@ -44,8 +44,8 @@ func TestMatchBinaryHostAmbiguousBasename(t *testing.T) {
 }
 
 func TestEditorCommandSplitsArgs(t *testing.T) {
-	cmd := editorCommand("emacs -nw", "/tmp/c.jsonc")
-	want := []string{"emacs", "-nw", "/tmp/c.jsonc"}
+	cmd := editorCommand("emacs -nw", "/work/c.jsonc")
+	want := []string{"emacs", "-nw", "/work/c.jsonc"}
 	if !slices.Equal(cmd.Args, want) {
 		t.Fatalf("args = %v, want %v", cmd.Args, want)
 	}
@@ -141,7 +141,7 @@ func TestProfileUpdateAndNewRefuseOverwriteWithoutForce(t *testing.T) {
 	}
 
 	// 1. HandleProfileNew must fail if destination exists and !force
-	if err := HandleProfileNew("mycustom", true, false, false); err == nil {
+	if err := HandleProfileNew("mycustom", false, false); err == nil {
 		t.Error("HandleProfileNew must refuse to overwrite existing profile when force=false")
 	}
 

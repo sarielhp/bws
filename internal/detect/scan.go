@@ -22,7 +22,10 @@ type Evidence struct {
 	Entries []Entry `json:"entries"`
 }
 
+// MaxEntries caps the number of directory entries a workspace scan reads.
 const MaxEntries = 10000
+
+// MaxDepth caps how deep a workspace scan descends.
 const MaxDepth = 3
 
 // Scan inspects filenames without following symlinks or executing project code.
@@ -70,7 +73,7 @@ func scanDirectory(root *os.Root, path string, depth int, out *Evidence, count *
 			}
 			out.Entries = append(out.Entries, Entry{Path: filepath.ToSlash(rel), Directory: e.IsDir()})
 			if e.IsDir() && depth < MaxDepth && !skip(e.Name()) {
-				if err := scanDirectory(root, rel, depth+1, out, count); err != nil {
+				if err = scanDirectory(root, rel, depth+1, out, count); err != nil {
 					return err
 				}
 			}

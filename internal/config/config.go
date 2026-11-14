@@ -14,8 +14,10 @@ import (
 	"github.com/tailscale/hujson"
 )
 
+// HomeToken in a path stands for the user's home directory.
 const HomeToken = "@@HOME@@"
 
+// SystemConfig holds the namespace and process settings of the sandbox.
 type SystemConfig struct {
 	ShareNet   *bool   `json:"share_net"`
 	Clearenv   *bool   `json:"clearenv"`
@@ -24,6 +26,8 @@ type SystemConfig struct {
 	NewSession *bool   `json:"new_session,omitempty"`
 }
 
+// FeaturesConfig switches optional sandbox features. A nil pointer means the
+// feature's default applies.
 type FeaturesConfig struct {
 	EnableSSH         *bool    `json:"enable_ssh"`
 	SSHKeys           []string `json:"ssh_keys"`
@@ -46,6 +50,8 @@ type FeaturesConfig struct {
 	DeployKeyRepo string `json:"deploy_key_repo,omitempty"`
 }
 
+// UnmarshalJSON accepts auto_init as either a string mode or the older boolean
+// form.
 func (f *FeaturesConfig) UnmarshalJSON(data []byte) error {
 	type Alias FeaturesConfig
 	aux := struct {
@@ -105,11 +111,14 @@ func AutoInitModeFromFeatures(f *FeaturesConfig) string {
 	}
 }
 
+// BindEntry is a bind mount from Host to Sandbox; an empty Sandbox means the
+// same path inside the sandbox.
 type BindEntry struct {
 	Host    string
 	Sandbox string
 }
 
+// UnmarshalJSON accepts a bind as a host path string or a [host, sandbox] pair.
 func (b *BindEntry) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
@@ -129,6 +138,7 @@ func (b *BindEntry) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Config is a bws configuration file: global, workspace-local, or their merge.
 type Config struct {
 	Stack            string                     `json:"stack,omitempty"`
 	ReviewedStack    *ProfileApproval           `json:"reviewed_stack,omitempty"`
@@ -198,6 +208,7 @@ func replaceHomeToken(obj interface{}, home string) interface{} {
 	}
 }
 
+// LoadFile reads and parses the JSONC configuration at path.
 func LoadFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -213,7 +224,7 @@ func Parse(data []byte, path string) (*Config, error) {
 		return nil, fmt.Errorf("invalid JSONC in %s: %w", path, err)
 	}
 	var raw map[string]interface{}
-	if err := json.Unmarshal(standardized, &raw); err != nil {
+	if err = json.Unmarshal(standardized, &raw); err != nil {
 		return nil, fmt.Errorf("invalid JSON in %s: %w", path, err)
 	}
 	home := util.HomeDir()
@@ -229,20 +240,27 @@ func Parse(data []byte, path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func ConfigDir() string {
+// Dir returns the bws configuration directory, ~/.config/bws.
+func Dir() string {
 	home := util.HomeDir()
 	return filepath.Join(home, ".config", "bws")
 }
 
+// GlobalPath returns the global configuration file, ~/.config/bws/config.jsonc.
 func GlobalPath() string {
-	return filepath.Join(ConfigDir(), "config.jsonc")
+	return filepath.Join(Dir(), "config.jsonc")
 }
 
+// LocalPath returns the workspace configuration file for the current directory.
 func LocalPath() string {
 	cwd, _ := os.Getwd()
 	return FindLocalPath(cwd)
 }
 
+// FindWorkspaceRoot walks up from startDir to the nearest directory with a
+// .bws/config.jsonc, .bws/config.json or .bws.jsonc, stopping before /, the
+// home directory and ~/bin. Without one it returns startDir and the
+// .bws/config.jsonc path there.
 func FindWorkspaceRoot(startDir string) (rootDir string, configPath string) {
 	home := util.HomeDir()
 	homeReal, _ := filepath.EvalSymlinks(home)
@@ -273,11 +291,13 @@ func FindWorkspaceRoot(startDir string) (rootDir string, configPath string) {
 	return startDir, filepath.Join(startDir, ".bws", "config.jsonc")
 }
 
+// FindLocalPath returns the workspace configuration path that applies to cwd.
 func FindLocalPath(cwd string) string {
 	_, cfgPath := FindWorkspaceRoot(cwd)
 	return cfgPath
 }
 
+// CreateDefault writes the default configuration to path and records it as trusted.
 func CreateDefault(path string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -287,6 +307,7 @@ func CreateDefault(path string) error {
 	return WriteTrustedFile(path, []byte(content))
 }
 
+// CreateExampleConfig writes the annotated example configuration to path.
 func CreateExampleConfig(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
@@ -294,9 +315,13 @@ func CreateExampleConfig(path string) error {
 	return os.WriteFile(path, []byte(ExampleConfigContent), 0644)
 }
 
+// DefaultConfigTemplate is the default global configuration.
+//
 //go:embed assets/default_config.jsonc
 var DefaultConfigTemplate string
 
+// ExampleConfigContent is the annotated example configuration.
+//
 //go:embed assets/example_config.jsonc
 var ExampleConfigContent string
 
