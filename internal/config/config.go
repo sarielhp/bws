@@ -148,8 +148,11 @@ type Config struct {
 	// RejectedBinds lists local read-write binds dropped by Merge; see RestrictRW.
 	RejectedBinds []string `json:"-"`
 	Profiles      []string `json:"profiles,omitempty"`
-	Mask          []string `json:"mask,omitempty"`
-	Copy          []string `json:"copy"`
+	// ActiveProfiles lists every profile resolved from Profiles, set on the
+	// host by policy.ApplyProfiles; it is never read from a config file.
+	ActiveProfiles []string `json:"-"`
+	Mask           []string `json:"mask,omitempty"`
+	Copy           []string `json:"copy"`
 }
 
 // EffectiveMaxFileCount returns the workspace file count limit.

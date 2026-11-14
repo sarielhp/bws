@@ -148,6 +148,7 @@ func ApplyRegistry(cfg *config.Config, registry map[string]*profile.Profile) err
 			}
 		}
 	}
+	cfg.ActiveProfiles = allResolved
 	if len(allResolved) > 0 {
 		if cfg.Env == nil {
 			cfg.Env = make(map[string]string)

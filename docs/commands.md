@@ -102,6 +102,8 @@ bws run python -m pytest
 bws run -N pytest               # Run tests completely offline
 ```
 
+Flags placed before the program (such as `-N` or `-v`) are read by `bws`; everything from the program onward is passed to it unchanged, so `bws run git --version` needs no `--`.
+
 ---
 
 ### `bws git-workflow [options] [-- command [args...]]`

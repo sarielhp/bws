@@ -1,0 +1,26 @@
+{
+  "name": "glab",
+  "description": "GitLab official command-line interface",
+  "category": "tools",
+  "pass_env": [
+    "GITLAB_TOKEN",
+    "GITLAB_HOST",
+    "GLAB_*"
+  ],
+  "binds_rw": [
+    [
+      "~/.config/glab-cli",
+      "@@HOME@@/.config/glab-cli"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "GitLab CLI version",
+      "cmd": [
+        "glab",
+        "--version"
+      ],
+      "type": "version"
+    }
+  ]
+}

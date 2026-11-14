@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"bws/internal/config"
@@ -247,44 +248,46 @@ func execLookPath(file string) (string, error) {
 	return "", fmt.Errorf("not found")
 }
 
-func collectForgeMasks(homeDir string) []string {
-	var masks []string
-	for _, bin := range []string{"gh", "glab", "hub", "tea"} {
-		if p, err := execLookPath(bin); err == nil && p != "" {
-			masks = append(masks, p)
+// forgeTools maps each forge CLI to the binaries and config paths masked
+// while forge blocking is on.
+func forgeTools(homeDir string) map[string][]string {
+	bins := func(name string, extra ...string) []string {
+		out := []string{"/usr/bin/" + name, "/usr/local/bin/" + name, "/bin/" + name}
+		if p, err := execLookPath(name); err == nil && p != "" {
+			out = append([]string{p}, out...)
 		}
+		return append(out, extra...)
 	}
-	masks = append(masks,
-		"/usr/bin/gh",
-		"/usr/local/bin/gh",
-		"/bin/gh",
-		filepath.Join(homeDir, ".local", "bin", "gh"),
-		filepath.Join(homeDir, "bin", "gh"),
-		"/usr/bin/glab",
-		"/usr/local/bin/glab",
-		"/bin/glab",
-		filepath.Join(homeDir, ".local", "bin", "glab"),
-		filepath.Join(homeDir, "bin", "glab"),
-		"/usr/bin/hub",
-		"/usr/local/bin/hub",
-		"/bin/hub",
-		"/usr/bin/tea",
-		"/usr/local/bin/tea",
-		"/bin/tea",
-		filepath.Join(homeDir, ".config", "gh"),
-		filepath.Join(homeDir, ".local", "share", "gh"),
-		filepath.Join(homeDir, ".local", "state", "gh"),
-		filepath.Join(homeDir, ".config", "glab-cli"),
-		filepath.Join(homeDir, ".local", "share", "glab-cli"),
-		filepath.Join(homeDir, ".local", "state", "glab-cli"),
-		filepath.Join(homeDir, ".config", "hub"),
-		filepath.Join(homeDir, ".config", "tea"),
+	home := func(parts ...string) string { return filepath.Join(append([]string{homeDir}, parts...)...) }
+	return map[string][]string{
+		"gh": bins("gh", home(".local", "bin", "gh"), home("bin", "gh"),
+			home(".config", "gh"), home(".local", "share", "gh"), home(".local", "state", "gh")),
+		"glab": bins("glab", home(".local", "bin", "glab"), home("bin", "glab"),
+			home(".config", "glab-cli"), home(".local", "share", "glab-cli"), home(".local", "state", "glab-cli")),
+		"hub": bins("hub", home(".config", "hub")),
+		"tea": bins("tea", home(".config", "tea")),
+	}
+}
+
+// collectForgeMasks returns the forge paths to mask. A forge CLI whose
+// profile was selected is left usable unless block_gh was set explicitly;
+// credential stores stay masked either way.
+func collectForgeMasks(cfg *config.Config, homeDir string) []string {
+	explicit := cfg.Features != nil && cfg.Features.BlockGH != nil
+	tools := forgeTools(homeDir)
+	var masks []string
+	for _, name := range []string{"gh", "glab", "hub", "tea"} {
+		if !explicit && slices.Contains(cfg.ActiveProfiles, name) {
+			continue
+		}
+		masks = append(masks, tools[name]...)
+	}
+	return append(masks,
 		filepath.Join(homeDir, ".git-credentials"),
 		filepath.Join(homeDir, ".config", "git", "credentials"),
 		filepath.Join(homeDir, ".netrc"),
 		filepath.Join(homeDir, ".config", "netrc"),
 	)
-	return masks
 }
 
 func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string, verbose bool) {
@@ -293,7 +296,7 @@ func addMaskArgs(args *[]string, cfg *config.Config, homeDir, currentDir string,
 		maskList = append(maskList, config.DefaultHistoryMasks...)
 	}
 	if config.BlockGH(cfg) {
-		maskList = append(maskList, collectForgeMasks(homeDir)...)
+		maskList = append(maskList, collectForgeMasks(cfg, homeDir)...)
 	}
 
 	seen := make(map[string]bool)

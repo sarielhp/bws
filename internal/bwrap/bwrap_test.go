@@ -3,6 +3,7 @@ package bwrap
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -491,5 +492,30 @@ func TestBuildArgsMountsWorkspaceRootWhenInSubdirectory(t *testing.T) {
 	}
 	if !foundChdir {
 		t.Errorf("expected chdir to %s, got args: %v", subDir, args)
+	}
+}
+
+// TestForgeMasksSkipSelectedTool covers checking gh on the setup screen: gh
+// becomes usable, other forges and credential stores stay masked, and an
+// explicit block_gh keeps gh blocked.
+func TestForgeMasksSkipSelectedTool(t *testing.T) {
+	home := "/home/u"
+	cfg := &config.Config{ActiveProfiles: []string{"editor", "gh"}}
+	masks := collectForgeMasks(cfg, home)
+	for _, gone := range []string{"/usr/bin/gh", "/home/u/.config/gh", "/home/u/bin/gh"} {
+		if slices.Contains(masks, gone) {
+			t.Errorf("%s masked although the gh profile is selected", gone)
+		}
+	}
+	for _, kept := range []string{"/usr/bin/glab", "/home/u/.config/glab-cli", "/home/u/.git-credentials", "/home/u/.netrc"} {
+		if !slices.Contains(masks, kept) {
+			t.Errorf("%s not masked", kept)
+		}
+	}
+
+	yes := true
+	cfg.Features = &config.FeaturesConfig{BlockGH: &yes}
+	if masks := collectForgeMasks(cfg, home); !slices.Contains(masks, "/usr/bin/gh") {
+		t.Error("explicit block_gh did not keep gh masked")
 	}
 }

@@ -200,6 +200,8 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 ### `quarto`
 **Description**: Quarto scientific and technical publishing system
 
+**Paths added**: `/usr/local/bin` (where the official installer links `quarto`)
+
 **Verification tests**:
 - `Quarto binary version`: `quarto --version`
 - `Quarto check`: `quarto check`
@@ -636,6 +638,17 @@ Hardening profiles implement zero-trust path masking via `/dev/null` overlays an
 
 **Verification tests**:
 - `GitHub CLI version`: `gh --version`
+
+### `glab`
+**Description**: GitLab official command-line interface
+
+**Read-write binds**:
+- `~/.config/glab-cli -> @@HOME@@/.config/glab-cli`
+
+**Pass-through variables**: `GITLAB_TOKEN`, `GITLAB_HOST`, `GLAB_*`
+
+**Verification tests**:
+- `GitLab CLI version`: `glab --version`
 
 ### `git`
 **Description**: Git distributed version control system

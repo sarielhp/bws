@@ -49,6 +49,46 @@ func TestNormalizeArgs_Passthrough(t *testing.T) {
 			expected: []string{"learn", "--", "bash"},
 		},
 		{
+			name:     "run passes program flags to the program",
+			input:    []string{"run", "git", "--version"},
+			expected: []string{"run", "--", "git", "--version"},
+		},
+		{
+			name:     "exec passes shorthand flags to the program",
+			input:    []string{"exec", "sh", "-c", "true"},
+			expected: []string{"exec", "--", "sh", "-c", "true"},
+		},
+		{
+			name:     "bws flags before the program stay with bws",
+			input:    []string{"-N", "run", "-v", "--max-file-count", "5", "tmux", "-V"},
+			expected: []string{"-N", "run", "-v", "--max-file-count", "5", "--", "tmux", "-V"},
+		},
+		{
+			name:     "run keeps an existing dash-dash",
+			input:    []string{"run", "--", "git", "--version"},
+			expected: []string{"run", "--", "git", "--version"},
+		},
+		{
+			name:     "run without a program is left for clihelp to report",
+			input:    []string{"run", "-h"},
+			expected: []string{"run", "-h"},
+		},
+		{
+			name:     "learn skips its --profile value",
+			input:    []string{"learn", "-p", "mytool", "mytool", "--help"},
+			expected: []string{"learn", "-p", "mytool", "--", "mytool", "--help"},
+		},
+		{
+			name:     "the word learn inside run arguments is not a command",
+			input:    []string{"run", "grep", "learn", "-r", "."},
+			expected: []string{"run", "--", "grep", "learn", "-r", "."},
+		},
+		{
+			name:     "a run argument to another command is untouched",
+			input:    []string{"status", "run", "-v"},
+			expected: []string{"status", "run", "-v"},
+		},
+		{
 			name:     "non-learn args pass through unchanged",
 			input:    []string{"status", "-v"},
 			expected: []string{"status", "-v"},

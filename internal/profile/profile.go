@@ -169,6 +169,11 @@ func loadDirProfiles(dir, source string, registry map[string]*Profile) error {
 			}
 			p.Source = source
 			p.Origin = path
+			// A copy of a built-in profile written before categories existed
+			// keeps the built-in's place on the setup screen.
+			if prev := registry[p.Name]; p.Category == "" && prev != nil {
+				p.Category = prev.Category
+			}
 			registry[p.Name] = &p
 			for _, alias := range p.Aliases {
 				registry[alias] = &p

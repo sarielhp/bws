@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"bws/internal/cli"
@@ -169,66 +170,61 @@ func normalizeConfigSet(args []string) []string {
 	return result
 }
 
+// passThroughCommands are commands whose trailing arguments belong to another
+// program, mapped to their own flags that take a separate value.
+var passThroughCommands = map[string][]string{
+	"run":   nil,
+	"exec":  nil,
+	"learn": {"-p", "--profile"},
+}
+
+// globalValueFlags are global flags that take a separate value.
+var globalValueFlags = []string{"--max-file-count"}
+
+// normalizeCommandPassThrough inserts "--" before the program given to run,
+// exec or learn, so that "bws run git --version" passes --version to git
+// instead of parsing it as a bws flag. Flags placed before the program are
+// still read by bws.
 func normalizeCommandPassThrough(args []string) []string {
-	learnIdx := -1
-	for i, arg := range args {
-		if arg == "learn" {
-			learnIdx = i
-			break
-		}
-	}
-	if learnIdx == -1 {
+	cmd := commandIndex(args)
+	if cmd < 0 {
 		return args
 	}
-
-	var result []string
-	result = append(result, args[:learnIdx+1]...)
-
-	subArgs := args[learnIdx+1:]
-	alreadyHasDashDash := false
-	for _, a := range subArgs {
-		if a == "--" {
-			alreadyHasDashDash = true
-			break
+	valueFlags, ok := passThroughCommands[args[cmd]]
+	if !ok {
+		return args
+	}
+	valueFlags = append(slices.Clone(valueFlags), globalValueFlags...)
+	for i := cmd + 1; i < len(args); i++ {
+		token := args[i]
+		switch {
+		case token == "--":
+			return args
+		case slices.Contains(valueFlags, token):
+			i++
+		case strings.HasPrefix(token, "-"):
+		default:
+			return slices.Concat(args[:i], []string{"--"}, args[i:])
 		}
 	}
-	if alreadyHasDashDash {
-		result = append(result, subArgs...)
-		return result
+	return args
+}
+
+// commandIndex returns the index of the command word: the first argument
+// that is neither a global flag nor a global flag's value.
+func commandIndex(args []string) int {
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--":
+			return -1
+		case slices.Contains(globalValueFlags, args[i]):
+			i++
+		case strings.HasPrefix(args[i], "-"):
+		default:
+			return i
+		}
 	}
-
-	insertedDashDash := false
-	for i := 0; i < len(subArgs); i++ {
-		token := subArgs[i]
-		if insertedDashDash {
-			result = append(result, token)
-			continue
-		}
-
-		if token == "-p" || token == "--profile" {
-			result = append(result, token)
-			if i+1 < len(subArgs) {
-				i++
-				result = append(result, subArgs[i])
-			}
-			continue
-		}
-
-		if strings.HasPrefix(token, "-p=") || strings.HasPrefix(token, "--profile=") {
-			result = append(result, token)
-			continue
-		}
-
-		if strings.HasPrefix(token, "-") {
-			result = append(result, token)
-			continue
-		}
-
-		result = append(result, "--", token)
-		insertedDashDash = true
-	}
-
-	return result
+	return -1
 }
 
 func main() {

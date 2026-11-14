@@ -1,6 +1,8 @@
 package profile
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -166,5 +168,30 @@ func TestFingerprintIgnoresCategory(t *testing.T) {
 	}
 	if before != after {
 		t.Fatal("category changed the fingerprint")
+	}
+}
+
+// TestOverrideInheritsCategory covers a personal copy of a built-in profile
+// that predates categories: it stays on the built-in's setup tab.
+func TestOverrideInheritsCategory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := filepath.Join(home, ".config", "bws", "profiles")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"name": "agy", "description": "my agy", "path": ["/opt/agy"]}`
+	if err := os.WriteFile(filepath.Join(dir, "agy.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reg, err := LoadRegistry(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := reg["agy"]; p.Source != "global" || p.Category != "agents" {
+		t.Errorf("agy override: source=%q category=%q", p.Source, p.Category)
+	}
+	if p := reg["glab"]; p == nil || p.Category != "tools" {
+		t.Errorf("glab missing from tools: %+v", p)
 	}
 }

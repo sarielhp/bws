@@ -14,6 +14,7 @@ func Clone(c *Config) *Config {
 	r.Env = maps.Clone(c.Env)
 	r.ReviewedProfiles = maps.Clone(c.ReviewedProfiles)
 	r.Profiles = slices.Clone(c.Profiles)
+	r.ActiveProfiles = slices.Clone(c.ActiveProfiles)
 	r.Path = slices.Clone(c.Path)
 	r.PassEnv = slices.Clone(c.PassEnv)
 	r.Mask = slices.Clone(c.Mask)

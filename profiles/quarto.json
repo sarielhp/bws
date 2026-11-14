@@ -2,6 +2,9 @@
   "name": "quarto",
   "description": "Quarto scientific and technical publishing system",
   "category": "languages",
+  "path": [
+    "/usr/local/bin"
+  ],
   "detect": {
     "files": [
       "_quarto.yml",
