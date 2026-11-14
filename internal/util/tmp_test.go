@@ -47,19 +47,42 @@ func TestTempTreeRefusesUnsafeDirectories(t *testing.T) {
 	}
 	os.Remove(userDir)
 
-	// A user directory writable by others is refused.
-	if err := os.Mkdir(userDir, 0o700); err != nil {
+	// A user directory of ours that is group-writable (mkdir -p under umask
+	// 002) is used as it is; bws does not change its mode.
+	if err := os.Mkdir(userDir, 0o775); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chmod(userDir, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := UserTempDir("stage"); err != nil {
+		t.Fatalf("a group-writable user directory of ours was refused: %v", err)
+	}
+	if fi, _ := os.Stat(userDir); fi.Mode().Perm() != 0o775 {
+		t.Errorf("user directory mode changed to %v", fi.Mode().Perm())
+	}
+
+	// One writable by other users is refused unless it is sticky.
 	if err := os.Chmod(userDir, 0o777); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := UserTempDir("stage"); err == nil {
-		t.Error("a world-writable user directory was accepted")
+		t.Error("a world-writable, non-sticky user directory was accepted")
+	}
+	if err := os.Chmod(userDir, 0o777|os.ModeSticky); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := UserTempDir("stage"); err != nil {
+		t.Errorf("a sticky user directory was refused: %v", err)
+	}
+	if err := os.Chmod(userDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
 
 	// A project directory of ours with loose permissions is tightened.
-	os.Chmod(userDir, 0o755)
+	if err := os.RemoveAll(filepath.Join(userDir, "bws")); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Mkdir(filepath.Join(userDir, "bws"), 0o755); err != nil {
 		t.Fatal(err)
 	}

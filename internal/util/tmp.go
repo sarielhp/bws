@@ -58,10 +58,12 @@ func UserTempFile(purpose, pattern string) (*os.File, error) {
 	return os.CreateTemp(base, pattern)
 }
 
-// ensureOwnedDir creates dir (0700) when missing, then checks that it is a
-// real directory owned by the current user and not writable by others. A
-// private directory must also be closed to the group and others; one of ours
-// with looser permissions is tightened.
+// ensureOwnedDir creates dir (0700) when missing and checks that it is a real
+// directory owned by the current user. A private directory (bws's own) is set
+// to 0700. A shared one (<tmpdir>/<user>, also used by other tools) keeps its
+// mode; it is refused only when other users could replace entries in it,
+// that is when it is writable by others and not sticky. Group write is
+// accepted: with per-user groups (umask 002) the group is the user alone.
 func ensureOwnedDir(dir string, private bool) error {
 	if err := os.Mkdir(dir, 0o700); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("creating temporary directory %s: %w", dir, err)
@@ -74,13 +76,17 @@ func ensureOwnedDir(dir string, private bool) error {
 	if !fi.IsDir() || !ok || int(st.Uid) != os.Getuid() {
 		return fmt.Errorf("refusing temporary directory %s: not a directory owned by the current user", dir)
 	}
-	if fi.Mode().Perm()&0o022 != 0 && !private {
-		return fmt.Errorf("refusing temporary directory %s: writable by others", dir)
-	}
-	if private && fi.Mode().Perm()&0o077 != 0 {
-		if err := os.Chmod(dir, 0o700); err != nil {
-			return fmt.Errorf("making temporary directory %s private: %w", dir, err)
+	if !private {
+		if fi.Mode().Perm()&0o002 != 0 && fi.Mode()&os.ModeSticky == 0 {
+			return fmt.Errorf("refusing temporary directory %s: writable by other users; run chmod o-w %s", dir, dir)
 		}
+		return nil
+	}
+	if fi.Mode().Perm() == 0o700 {
+		return nil
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return fmt.Errorf("making temporary directory %s private: %w", dir, err)
 	}
 	return nil
 }
