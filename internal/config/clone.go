@@ -47,7 +47,7 @@ func CloneFeatures(f *FeaturesConfig) *FeaturesConfig {
 	for _, p := range []**bool{
 		&v.EnableSSH, &v.AutoRepoDeployKey, &v.EnableX11, &v.EnableDBus,
 		&v.AllowRawDBus, &v.EnableWSL, &v.EnableEtcAutoBind, &v.EnableProxy,
-		&v.NoNet, &v.UnshareNet, &v.MaskHistory, &v.BlockGH,
+		&v.NoNet, &v.UnshareNet, &v.MaskHistory, &v.BlockGH, &v.ProtectGit,
 	} {
 		*p = clonePtr(*p)
 	}

@@ -103,6 +103,7 @@ func mergeLocalFeatures(resolved, local *config.FeaturesConfig) *config.Features
 	}{
 		{resolved.NoNet, &merged.NoNet}, {resolved.UnshareNet, &merged.UnshareNet},
 		{resolved.MaskHistory, &merged.MaskHistory}, {resolved.BlockGH, &merged.BlockGH},
+		{resolved.ProtectGit, &merged.ProtectGit},
 	} {
 		if pair.source != nil && *pair.source {
 			*pair.target = &yes

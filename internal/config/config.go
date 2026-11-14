@@ -40,6 +40,10 @@ type FeaturesConfig struct {
 	AutoInit          string   `json:"auto_init,omitempty"`
 	MaskHistory       *bool    `json:"mask_history,omitempty"`
 	BlockGH           *bool    `json:"block_gh,omitempty"`
+	// ProtectGit mounts the workspace Git configuration and hooks read-only.
+	ProtectGit *bool `json:"protect_git,omitempty"`
+	// DeployKeyRepo pins the owner/repo used for automatic deploy keys.
+	DeployKeyRepo string `json:"deploy_key_repo,omitempty"`
 }
 
 func (f *FeaturesConfig) UnmarshalJSON(data []byte) error {
@@ -303,4 +307,10 @@ func generateDefaultConfig() string {
 // Defaults to true unless explicitly disabled in features (block_gh: false).
 func BlockGH(cfg *Config) bool {
 	return FeatureEnabledDefault(cfg, func(f *FeaturesConfig) *bool { return f.BlockGH }, true)
+}
+
+// ProtectGit reports whether workspace Git configuration and hooks are mounted
+// read-only. Defaults to true unless features.protect_git is false.
+func ProtectGit(cfg *Config) bool {
+	return FeatureEnabledDefault(cfg, func(f *FeaturesConfig) *bool { return f.ProtectGit }, true)
 }

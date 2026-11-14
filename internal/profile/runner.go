@@ -12,6 +12,7 @@ import (
 	"bws/internal/config"
 	"bws/internal/dbus"
 	"bws/internal/sandbox"
+	"bws/internal/ssh"
 	"bws/internal/util"
 )
 
@@ -64,6 +65,7 @@ func RunProfileTests(cfg *config.Config, currentDir string, resolved *ResolvedPr
 	}
 
 	bwrapArgs := bwrap.BuildArgs(testCfg, sandboxDir, currentDir, false, verbose)
+	defer ssh.StopSessionAgents()
 	if dbusProxy != nil && !dbusProxy.IsRaw() && dbusProxy.SocketPath() != "" {
 		bwrapArgs = append(bwrapArgs,
 			"--bind", dbusProxy.SocketPath(), dbusProxy.DestPath(),

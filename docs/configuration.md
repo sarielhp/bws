@@ -62,10 +62,13 @@ setups is covered in [compound profiles](compound_profiles.md).
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `enable_proxy` | `bool` | `false` | Tunnel outbound sandbox traffic through an in-process IPv4 proxy |
-| `enable_ssh` | `bool` | `true` | Enable dedicated sandbox SSH agent forwarding |
+| `enable_ssh` | `bool` | `true` | Forward a private per-session SSH agent holding only `ssh_keys` or the repository deploy key |
 | `enable_x11` | `bool` | `false` | Enable X11 socket forwarding for GUI applications |
 | `enable_wsl` | `bool` | `true` | Auto-bind `/run/WSL` and propagate `WSL_INTEROP` on WSL2 |
 | `auto_repo_deploy_key` | `bool` | `true` | Auto-provision and register GitHub Deploy Keys via `gh` |
+| `deploy_key_repo` | `string` | unset | Pin the `owner/repo` whose deploy key is used; otherwise the origin seen on first use is recorded and later changes are refused |
+| `ssh_keys` | `array` | `[]` | Keys to load into the session agent; default identities in `~/.ssh` are never loaded implicitly |
+| `protect_git` | `bool` | `true` | Mount workspace `.git` config, hooks, `core.hooksPath` and include targets read-only |
 
 ---
 

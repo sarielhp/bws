@@ -200,6 +200,12 @@ func MergeFeatures(global, local *FeaturesConfig) *FeaturesConfig {
 	if local.BlockGH != nil {
 		r.BlockGH = local.BlockGH
 	}
+	if local.ProtectGit != nil {
+		r.ProtectGit = local.ProtectGit
+	}
+	if local.DeployKeyRepo != "" {
+		r.DeployKeyRepo = local.DeployKeyRepo
+	}
 	return &r
 }
 

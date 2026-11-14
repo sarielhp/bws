@@ -17,6 +17,7 @@ import (
 	"bws/internal/policy"
 	"bws/internal/proxy"
 	"bws/internal/sandbox"
+	"bws/internal/ssh"
 	"bws/internal/util"
 )
 
@@ -110,6 +111,7 @@ func startSandboxSignalMonitor(cleanup func(), getDBus func() *dbus.Proxy) func(
 			if p := getDBus(); p != nil {
 				_ = p.Close()
 			}
+			ssh.StopSessionAgents()
 			safeCleanup()
 			os.Exit(130)
 		case <-done:
@@ -164,6 +166,7 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	}
 
 	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, dryRun, verbose)
+	defer ssh.StopSessionAgents()
 	bwrapArgs = appendDBusArgs(bwrapArgs, dbusProxy.Load())
 
 	if verbose {
@@ -185,6 +188,7 @@ func buildAndRun(sl *sandboxLaunch, currentDir string, dryRun bool, execArgs []s
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	runErr := cmd.Run()
+	ssh.StopSessionAgents()
 	if p := dbusProxy.Load(); p != nil {
 		_ = p.Close()
 	}
@@ -325,6 +329,7 @@ func runSandboxCommand(name string, execArgs []string, force, verbose bool) erro
 	}
 
 	bwrapArgs := bwrap.BuildArgs(sl.cfg, sandboxDir, currentDir, false, verbose)
+	defer ssh.StopSessionAgents()
 	if dbusProxy != nil && !dbusProxy.IsRaw() && dbusProxy.SocketPath() != "" {
 		bwrapArgs = append(bwrapArgs,
 			"--bind", dbusProxy.SocketPath(), dbusProxy.DestPath(),

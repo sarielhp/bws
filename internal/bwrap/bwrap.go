@@ -210,9 +210,9 @@ func addPathArgs(cfg *config.Config, homeDir string, args *[]string, verbose boo
 	}
 }
 
-func addFeatureMountArgs(cfg *config.Config, sandboxDir string, args *[]string, dryRun bool) {
+func addFeatureMountArgs(cfg *config.Config, sandboxDir, currentDir string, args *[]string, dryRun bool) {
 	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableSSH }) {
-		addSSHArgs(cfg, sandboxDir, args, dryRun)
+		addSSHArgs(cfg, sandboxDir, currentDir, args, dryRun)
 	}
 	if config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.EnableX11 }) {
 		addX11Args(args)
@@ -324,7 +324,7 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 
 	addSystemAndNetArgs(cfg, &args, verbose)
 	addStandardMounts(cfg, sandboxDir, currentDir, &args, dryRun, verbose)
-	addFeatureMountArgs(cfg, sandboxDir, &args, dryRun)
+	addFeatureMountArgs(cfg, sandboxDir, currentDir, &args, dryRun)
 	args = append(args, buildBinds(cfg, sandboxDir, homeDir, currentDir, verbose)...)
 
 	addPassEnvArgs(cfg, &args, verbose)
@@ -334,6 +334,7 @@ func BuildArgs(cfg *config.Config, sandboxDir, currentDir string, dryRun, verbos
 		args = append(args, "--unsetenv", "SSH_AUTH_SOCK")
 	}
 
+	addGitProtectArgs(&args, cfg, currentDir, dryRun, verbose)
 	addMaskArgs(&args, cfg, homeDir, currentDir, verbose)
 
 	return args

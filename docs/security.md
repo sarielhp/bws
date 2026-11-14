@@ -133,3 +133,13 @@ flowchart LR
 1. **Confined blast radius**: If a script or AI agent running inside the sandbox attempts to access other private repositories or GitHub organization settings, the request fails.
 2. **Master key protection**: Host keys in `~/.ssh/` (`id_rsa`, `id_ed25519`) are never exposed or mounted into the sandbox.
 3. **Automated lifecycle**: `bws` handles key generation, registration via `gh`, and agent loading in milliseconds without manual intervention.
+4. **Repository binding**: `.git/config` is writable from the sandbox, so the origin URL is not trusted by itself. The `owner/repo` seen on first use is recorded in `~/.config/bws/trusted/` (masked in the sandbox); if the origin later names a different repository, no key is created or loaded. To change repositories deliberately, set `features.deploy_key_repo` and run `bws config trust`.
+5. **Per-session agent**: each launch starts its own `ssh-agent` on a private socket, loads only that session's deploy key or `ssh_keys`, and stops it on exit. Concurrent sandboxes do not share keys. With no deploy key and no `ssh_keys`, no agent is forwarded.
+
+## Workspace Git protection
+
+Host `git` executes hooks and settings such as `core.fsmonitor`, `core.pager`, and aliases from the repository. A sandbox that can write `.git/config` or `.git/hooks` can therefore run code on the host the next time you use `git` there. With `features.protect_git` (default `true`), `bws` mounts these read-only for the workspace repository, linked worktrees, and submodules under `.git/modules`, plus any `core.hooksPath` directory and `include.path` targets inside the workspace. A missing `hooks` directory is created on the host first so the sandbox cannot create it.
+
+A directory containing a read-only mount can still be renamed and replaced, so `.git` and each directory leading to a protected path are bound onto themselves; mount points cannot be renamed or removed. Commits, branches, and fetches still work inside the sandbox; commands that write repository config (`git remote add`, `git push -u`, `git config`) fail.
+
+Not covered: new repositories the sandbox creates inside the workspace, and other files that tools run on the host (`.envrc`, editor settings, build scripts). Use `bws gw` for work you intend to review before it reaches your checkout.

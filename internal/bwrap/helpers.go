@@ -12,70 +12,71 @@ import (
 	"bws/internal/util"
 )
 
-func addSSHArgs(cfg *config.Config, sandboxDir string, args *[]string, dryRun bool) {
-	var sshKeys []string
-	if cfg.Features != nil {
-		sshKeys = cfg.Features.SSHKeys
-	}
-	var sshAuthSock string
-
+func addSSHArgs(cfg *config.Config, sandboxDir, currentDir string, args *[]string, dryRun bool) {
+	sshAuthSock := ""
 	if dryRun {
-		sock := os.Getenv("SSH_AUTH_SOCK")
-		if sock != "" {
-			if fi, err := os.Stat(sock); err == nil && fi.Mode()&os.ModeSocket != 0 {
-				sshAuthSock = sock
-			}
+		if len(featureSSHKeys(cfg)) > 0 || autoDeployKeyEnabled(cfg) {
+			sshAuthSock = "<session-ssh-agent>"
 		}
 	} else {
-		if (len(sshKeys) == 0) && config.GetBool(cfg, func(c *config.Config) *bool {
-			if c.Features == nil {
-				return nil
-			}
-			return c.Features.AutoRepoDeployKey
-		}, true) && util.CommandExists("ssh-agent") && util.CommandExists("ssh-add") {
-			if key := ssh.GetAutoDeployKey(); key != "" {
-				sshKeys = []string{key}
-			}
-		}
-		sshAuthSock = ssh.EnsureAgent(sshKeys)
+		sshAuthSock = ssh.StartSessionAgent(sessionSSHKeys(cfg, currentDir))
+	}
+	if sshAuthSock != "" {
+		*args = append(*args, "--bind", sshAuthSock, sshAuthSock, "--setenv", "SSH_AUTH_SOCK", sshAuthSock)
 	}
 
 	hostSSHDir := filepath.Join(util.HomeDir(), ".ssh")
-
-	if sshAuthSock != "" {
-		if fi, err := os.Stat(sshAuthSock); err == nil && fi.Mode()&os.ModeSocket != 0 {
-			*args = append(*args, "--bind", sshAuthSock, sshAuthSock)
-			*args = append(*args, "--setenv", "SSH_AUTH_SOCK", sshAuthSock)
-
-			if fi, err := os.Stat(filepath.Join(hostSSHDir, "config")); err == nil && !fi.IsDir() {
-				*args = append(*args, "--ro-bind", filepath.Join(hostSSHDir, "config"),
-					filepath.Join(util.HomeDir(), ".ssh", "config"))
-			}
-			if fi, err := os.Stat(filepath.Join(hostSSHDir, "known_hosts")); err == nil && !fi.IsDir() {
-				*args = append(*args, "--ro-bind", filepath.Join(hostSSHDir, "known_hosts"),
-					filepath.Join(util.HomeDir(), ".ssh", "known_hosts"))
-			}
-		}
-	} else if fi, err := os.Stat(hostSSHDir); err == nil && fi.IsDir() {
-		if !dryRun {
-			os.MkdirAll(filepath.Join(sandboxDir, ".ssh"), 0755)
-		}
-		for _, f := range []string{"config", "known_hosts"} {
-			hostF := filepath.Join(hostSSHDir, f)
-			if fi, err := os.Stat(hostF); err == nil && !fi.IsDir() {
-				alreadyBound := false
-				for _, a := range *args {
-					if a == hostF {
-						alreadyBound = true
-						break
-					}
-				}
-				if !alreadyBound {
-					*args = append(*args, "--ro-bind", hostF, filepath.Join(util.HomeDir(), ".ssh", f))
-				}
-			}
+	if !dirExists(hostSSHDir) {
+		return
+	}
+	if !dryRun && sshAuthSock == "" {
+		os.MkdirAll(filepath.Join(sandboxDir, ".ssh"), 0755)
+	}
+	for _, f := range []string{"config", "known_hosts"} {
+		hostF := filepath.Join(hostSSHDir, f)
+		if fileExists(hostF) && !isAlreadyBound(*args, hostF) {
+			*args = append(*args, "--ro-bind", hostF, filepath.Join(util.HomeDir(), ".ssh", f))
 		}
 	}
+}
+
+func featureSSHKeys(cfg *config.Config) []string {
+	if cfg == nil || cfg.Features == nil {
+		return nil
+	}
+	return cfg.Features.SSHKeys
+}
+
+func autoDeployKeyEnabled(cfg *config.Config) bool {
+	return config.FeatureEnabled(cfg, func(f *config.FeaturesConfig) *bool { return f.AutoRepoDeployKey })
+}
+
+// sessionSSHKeys returns the keys to load into the session agent: the
+// configured ssh_keys, or else the deploy key of the repository bound to the
+// workspace. It never falls back to the default identities in ~/.ssh.
+func sessionSSHKeys(cfg *config.Config, currentDir string) []string {
+	if keys := featureSSHKeys(cfg); len(keys) > 0 {
+		return keys
+	}
+	if !autoDeployKeyEnabled(cfg) || !util.CommandExists("git") || !util.CommandExists("gh") {
+		return nil
+	}
+	pinned := ""
+	if cfg.Features != nil {
+		pinned = cfg.Features.DeployKeyRepo
+	}
+	repo, err := ssh.ResolveDeployRepo(pinned, currentDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[bws] Warning: no deploy key loaded: %v\n", err)
+		return nil
+	}
+	if repo == "" {
+		return nil
+	}
+	if key := ssh.GetAutoDeployKey(repo); key != "" {
+		return []string{key}
+	}
+	return nil
 }
 
 func addX11Args(args *[]string) {
