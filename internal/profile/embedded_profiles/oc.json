@@ -1,6 +1,7 @@
 {
   "name": "oc",
   "description": "OpenCode profile switcher CLI and configuration",
+  "category": "agents",
   "requires": [
     "opencode"
   ],

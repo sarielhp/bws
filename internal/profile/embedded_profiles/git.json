@@ -1,6 +1,7 @@
 {
   "name": "git",
   "description": "Git distributed version control system",
+  "category": "tools",
   "detect": {
     "files": [
       ".git",

@@ -48,68 +48,57 @@ shell's PATH. See [commands](docs/commands.md) for optional integrations.
 
 ## Quick start
 
-### 1. Inspect a project
+### 1. Choose what the workspace needs
 
 ```bash
 cd /path/to/project
-bws profile suggest
+bws setup
 ```
 
-Suggestions inspect filenames without executing project code. A Go repository
-can match several environments; its contents do not determine whether you want
-an editor, an agent, or an offline run.
+One screen lists languages, editors, AI agents, tools, restrictions, and
+access (network, git push, GUI). Detected languages are pre-checked; the rest
+starts from your previous choices. The details pane shows what each choice
+mounts and passes in. Enter saves `.bws/config.jsonc` and starts a tmux/Bash
+session. Running `bws` in an unconfigured workspace opens the same screen.
 
-### 2. Select profiles
+Without a terminal, select directly:
 
 ```bash
-bws init                         # Interactive selection and permission review
-# Or select explicitly:
-bws init --profile go,git --no-ssh
+bws setup -w latex,emacs,claude,codex --no-start
 ```
 
-Use profiles appropriate to your project. Explicit selections do not silently
-add detected tools. Noninteractive initialization requires `--profile`, a
-preset, or `--basic` for detected embedded tool profiles.
-
-### 3. Review access
+### 2. Review access
 
 ```bash
 bws plan
-bws profile show go
 ```
 
-Global configuration remains a baseline and can add permissions. Existing or
-manually changed local configuration requires review followed by
-`bws config trust`; do not approve repository-supplied policy without inspecting it.
+Global configuration remains a baseline and can add permissions. A local
+configuration changed outside `bws` (by hand, by an agent, or from a
+repository) is refused until you review it and run `bws config trust`.
 
-### 4. Run a command
+### 3. Work in the sandbox
 
 ```bash
-bws run -- go test ./...
-# Or enter the default tmux/Bash session:
-bws
+bws                      # tmux/Bash session; start claude, codex, agy, ... inside
+bws run -- latexmk paper.tex
 ```
 
 To run an agent in a disposable Git clone, see `bws gw --help` and the
 [Git workflow documentation](docs/commands.md). Offline mode is
 `--offline`; SSH forwarding can be disabled with `--no-ssh`.
 
-### 5. Save and reuse the setup
+### 4. Change it later
 
-```bash
-bws profile save my-go --dry-run
-bws profile save my-go
+Run `bws setup` again. It opens with the current choices and keeps settings it
+does not manage, such as extra mounts (`bws mount`) and environment entries.
 
-cd /path/to/another-go-project
-bws profile suggest --compound
-bws init --profile my-go
-```
+### 5. Going further
 
-Saving captures reusable capabilities, not credentials, processes, or tool
-versions. The preview reports unsupported settings and machine-specific paths.
-Use `bws profile compose` to create a combination directly. Read the
-[compound profile guide](docs/compound_profiles.md) for matching rules,
-dependency updates, and portability.
+Explicit profile selection (`bws init -p ...`), saved compound profiles, and
+environment stacks are described in the [command reference](docs/commands.md),
+the [compound profile guide](docs/compound_profiles.md), and
+[stacks](docs/stacks.md).
 
 ## Operational notes
 

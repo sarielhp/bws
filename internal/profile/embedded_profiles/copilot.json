@@ -5,6 +5,7 @@
     "gh-copilot"
   ],
   "description": "GitHub Copilot CLI coding agent",
+  "category": "agents",
   "path": [
     "@@HOME@@/.local/bin",
     "@@HOME@@/bin"

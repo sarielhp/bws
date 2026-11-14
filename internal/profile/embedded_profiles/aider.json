@@ -4,6 +4,7 @@
     "aider-chat"
   ],
   "description": "Aider AI pair programming CLI in your terminal",
+  "category": "agents",
   "detect": {
     "files": [
       ".aider.conf.yml",

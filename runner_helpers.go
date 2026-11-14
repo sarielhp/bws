@@ -79,11 +79,9 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit bool, fla
 		return nil
 	}
 
-	if mode == "prompt" {
-		if !cli.IsInteractiveTTY(int(os.Stdin.Fd())) {
-			return nil
-		}
-		if err := cli.HandleInitOptions(cli.InitOptions{TargetDir: currentDir, Flags: flags}); err != nil {
+	// At a terminal, an unconfigured workspace opens the setup screen.
+	if cli.IsInteractiveTTY(int(os.Stdin.Fd())) && cli.IsInteractiveTTY(int(os.Stderr.Fd())) {
+		if err := cli.RunSetup(cli.SetupOptions{TargetDir: currentDir}); err != nil {
 			return err
 		}
 		resolved, err := loadConfigs(verbose)
@@ -92,6 +90,9 @@ func maybeAutoInit(sl *sandboxLaunch, currentDir string, force, noInit bool, fla
 		}
 		*sl = *resolved
 		applyFlags(sl.cfg, flags)
+		return nil
+	}
+	if mode == "prompt" {
 		return nil
 	}
 

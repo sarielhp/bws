@@ -1,6 +1,7 @@
 {
   "name": "no-history",
   "description": "Mask shell and REPL command history files containing potential secrets",
+  "category": "restrictions",
   "mask": [
     "~/.bash_history",
     "~/.zsh_history",

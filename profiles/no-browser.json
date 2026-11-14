@@ -1,6 +1,7 @@
 {
   "name": "no-browser",
   "description": "Mask web browser profiles, saved passwords, and session cookies",
+  "category": "restrictions",
   "mask": [
     "~/.mozilla",
     "~/.cache/mozilla",

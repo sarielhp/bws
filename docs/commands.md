@@ -6,12 +6,38 @@ Comprehensive reference for all commands and options in `bws`.
 
 ## Table of contents
 
+* [Start here](#start-here)
 * [Help and informational commands](#help-and-informational-commands)
 * [Core execution commands](#core-execution-commands)
 * [Current environment](#current-environment)
 * [Environment stacks management](#environment-stacks-management)
 * [Environment modifiers (mount, bin, copy, path)](#environment-modifiers-mount-bin-copy-path)
 * [Configuration management & remote sync](#configuration-management--remote-sync)
+
+---
+
+## Start here
+
+### `bws setup [options]`
+Choose what the workspace needs on one full-screen chooser, then start a session. Tabs group the profile catalog into Languages, Editors, Agents, Tools, and Restrictions, plus an Access tab for network, git push (per-session deploy-key agent), and GUI (X11). The details pane shows what the focused choice mounts read-write and read-only, the environment it passes in, and whether its program is installed.
+
+Enter writes `.bws/config.jsonc`, approves it (you reviewed it on screen), and starts the default session. Running `bws setup` again opens with the current choices; settings it does not manage (mounts, environment, stack, comments) are kept. Bundles such as `go-dev` are not listed; an existing configuration that uses one shows its parts checked and is saved with those parts. In a new workspace, detected languages are pre-checked and editors, agents, tools, and restrictions start from your previous selection (`~/.config/bws/setup.json`).
+
+Bare `bws` in a workspace without configuration opens the same screen when run at a terminal.
+
+| Option | Description |
+| :--- | :--- |
+| `-w`, `--with <profiles>` | Select exactly these profiles (and what they require) without the screen |
+| `--no-start` | Save the selection without starting a session |
+
+Keys: `←`/`→` or `tab` switch group, `↑`/`↓` move, `space` toggles, `/` searches all groups, `enter` saves and starts, `q` quits without saving.
+
+```bash
+bws setup                                          # Choose interactively, then start
+bws setup -w latex,emacs,claude,codex --no-start   # Choose without the screen
+```
+
+A custom profile appears on its tab when it sets `"category"` (`languages`, `editors`, `agents`, `tools`, `restrictions`); without one it is listed under Other.
 
 ---
 
@@ -177,7 +203,7 @@ bws learn -g cargo build               # Learn and merge additions into global c
 ## Current environment
 
 ### `bws init [options] [dir]`
-Inspect workspace markers, suggest compound profiles, and generate a reference-based `.bws/config.jsonc` (aliases: `setup`, `init-dev`). Existing projects remain unchanged without `--force`. Noninteractive use requires an explicit selection or `--basic`.
+Inspect workspace markers, suggest compound profiles, and generate a reference-based `.bws/config.jsonc` (alias: `init-dev`). For most workspaces, [`bws setup`](#bws-setup-options) is simpler. Existing projects remain unchanged without `--force`. Noninteractive use requires an explicit selection or `--basic`.
 
 | Option | Description |
 | :--- | :--- |

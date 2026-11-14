@@ -1,6 +1,7 @@
 {
   "name": "node",
   "description": "Node.js JavaScript runtime, npm, pnpm, and yarn caches",
+  "category": "languages",
   "detect": {
     "files": [
       "package.json",

@@ -1,6 +1,7 @@
 {
   "name": "uv",
   "description": "Fast Python package and project manager written in Rust",
+  "category": "languages",
   "requires": [
     "python"
   ],

@@ -1,6 +1,7 @@
 {
   "name": "go",
   "description": "Go programming language toolchain and module cache",
+  "category": "languages",
   "detect": {
     "files": [
       "go.mod",

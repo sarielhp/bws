@@ -38,6 +38,8 @@ type appFlags struct {
 	noFileLimit  bool
 	maxFileCount int
 	noColor      bool
+	with         []string
+	noStart      bool
 }
 
 func completeStacks(toComplete string) []string {
@@ -100,9 +102,9 @@ func initCmd(f *appFlags) clihelp.Command {
 
 	return clihelp.Command{
 		Name:        "init",
-		Aliases:     []string{"setup", "init-dev"},
-		Group:       "Current environment",
-		Description: "Initialize a reviewed workspace configuration",
+		Aliases:     []string{"init-dev"},
+		Group:       "Advanced: profiles & stacks",
+		Description: "Initialize from explicit profiles, presets or a stack",
 		LongDescription: "Select profiles and initialize a reviewed .bws/config.jsonc configuration. " +
 			"bws inspects the workspace, proposes detected stacks and profiles, and writes a local config only after review.",
 		UsageLine: "bws init [options] [target-dir]",

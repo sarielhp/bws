@@ -1,6 +1,7 @@
 {
   "name": "neovim",
   "description": "Vim-fork focused on extensibility and usability",
+  "category": "editors",
   "path": [
     "@@HOME@@/.local/bin",
     "@@HOME@@/bin"

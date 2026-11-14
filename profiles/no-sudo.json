@@ -1,6 +1,7 @@
 {
   "name": "no-sudo",
   "description": "Mask privilege escalation binaries, superuser tools, and sudoers configuration",
+  "category": "restrictions",
   "mask": [
     "/usr/bin/sudo",
     "/bin/sudo",

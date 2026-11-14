@@ -1,6 +1,7 @@
 {
   "name": "tmux",
   "description": "Terminal multiplexer configuration and sockets",
+  "category": "tools",
   "binds_rw": [
     [
       "~/.tmux.conf",

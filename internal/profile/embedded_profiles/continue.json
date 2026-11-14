@@ -5,6 +5,7 @@
     "continuedev"
   ],
   "description": "Continue.dev CLI open-source AI coding assistant",
+  "category": "agents",
   "detect": {
     "files": [
       ".continue",

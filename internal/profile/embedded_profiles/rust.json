@@ -1,6 +1,7 @@
 {
   "name": "rust",
   "description": "Rust language compiler and Cargo package manager",
+  "category": "languages",
   "detect": {
     "files": [
       "Cargo.toml",

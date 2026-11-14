@@ -4,6 +4,7 @@
     "simonw-llm"
   ],
   "description": "Simon Willison's LLM CLI tool for Large Language Models",
+  "category": "agents",
   "path": [
     "@@HOME@@/.local/bin",
     "@@HOME@@/bin"

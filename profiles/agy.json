@@ -5,6 +5,7 @@
     "antigravity-cli"
   ],
   "description": "Google Antigravity CLI and agentic coding framework",
+  "category": "agents",
   "path": [
     "@@HOME@@/.local/bin",
     "@@HOME@@/bin",

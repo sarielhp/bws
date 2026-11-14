@@ -1,6 +1,7 @@
 {
   "name": "no-email",
   "description": "Mask desktop email clients, offline mailboxes, and mail credentials",
+  "category": "restrictions",
   "mask": [
     "~/.thunderbird",
     "~/.cache/thunderbird",

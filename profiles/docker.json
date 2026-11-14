@@ -1,6 +1,7 @@
 {
   "name": "docker",
   "description": "Docker container CLI and daemon socket integration",
+  "category": "tools",
   "detect": {
     "files": [
       "Dockerfile",

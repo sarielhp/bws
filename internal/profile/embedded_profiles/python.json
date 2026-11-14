@@ -1,6 +1,7 @@
 {
   "name": "python",
   "description": "Python runtime, pip, and uv package cache",
+  "category": "languages",
   "detect": {
     "files": [
       "pyproject.toml",

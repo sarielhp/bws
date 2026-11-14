@@ -295,6 +295,25 @@ Meta-profiles aggregate individual tools into unified, full-stack developer envi
 - `Claude Code version`: `claude --version`
 - `Claude Code doctor check`: `claude doctor`
 
+### `codex`
+**Description**: OpenAI Codex CLI assistant, configuration, and sessions
+
+**Aliases**: `codex-cli`, `openai-codex`
+
+**PATH additions**: `@@HOME@@/.local/bin`, `@@HOME@@/bin`
+
+**Pass-through variables**: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `CODEX_*`
+
+**Read-only binds**:
+- `~/.local/lib/node_modules -> @@HOME@@/.local/lib/node_modules`
+
+**Read-write binds**:
+- `~/.codex -> @@HOME@@/.codex`
+- `~/.cache/codex -> @@HOME@@/.cache/codex`
+
+**Verification tests**:
+- `Codex version`: `codex --version`
+
 ### `continue`
 **Description**: Continue.dev CLI open-source AI coding assistant
 

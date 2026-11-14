@@ -9,7 +9,7 @@ import (
 func stackCmd(f *appFlags) clihelp.Command {
 	return clihelp.Command{
 		Name:        "stack",
-		Group:       "Profile catalog",
+		Group:       "Advanced: profiles & stacks",
 		Description: "Inspect, save, and update environment stacks",
 		LongDescription: "Inspect, compose, save, and update persona environment stacks: named, reusable " +
 			"bundles of profiles and workspace configuration.",

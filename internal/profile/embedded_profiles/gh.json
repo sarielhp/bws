@@ -1,6 +1,7 @@
 {
   "name": "gh",
   "description": "GitHub official command-line interface",
+  "category": "tools",
   "binds_rw": [
     [
       "~/.config/gh",

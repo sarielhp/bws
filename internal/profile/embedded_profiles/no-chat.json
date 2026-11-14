@@ -1,6 +1,7 @@
 {
   "name": "no-chat",
   "description": "Mask messaging apps and communication databases",
+  "category": "restrictions",
   "mask": [
     "~/.config/discord",
     "~/.config/Slack",

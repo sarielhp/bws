@@ -31,7 +31,7 @@ func completeProfiles(toComplete string) []string {
 }
 
 func profileCmd(f *appFlags, glValidator clihelp.OptionsValidator) clihelp.Command {
-	return clihelp.Command{Name: "profile", Aliases: []string{"prof"}, Group: "Profile catalog",
+	return clihelp.Command{Name: "profile", Aliases: []string{"prof"}, Group: "Advanced: profiles & stacks",
 		Description: "Inspect, compose, save and suggest capability profiles", UsageLine: "bws profile <subcommand>",
 		Subcommands: []clihelp.Command{profileListCmd(f, glValidator),
 			profileSearchCmd(f, glValidator),

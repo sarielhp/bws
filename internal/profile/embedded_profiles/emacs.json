@@ -1,6 +1,7 @@
 {
   "name": "emacs",
   "description": "GNU Emacs extensible text editor and Lisp environment",
+  "category": "editors",
   "binds_rw": [
     [
       "~/.config/emacs",

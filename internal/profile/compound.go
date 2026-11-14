@@ -62,7 +62,7 @@ func ValidateDefinition(p *Profile) error {
 // Fingerprint hashes the declarative content, independently of installation path.
 func Fingerprint(p *Profile) (Dependency, error) {
 	copy := *p
-	copy.Source, copy.Origin = "", ""
+	copy.Source, copy.Origin, copy.Category = "", "", ""
 	data, err := json.Marshal(copy)
 	if err != nil {
 		return Dependency{}, err

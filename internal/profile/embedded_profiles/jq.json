@@ -1,6 +1,7 @@
 {
   "name": "jq",
   "description": "Lightweight and flexible command-line JSON processor",
+  "category": "tools",
   "tests": [
     {
       "name": "jq version",

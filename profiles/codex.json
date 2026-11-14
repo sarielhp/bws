@@ -1,0 +1,52 @@
+{
+  "name": "codex",
+  "aliases": [
+    "codex-cli",
+    "openai-codex"
+  ],
+  "description": "OpenAI Codex CLI assistant, configuration, and sessions",
+  "category": "agents",
+  "detect": {
+    "files": [
+      ".codex"
+    ]
+  },
+  "path": [
+    "@@HOME@@/.local/bin",
+    "@@HOME@@/bin"
+  ],
+  "pass_env": [
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_ORG_ID",
+    "OPENAI_PROJECT_ID",
+    "CODEX_*"
+  ],
+  "binds_ro": [
+    [
+      "~/.local/lib/node_modules",
+      "@@HOME@@/.local/lib/node_modules"
+    ]
+  ],
+  "binds_rw": [
+    [
+      "~/.codex",
+      "@@HOME@@/.codex"
+    ],
+    [
+      "~/.cache/codex",
+      "@@HOME@@/.cache/codex"
+    ]
+  ],
+  "tests": [
+    {
+      "name": "Codex version",
+      "cmd": [
+        "codex",
+        "--version"
+      ],
+      "type": "version",
+      "optional": true
+    }
+  ]
+}

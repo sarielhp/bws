@@ -4,6 +4,7 @@
     "shell-gpt"
   ],
   "description": "Shell-GPT command-line personal AI assistant",
+  "category": "agents",
   "path": [
     "@@HOME@@/.local/bin",
     "@@HOME@@/bin"

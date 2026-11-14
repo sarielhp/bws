@@ -1,6 +1,7 @@
 {
   "name": "gopls",
   "description": "Official Go Language Server (LSP) daemon",
+  "category": "languages",
   "requires": [
     "go"
   ],

@@ -1,6 +1,7 @@
 {
   "name": "ollama",
   "description": "Ollama local LLM runner and client",
+  "category": "agents",
   "path": [
     "/usr/local/bin",
     "@@HOME@@/.local/bin",

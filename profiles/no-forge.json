@@ -5,6 +5,7 @@
     "no-glab"
   ],
   "description": "Mask Git forge CLIs (gh, glab, hub, tea) and credential stores",
+  "category": "restrictions",
   "mask": [
     "/usr/bin/gh",
     "/usr/local/bin/gh",

@@ -1,6 +1,7 @@
 {
   "name": "quarto",
   "description": "Quarto scientific and technical publishing system",
+  "category": "languages",
   "detect": {
     "files": [
       "_quarto.yml",

@@ -1,6 +1,7 @@
 {
   "name": "opencode",
   "description": "OpenCode AI coding assistant runtime and caches",
+  "category": "agents",
   "detect": {
     "files": [
       "opencode.json",

@@ -5,6 +5,7 @@
     "anthropic"
   ],
   "description": "Anthropic Claude Code CLI assistant, runtime, and caches",
+  "category": "agents",
   "detect": {
     "files": [
       "CLAUDE.md",

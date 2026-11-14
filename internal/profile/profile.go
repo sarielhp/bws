@@ -33,29 +33,32 @@ type DetectSpec struct {
 
 // Profile represents a declarative sandbox tool capability profile.
 type Profile struct {
-	Name                string                 `json:"name"`
-	Kind                string                 `json:"kind,omitempty"`
-	Reviewed            map[string]Dependency  `json:"reviewed_dependencies,omitempty"`
-	ReviewedPermissions []string               `json:"reviewed_permissions,omitempty"`
-	ReviewedPolicy      string                 `json:"reviewed_policy_sha256,omitempty"`
-	Origin              string                 `json:"-"`
-	Aliases             []string               `json:"aliases,omitempty"`
-	Description         string                 `json:"description,omitempty"`
-	Requires            []string               `json:"requires,omitempty"`
-	Path                []string               `json:"path,omitempty"`
-	Env                 map[string]string      `json:"env,omitempty"`
-	PassEnv             []string               `json:"pass_env,omitempty"`
-	Mask                []string               `json:"mask,omitempty"`
-	BindsRW             [][]string             `json:"binds_rw,omitempty"`
-	BindsRO             [][]string             `json:"binds_ro,omitempty"`
-	Copy                []string               `json:"copy,omitempty"`
-	UnshareNet          bool                   `json:"unshare_net,omitempty"`
-	NoNet               bool                   `json:"no_net,omitempty"`
-	Features            *config.FeaturesConfig `json:"features,omitempty"`
-	Detect              *DetectSpec            `json:"detect,omitempty"`
-	Tests               []TestSpec             `json:"tests,omitempty"`
-	Rules               []ProfileRule          `json:"rules,omitempty"`
-	Source              string                 `json:"source,omitempty"` // "embedded", "global", "local"
+	Name                string                `json:"name"`
+	Kind                string                `json:"kind,omitempty"`
+	Reviewed            map[string]Dependency `json:"reviewed_dependencies,omitempty"`
+	ReviewedPermissions []string              `json:"reviewed_permissions,omitempty"`
+	ReviewedPolicy      string                `json:"reviewed_policy_sha256,omitempty"`
+	Origin              string                `json:"-"`
+	Aliases             []string              `json:"aliases,omitempty"`
+	Description         string                `json:"description,omitempty"`
+	// Category groups the profile on the setup screen. Presentation only:
+	// it is excluded from the fingerprint.
+	Category   string                 `json:"category,omitempty"`
+	Requires   []string               `json:"requires,omitempty"`
+	Path       []string               `json:"path,omitempty"`
+	Env        map[string]string      `json:"env,omitempty"`
+	PassEnv    []string               `json:"pass_env,omitempty"`
+	Mask       []string               `json:"mask,omitempty"`
+	BindsRW    [][]string             `json:"binds_rw,omitempty"`
+	BindsRO    [][]string             `json:"binds_ro,omitempty"`
+	Copy       []string               `json:"copy,omitempty"`
+	UnshareNet bool                   `json:"unshare_net,omitempty"`
+	NoNet      bool                   `json:"no_net,omitempty"`
+	Features   *config.FeaturesConfig `json:"features,omitempty"`
+	Detect     *DetectSpec            `json:"detect,omitempty"`
+	Tests      []TestSpec             `json:"tests,omitempty"`
+	Rules      []ProfileRule          `json:"rules,omitempty"`
+	Source     string                 `json:"source,omitempty"` // "embedded", "global", "local"
 }
 
 // ResolvedProfile contains flattened and merged configuration after dependency resolution.

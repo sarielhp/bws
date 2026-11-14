@@ -150,3 +150,21 @@ func TestEmbeddedCompoundProfilesResolve(t *testing.T) {
 		})
 	}
 }
+
+// TestFingerprintIgnoresCategory keeps existing reviewed_profiles pins valid
+// when profiles gain or change a setup-screen category.
+func TestFingerprintIgnoresCategory(t *testing.T) {
+	p := &Profile{Name: "x", Description: "d", Path: []string{"/x"}}
+	before, err := Fingerprint(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Category = "tools"
+	after, err := Fingerprint(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("category changed the fingerprint")
+	}
+}

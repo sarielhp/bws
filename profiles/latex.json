@@ -1,6 +1,7 @@
 {
   "name": "latex",
   "description": "TeX Live and LaTeX typesetting environment",
+  "category": "languages",
   "detect": {
     "files": [
       "latexmkrc",

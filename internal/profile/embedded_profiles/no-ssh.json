@@ -1,6 +1,7 @@
 {
   "name": "no-ssh",
   "description": "Block all SSH access, configuration, and host keys",
+  "category": "restrictions",
   "features": {"enable_ssh": false, "auto_repo_deploy_key": false},
   "mask": [
     "~/.ssh",
