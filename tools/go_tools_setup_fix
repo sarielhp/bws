@@ -3,6 +3,7 @@
 
 # Links an existing user-level Go installation into ~/.local/bin and points
 # GOPATH at ~/.go, so non-interactive shells (sync_all, ssh host cmd) find go.
+require 'etc'
 require 'fileutils'
 require 'open3'
 
@@ -124,16 +125,28 @@ def set_gopath(goroot, opts)
   abort('go env -w GOPATH failed') unless status.success?
 end
 
+# check_path reports whether a non-interactive shell, started the way sshd
+# runs "ssh host cmd", finds ~/.local/bin and ~/.go/bin on PATH.
 def check_path
-  dirs = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).map { |dir| File.expand_path(dir) }
-  missing = [BIN_DIR, File.join(GOPATH_DIR, 'bin')].reject { |dir| dirs.include?(dir) }
-  return puts('  ok      PATH includes ~/.local/bin and ~/.go/bin') if missing.empty?
+  missing = [BIN_DIR, File.join(GOPATH_DIR, 'bin')] - remote_command_path
+  return puts('  ok      non-interactive shells have ~/.local/bin and ~/.go/bin on PATH') if missing.empty?
 
-  puts "\nPATH is missing: #{missing.join(', ')}"
-  puts 'Add it where non-interactive shells read it, e.g. near the top of ~/.bashrc'
-  puts '(before the "not interactive, stop" check):'
+  puts "\nNon-interactive shells (ssh host cmd, sync_all) lack: #{missing.join(', ')}"
+  puts 'bash: put this at the very top of ~/.bashrc, before the "not interactive" return:'
   puts '  export PATH="$HOME/.local/bin:$HOME/.go/bin:$PATH"'
-  puts 'or, in fish: fish_add_path ~/.local/bin ~/.go/bin'
+  puts 'fish: fish_add_path -U ~/.local/bin ~/.go/bin'
+end
+
+# remote_command_path returns the PATH the login shell builds from sshd's
+# minimal environment for a command run without a terminal.
+def remote_command_path
+  shell = Etc.getpwuid.shell
+  env = { 'HOME' => HOME, 'USER' => Etc.getlogin.to_s, 'SHELL' => shell,
+          'PATH' => '/usr/local/bin:/usr/bin:/bin', 'SSH_CLIENT' => '127.0.0.1 0 22' }
+  out, status = Open3.capture2(env, shell, '-c', 'printenv PATH', unsetenv_others: true, in: File::NULL)
+  return [] unless status.success?
+
+  out.strip.split(File::PATH_SEPARATOR).map { |dir| File.expand_path(dir) }
 end
 
 opts = parse_args(ARGV)
